@@ -1,0 +1,8 @@
+{
+  "appId": "com.rasticpack.app",
+  "appName": "رستیک پک",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
