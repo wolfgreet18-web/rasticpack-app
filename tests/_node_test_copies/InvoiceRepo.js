@@ -376,6 +376,54 @@ export const InvoiceRepo = {
     return map;
   },
 
+  /**
+   * ✅ فاز ۲ / گروه ب / مورد ۶ — فهرست customerId های یکتای موجود در فاکتورها،
+   * به‌همراه یک customerName نمونه برای هرکدام (برای زمانی که getCustomerById
+   * رکورد مشتری را پیدا نکند — مثلاً مشتری بعداً حذف شده). این متد جایگزین
+   * `[...new Set(invoices.map(i=>i.customerId))]` + `invoices.find(...)` در
+   * `renderInvoicesFilterOptions` (html8.html) شد — همان الگوی GROUP BY
+   * بدون تابع تجمیعی روی customerName که در getStatsLeaders بالا هم استفاده
+   * شده (SQLite یک مقدار از یکی از ردیف‌های گروه انتخاب می‌کند؛ چون این ستون
+   * فقط برای برچسبِ fallback است، نه منبع رسمی نام، این رفتار کافی است).
+   *
+   * @returns {Promise<Array<{customerId:*, customerName:string}>>}
+   */
+  async getDistinctCustomers() {
+    const db = await getDb();
+    const res = await db.query(
+      `SELECT customerId, customerName FROM invoices WHERE customerId IS NOT NULL GROUP BY customerId`,
+      []
+    );
+    return res?.values || [];
+  },
+
+  /**
+   * ✅ فاز ۲ / گروه ب / مورد ۴ — به‌روزرسانی نام مشتری روی همه‌ی فاکتورهای
+   * مرتبط، به‌صورت یک UPDATE گروهی به‌جای لوپ روی آرایه + `save` تکی برای
+   * هر فاکتور (که در نسخه‌ی قبلی html8.html هر بار تغییر نام مشتری، یک
+   * فراخوانی جدای Repo به‌ازای هر فاکتور آن مشتری می‌ساخت — دقیقاً همان
+   * الگوی N+1 که در مورد ۳ برای شمارش رفع شد).
+   *
+   * ⚠️ نکته‌ی کشف‌شده حین همین مورد: `customerName` علاوه بر `invoices` روی
+   * `invoice_items` هم denormalize شده (schema.js، برای کوئری‌های تب آمار
+   * بدون JOIN). اگر فقط `invoices` را UPDATE می‌کردیم، بعد از تغییر نام
+   * مشتری، تب آمار همچنان نام قدیمی را برای فاکتورهای قبلی نشان می‌داد —
+   * پس هر دو جدول باید در یک تراکنش واحد به‌روز شوند.
+   *
+   * @param {number|string} customerId
+   * @param {string} newName
+   * @returns {Promise<boolean>}
+   */
+  async updateCustomerNameForInvoices(customerId, newName) {
+    if (customerId == null || customerId === '') return false;
+    const db = await getDb();
+    return db.withTransaction(async (tx) => {
+      await tx.run(`UPDATE invoices SET customerName = ? WHERE customerId = ?`, [newName, customerId]);
+      await tx.run(`UPDATE invoice_items SET customerName = ? WHERE customerId = ?`, [newName, customerId]);
+      return true;
+    });
+  },
+
   async getById(id) {
     const db = await getDb();
     const res = await db.query(`SELECT * FROM invoices WHERE id = ?`, [id]);

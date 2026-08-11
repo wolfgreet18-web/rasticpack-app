@@ -18,7 +18,7 @@
 | 2458 | `invoices.push(newInv);` | فقط آرایه — بعد از ایجاد فاکتور جدید |
 | ~~3397~~ | ~~`invoices.filter(inv=>inv.customerId===c.id)`~~ | ✅ **[فاز ۲ گروه ب مورد ۳] حذف شد** — `renderCustomerViewCard` حالا `invoiceCount` را از `renderCustomersList` می‌گیرد (که یک‌جا با `InvoiceRepo.getCountsByCustomerIds` برای کل صفحه‌ی جاری پر می‌شود)؛ `invoices.filter` فقط fallback وقتی `invoiceCount` پاس داده نشود |
 | 3538 | `invoices.filter(inv=>inv.customerId===custInvModalCustomerId)` | **دارد fallback به Repo** (یافته‌ی فاز ۲ گروه ب مورد ۲) — `renderCustInvoicesModal` از `fetchCustomerInvoicesPage`→`InvoiceRepo.getPage({customerId})` تغذیه می‌شود؛ این خط فقط fallback/چک طول است |
-| 3571 | `invoices.forEach(inv=>{...dbSaveInvoice(inv);})` | فقط آرایه — نوشتن گروهی (به‌روزرسانی نام مشتری روی فاکتورها) |
+| ~~3571~~ (اکنون ~3597) | ~~`invoices.forEach(inv=>{...dbSaveInvoice(inv);})`~~ | ✅ **[فاز ۲ گروه ب مورد ۴] حذف شد** — `saveCustomerEdit` حالا با `idbBulkPut` (یک نوشتن گروهی به‌جای N بار `idbPut`) و `InvoiceRepo.updateCustomerNameForInvoices(customerId,name)` (یک `UPDATE` گروهی تراکنشی روی `invoices`+`invoice_items`، به‌جای N بار `InvoiceRepo.save` تکی) کار می‌کند؛ آرایه‌ی حافظه هنوز مستقیماً ویرایش می‌شود (`affected.forEach(inv=>{inv.customerName=name;})`) چون بازنمایی خودِ حافظه هنوز منبع UI است |
 | 3732 | `invoices.forEach(...)` | فقط آرایه — تجمیع آمار |
 | 3774-3795 | حلقه‌ی `for` روی `invoices.length` / `invoices[i]` (×۲ بلاک) | فقط آرایه — آمار/جمع‌بندی سنگین |
 | 3945 | `if(!invoices.length)` | فقط آرایه — چک خالی‌بودن قبل از رندر آمار |
@@ -26,15 +26,15 @@
 | ~~4204~~ | ~~`invoices.map(inv=>inv.date)`~~ | ✅ **[فاز ۲ گروه الف] حذف شد** — `fetchInvMonthList` (اکنون خط ۴۱۹۵-۴۲۰۸) دیگر fallback ندارد، فقط `InvoiceRepo.getAllDates`؛ در نبود Repo `[]` برمی‌گرداند |
 | 4211 (جابجا شده از ۴۲۰۸) | `invoices.length` / `invoices[invoices.length-1]` | فقط آرایه — امضای کش (`buildInvMonthList`)، صرفاً برای invalidation، نه منبع داده — **عمداً دست‌نخورده، خارج از دامنه‌ی گروه الف** |
 | ~~4242-4243~~ | ~~`invoices.filter(...).length` (×۲)~~ | ✅ **[فاز ۲ گروه الف] حذف شد** — `fetchInvMonthCount` (اکنون خط ۴۲۳۳-۴۲۴۹) دیگر fallback ندارد، فقط `InvoiceRepo.getMonthCount`؛ در نبود Repo `0` برمی‌گرداند |
-| 4452 | `invoices.map(i=>i.customerId)` | فقط آرایه — `renderInvoicesFilterOptions` |
-| 4456 | `invoices.find(i=>i.customerId===id)` | فقط آرایه — همان تابع، fallback نام مشتری |
+| ~~4452~~ | ~~`invoices.map(i=>i.customerId)`~~ | ✅ **[فاز ۲ گروه ب مورد ۶] حذف شد** — `renderInvoicesFilterOptions` حالا async است و از `InvoiceRepo.getDistinctCustomers()` (یک کوئری `GROUP BY customerId` واحد) می‌خواند؛ در نبود Repo/خطا لیست مشتریان فیلتر خالی می‌ماند («همه مشتریان» تنها گزینه) |
+| ~~4456~~ | ~~`invoices.find(i=>i.customerId===id)`~~ | ✅ **[فاز ۲ گروه ب مورد ۶] حذف شد** — fallback نام مشتری حالا از همان نتیجه‌ی `getDistinctCustomers()` (Map محلی `nameById`) می‌آید، نه از آرایه‌ی حافظه |
 | 4693 (جابجا شده) | `let baseList=invoices.slice();` | **دارد fallback به Repo** (یافته‌ی فاز ۲ گروه ب مورد ۱) — رندر کارت‌ها از `fetchInvoicesPage`→`InvoiceRepo.getPage`/`getPageByCursor` می‌آید؛ این خط فقط fallback شمارش وضعیت/بدهکاران است، طبق کامنت خودِ کد |
-| 5266 | `invoices=invoices.filter(i=>i.id!==id);` | فقط آرایه — حذف فاکتور از حافظه بعد از حذف واقعی |
+| ~~5266~~ (اکنون ۵۳۱۴/۵۳۳۷) | ~~`invoices=invoices.filter(i=>i.id!==id);`~~ | ✅ **[فاز ۲ گروه ب مورد ۵] حذف شد** — `deleteInvoice` حالا `await dbDeleteInvoiceRecordWithStock(...)` می‌کند (که خودش async شد) تا حذف واقعی در Repo تمام شود قبل از رندر مجدد؛ رندرهای بعدی (`renderInvoicesList`/`renderCustInvoicesModal`) طبق موارد ۱ و ۲ همین گروه از `InvoiceRepo.getPage` می‌خوانند، نه آرایه. `invoices.splice`/`window.__invoiceCache.delete` فقط برای invalidation کشِ `resolveInvoiceById` نگه داشته شدند (باگ واقعی پیدا شد: `window.__invoiceCache` قبلاً هرگز اینجا پاک نمی‌شد) |
 | 6093 | `invoices=Array.isArray(data.invoices)?...` | فقط آرایه — بازگردانی کامل آرایه از بکاپ (بخشی از فاز ۴) |
 | 6108 | `invoices.reduce((x,i)=>Math.max(x,i.id),0)` | فقط آرایه — محاسبه‌ی `nextInvoiceId` بعد از restore (بخشی از فاز ۴) |
 | 6127 | `invoices.length` | فقط آرایه — فقط برای پیام موفقیت بکاپ، بی‌خطر |
 
-**جمع‌بندی (به‌روزرسانی فاز ۲ گروه ب، موارد ۱-۳):** ۲ مورد fallback‌دار قبلی (گروه الف) + ۲ مورد دیگر که این جلسه کشف شد از قبل fallback‌دار بوده‌اند (خط ۳۵۳۸ و ۴۶۹۳/مودال و فیلتر اصلی) و ۱ مورد که این جلسه fallback‌دار شد (خط ۳۳۹۷، با کوئری تجمیعی) = ۵ مورد fallback‌دار؛ ~۱۰ مورد باقی فقط-آرایه (موارد ۴-۶ گروه ب + فاز ۳/۴).
+**جمع‌بندی (به‌روزرسانی فاز ۲ گروه ب، موارد ۱-۶ — همه‌ی گروه ب تمام شد):** ۲ مورد fallback‌دار قبلی (گروه الف) + ۲ مورد دیگر که در جلسه‌ی قبل کشف شد از قبل fallback‌دار بوده‌اند (خط ۳۵۳۸ و ۴۶۹۳/مودال و فیلتر اصلی) + ۴ مورد که به‌صورت کوئری/نوشتن گروهی حل شدند (خط ۳۳۹۷ با کوئری تجمیعی، خط ۳۵۷۱ با `UPDATE` گروهی، خط ۵۲۶۶ با حذف async+invalidation کش، خط ۴۴۵۲/۴۴۵۶ با `getDistinctCustomers`) = ۸ مورد جمع‌بندی‌شده؛ موارد باقی‌مانده‌ی فقط-آرایه همگی خارج از دامنه‌ی فاز ۲ گروه ب‌اند (فاز ۳/۴).
 
 ---
 

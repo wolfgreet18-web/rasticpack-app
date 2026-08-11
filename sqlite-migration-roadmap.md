@@ -41,7 +41,7 @@
 
 ---
 
-## فاز ۲ — تبدیل خواندن‌های باقی‌مانده‌ی `invoices[]` (~۱ تا ۱٫۵ روز) 🔶 در حال انجام (گروه الف تمام شد؛ گروه ب موارد ۱-۳ تمام شدند)
+## فاز ۲ — تبدیل خواندن‌های باقی‌مانده‌ی `invoices[]` (~۱ تا ۱٫۵ روز) ✅ انجام شد (گروه الف و گروه ب هر دو کامل)
 
 هر مورد باید جداگانه بررسی و migrate شود؛ اینجا اولویت‌بندی بر اساس ریسک:
 
@@ -52,7 +52,7 @@
 - [x] خط ۴۲۰۸ (`invoices.length`/`invoices[invoices.length-1]` داخل `buildInvMonthList`) **عمداً دست‌نخورده ماند** — طبق چک‌لیست فاز ۰، این فقط امضای کش برای invalidation است، نه منبع داده، و در دامنه‌ی گروه الف نبود.
 - [x] تست‌های مرتبط اجرا شدند تا از عدم رگرسیون اطمینان حاصل شود: `run-integration-tests.mjs`، `phase1-migration-resilience-test.mjs`، تمام `invoice-*-test.mjs`، `backup-ndjson-test.mjs`، `lazy-load-cache-connect-test.mjs`، `stats-worker-test.mjs` — همگی سبز (۰ شکست).
 
-### گروه ب — کاملاً sync، مستقیم روی آرایه (ریسک بالا — دومینوی async) 🔶 در حال انجام (موارد ۱، ۲، ۳ تمام شدند)
+### گروه ب — کاملاً sync، مستقیم روی آرایه (ریسک بالا — دومینوی async) ✅ انجام شد (هر ۶ مورد تمام شدند)
 
 اولویت به ترتیب اهمیت در UI:
 
@@ -72,16 +72,27 @@
      - تست جدید `tests/invoice-counts-by-customer-test.mjs` (۸ assertion، همه سبز): شمارش درست چند مشتری، غیبت مشتری بدون فاکتور از نگاشت (نه صفر صریح)، فیلتر شدن به فقط idهای درخواستی، ورودی خالی/null-safe.
      - کپی Node-test (`tests/_node_test_copies/InvoiceRepo.js`) هم‌گام‌سازی شد؛ کل مجموعه تست‌های موجود (`run-integration-tests`, `customer-search-wire-test`, `customer-fts-search-test`, `invoice-getpage-cap-test`, `invoice-getpage-cursor-test`, `lazy-load-cache-connect-test`, `invoice-cursor-routing-test`, `stats-worker-test`, `backup-ndjson-test`) دوباره اجرا و همگی سبز ماندند (۰ رگرسیون).
 
-4. **به‌روزرسانی نام مشتری روی فاکتورهای مرتبط** (خط ۳۵۷۱، `invoices.forEach(...)`)
-   - [ ] این یک عملیات نوشتن گروهی است (نه فقط خواندن) — باید به یک متد batch-update در `InvoiceRepo` (مثل `updateCustomerNameForInvoices(customerId, newName)`) تبدیل شود، نه لوپ روی آرایه + `dbSaveInvoice` تکی.
+4. **به‌روزرسانی نام مشتری روی فاکتورهای مرتبط** (خط ۳۵۷۱، `invoices.forEach(...)`) ✅ انجام شد (این جلسه)
+   - [x] این یک عملیات نوشتن گروهی است (نه فقط خواندن) — باید به یک متد batch-update در `InvoiceRepo` (مثل `updateCustomerNameForInvoices(customerId, newName)`) تبدیل شود، نه لوپ روی آرایه + `dbSaveInvoice` تکی. *(اضافه شد: `InvoiceRepo.updateCustomerNameForInvoices(customerId, newName)` — یک `db.withTransaction` واحد که هر دو جدول `invoices` و `invoice_items` را `UPDATE` می‌کند.)*
+     - **یافته‌ی جانبی حین این مورد:** `customerName` نه‌فقط روی `invoices` بلکه روی `invoice_items` هم denormalize شده بود (برای کوئری‌های تب آمار بدون JOIN، طبق کامنت `schema.js`). اگر متد جدید فقط `invoices` را به‌روز می‌کرد، بعد از تغییر نام مشتری تب آمار همچنان نام قدیمی را برای فاکتورهای قبلی نشان می‌داد. رفع شد با یک تراکنش واحد که هر دو جدول را هم‌زمان `UPDATE` می‌کند.
+     - سمت `html8.html`: `saveCustomerEdit` دیگر لوپ+`dbSaveInvoice` تکی صدا نمی‌زند؛ آرایه‌ی حافظه با یک `idbBulkPut('invoices',affected)` (به‌جای N بار `idbPut`) و SQLite با یک فراخوانی `InvoiceRepo.updateCustomerNameForInvoices(id,name)` به‌روز می‌شود. اگر `InvoiceRepo`/متد در دسترس نباشد، بی‌صدا catch می‌شود و IndexedDB (که همیشه هم‌زمان نوشته می‌شود) تنها منبع باقی می‌ماند — همان سیاست «هر دو سیستم زنده».
+     - تست جدید `tests/update-customer-name-for-invoices-test.mjs` (۵ assertion، همه سبز): آپدیت گروهی درست، هم‌زمانی با `invoice_items`، عدم تأثیر روی مشتری دیگر، `customerId` بدون فاکتور بدون خطا، `customerId` تهی/null بدون کوئری.
+     - کپی Node-test (`tests/_node_test_copies/InvoiceRepo.js`) هم‌گام‌سازی شد؛ کل مجموعه تست‌های موجود (`run-integration-tests`, `invoice-counts-by-customer-test`, `invoice-getpage-cap-test`, `invoice-getpage-cursor-test`, `invoice-cursor-routing-test`, `customer-search-wire-test`, `customer-fts-search-test`, `lazy-load-cache-connect-test`, `stats-worker-test`, `backup-ndjson-test`, `phase1-migration-resilience-test`, `write-integrity-test`) دوباره اجرا و همگی سبز ماندند (۰ رگرسیون).
 
-5. **حذف فاکتور از آرایه** (خط ۵۲۶۶)
-   - [ ] `invoices=invoices.filter(...)` باید حذف شود؛ منبع حقیقت مستقیماً از `InvoiceRepo.remove`/`deleteWithStockRestore` می‌آید و UI باید بعد از حذف دوباره از Repo بخواند، نه آرایه‌ی محلی را دستکاری کند.
+5. **حذف فاکتور از آرایه** (خط ۵۲۶۶) ✅ انجام شد (این جلسه)
+   - [x] `invoices=invoices.filter(...)` باید حذف شود؛ منبع حقیقت مستقیماً از `InvoiceRepo.remove`/`deleteWithStockRestore` می‌آید و UI باید بعد از حذف دوباره از Repo بخواند، نه آرایه‌ی محلی را دستکاری کند. *(`dbDeleteInvoiceRecordWithStock` از fire-and-forget به `async` تبدیل شد (نتیجه‌ی هر دو مسیر `deleteWithStockRestore`/`remove` حالا await می‌شود). `deleteInvoice` دیگر `invoices=invoices.filter(...)` را به‌عنوان مکانیزم حذف صدا نمی‌زند؛ به‌جایش `await dbDeleteInvoiceRecordWithStock(...)` می‌کند و سپس رندر مجدد را صدا می‌زند — رندرها (`renderInvoicesList`/`renderCustInvoicesModal`) طبق موارد ۱ و ۲ همین گروه از `InvoiceRepo.getPage` می‌خوانند، نه از آرایه. **باگ واقعی پیدا شد**: `window.__invoiceCache` (کش LRU مستقل `resolveInvoiceById`) هیچ‌وقت بعد از حذف invalidate نمی‌شد — فقط آرایه‌ی حافظه فیلتر می‌شد؛ یعنی روی یک اپ با بارگذاری پس‌زمینه‌ی ناتمام، کلیک بعدی روی همان فاکتور می‌توانست رکورد حذف‌شده را از کش برگرداند. رفع شد با `window.__invoiceCache.delete(id)` کنار `invoices.splice(idx,1)` (به‌جای بازساخت کل آرایه با `filter`) — هر دو صرفاً invalidation کش هستند، نه مسیر حذف.)*
 
-6. سایر موارد (`renderInvoicesFilterOptions` خط ۴۴۵۲، `nextInvoiceId` محاسبه‌شده از `invoices.reduce` در بازیابی بکاپ خط ۶۱۰۸) — این آخری در واقع بخشی از فاز ۴ (بکاپ) است، نه اینجا.
+6. **دراپ‌داون فیلتر مشتری در لیست فاکتورها** (خط ۴۴۵۲-۴۴۵۶، `renderInvoicesFilterOptions`) ✅ انجام شد (این جلسه)
+   - [x] `[...new Set(invoices.map(i=>i.customerId))]` + `invoices.find(...)` (fallback نام) به یک متد جدید `InvoiceRepo.getDistinctCustomers()` تبدیل شد — یک کوئری واحد `SELECT customerId, customerName FROM invoices GROUP BY customerId` (همان الگوی بدون-تابع-تجمیعی‌روی-customerName که در `getStatsLeaders` هم استفاده شده)، نه N کوئری per-customer. متد داخل `InvoiceRepo.js` (کنار `getCountsByCustomerIds`) اضافه شد و در کپی تست Node (`tests/_node_test_copies/InvoiceRepo.js`) هم‌گام‌سازی شد.
+   - [x] `renderInvoicesFilterOptions` به async تبدیل شد. *(بررسی فراخوان‌کنندگان: همه‌ی ۶ نقطه‌ی صدازدن — `renderAll`، `switchTab`، بعد از ثبت فاکتور جدید، بعد از ویرایش مشتری، سوییچر ماه، و مرجع `Invoices.renderFilters` — از قبل بدون `await` صدا می‌زنند، دقیقاً هم‌الگو با `renderInvoicesList` که خودش هم async است ولی همه‌جا fire-and-forget فراخوانی می‌شود؛ چون تنها اثر جانبی این تابع نوشتن `innerHTML` یک `<select>` است (نه یک مقدار بازگشتی که فراخوان‌کننده لازم داشته باشد)، این الگوی جاافتاده‌ی خودِ کدبیس همچنان درست است — نیازی به تغییر هیچ‌کدام از فراخوان‌کنندگان نبود.)*
+   - [x] در نبود `window.__InvoiceRepo`/متد یا خطای کوئری، دراپ‌داون فقط «همه مشتریان» را نشان می‌دهد (نه throw) — دقیقاً هم‌قرارداد `fetchInvMonthList`/`fetchInvMonthCount` در گروه الف همین فاز.
+   - [x] تست جدید `tests/invoice-distinct-customers-test.mjs` (۴ assertion، همه سبز): چند فاکتور با customerId تکراری → دقیقاً یک ردیف per-customer، نام مشتری درست، جدول خالی → `[]` بدون throw.
+   - [x] مجموعه‌ی تست‌های مرتبط دوباره اجرا شدند تا از عدم رگرسیون اطمینان حاصل شود: `invoice-distinct-customers-test`, `invoice-counts-by-customer-test`, `invoice-getpage-cap-test`, `invoice-getpage-cursor-test`, `invoice-cursor-routing-test`, `invoice-cache-test`, `invoice-items-denormalize-test`, `resolve-invoice-by-id-test`, `customer-search-wire-test`, `customer-fts-search-test`, `lazy-load-cache-connect-test`, `stats-worker-test`, `backup-ndjson-test`, `phase1-migration-resilience-test`, `write-integrity-test`, `update-customer-name-for-invoices-test`, `run-integration-tests` — همگی سبز (۰ رگرسیون). *(`nextInvoiceId` محاسبه‌شده از `invoices.reduce` در بازیابی بکاپ، خط ۶۱۰۸، در دامنه‌ی این مورد نبود — بخشی از فاز ۴ بکاپ است.)*
 
-- [ ] بعد از هر مورد، تست دستی + اجرای `tests/invoice-*` مرتبط.
-- [ ] برای هر تابعی که از sync به async تبدیل می‌شود، **همه‌ی فراخوانی‌کنندگانش** (نه فقط مستقیم، بلکه زنجیره‌ی کامل تا event handler اصلی مثل `onclick`) باید بررسی و await بگیرند. پیشنهاد: قبل از تبدیل هر تابع، با `grep` همه‌ی جاهایی که آن تابع صدا زده می‌شود را لیست کن.
+**فاز ۲ / گروه ب کامل شد** — هر ۶ مورد اولویت‌بندی‌شده انجام شدند.
+
+- [x] بعد از هر مورد، تست دستی + اجرای `tests/invoice-*` مرتبط. *(برای هر ۶ مورد گروه ب انجام شد.)*
+- [x] برای هر تابعی که از sync به async تبدیل می‌شود، **همه‌ی فراخوانی‌کنندگانش** (نه فقط مستقیم، بلکه زنجیره‌ی کامل تا event handler اصلی مثل `onclick`) باید بررسی و await بگیرند. پیشنهاد: قبل از تبدیل هر تابع، با `grep` همه‌ی جاهایی که آن تابع صدا زده می‌شود را لیست کن. *(برای هر ۶ مورد انجام شد؛ آخرین مورد — `renderInvoicesFilterOptions` — طبق بررسی بالا.)*
 
 ---
 
@@ -132,7 +143,8 @@
 |---|---|---|---|
 | ۰ | هیچ (فقط مستندسازی) | بله | ✅ انجام شد |
 | ۱ | migration ناقص روی داده‌ی واقعی کشف نشود | بله (چیزی حذف نمی‌شود) | ✅ انجام شد — ۲ باگ واقعی پیدا و رفع شد (رکورد ناقص کرش می‌کرد؛ `result.skipped` هیچ‌وقت true نمی‌شد) |
-| ۲/۳ | فراموشی `await` در زنجیره‌ی فراخوانی → باگ خاموش | نسبتاً (کد قابل revert است) | – |
+| ۲ | فراموشی `await` در زنجیره‌ی فراخوانی → باگ خاموش | نسبتاً (کد قابل revert است) | ✅ انجام شد — هر ۶ مورد گروه ب + هر دو مورد گروه الف، بدون رگرسیون |
+| ۳ | همان ریسک فاز ۲، روی `customers[]` | نسبتاً (کد قابل revert است) | – |
 | ۴ | خرابی بکاپ/بازیابی → از دست رفتن داده‌ی کاربر در همان لحظه | باید قبل از merge تست شود | – |
 | ۵ | حذف idb helperها بدون اطمینان کافی → دیگر مسیر برگشت نیست | **خیر — نقطه‌ی بی‌بازگشت** | – |
 | ۶ | چیزی از قلم بیفتد که تست پوشش نمی‌دهد | - | – |

@@ -1067,18 +1067,27 @@ function dbSaveInvoiceWithStock(inv,stockDeductions){
     window.__InvoiceRepo.save(inv).catch(e=>console.debug('InvoiceRepo.save (fallback فاز ۵، بدون insertWithStockUpdate) ناموفق:',e?.message));
   }
 }
-function dbDeleteInvoiceRecordWithStock(id,stockRestorations){
+/* فاز ۲ گروه ب #۵ (نقشه‌راه): این تابع حالا async است و کارش را await می‌کند —
+   قبلاً fire-and-forget بود، یعنی deleteInvoice بلافاصله بعد از صدازدن این تابع
+   دوباره از Repo رندر می‌کرد، در حالی که تراکنش SQL حذف ممکن بود هنوز commit
+   نشده باشد (race). حالا caller می‌تواند await کند تا مطمئن شود حذف واقعاً از
+   Repo (منبع حقیقت) تمام شده، قبل از اینکه UI دوباره از همان Repo بخواند. */
+async function dbDeleteInvoiceRecordWithStock(id,stockRestorations){
   idbDelete('invoices',id);
   if(typeof invalidateInvoiceCursorCache==='function') invalidateInvoiceCursorCache();
   if(window.__InvoiceRepo&&typeof window.__InvoiceRepo.deleteWithStockRestore==='function'){
-    window.__InvoiceRepo.deleteWithStockRestore(id,stockRestorations||[]).catch(e=>{
+    try{
+      await window.__InvoiceRepo.deleteWithStockRestore(id,stockRestorations||[]);
+    }catch(e){
       console.debug('InvoiceRepo.deleteWithStockRestore ناموفق (فاز ۵) — IndexedDB همچنان به‌روز است:',e?.message);
       if(window.__InvoiceRepo&&typeof window.__InvoiceRepo.remove==='function'){
-        window.__InvoiceRepo.remove(id).catch(e2=>console.debug('InvoiceRepo.remove (fallback فاز ۵) هم ناموفق:',e2?.message));
+        try{ await window.__InvoiceRepo.remove(id); }
+        catch(e2){ console.debug('InvoiceRepo.remove (fallback فاز ۵) هم ناموفق:',e2?.message); }
       }
-    });
+    }
   }else if(window.__InvoiceRepo&&typeof window.__InvoiceRepo.remove==='function'){
-    window.__InvoiceRepo.remove(id).catch(e=>console.debug('InvoiceRepo.remove (fallback فاز ۵، بدون deleteWithStockRestore) ناموفق:',e?.message));
+    try{ await window.__InvoiceRepo.remove(id); }
+    catch(e){ console.debug('InvoiceRepo.remove (fallback فاز ۵، بدون deleteWithStockRestore) ناموفق:',e?.message); }
   }
 }
 
@@ -3594,7 +3603,20 @@ function saveCustomerEdit(id){
   Object.assign(c,{name,company,address,phone,lat,lng,locationLink});
   dbSaveCustomer(c);
   if(nameChanged){
-    invoices.forEach(inv=>{if(inv.customerId===id){inv.customerName=name;dbSaveInvoice(inv);}});
+    /* فاز ۲ / گروه ب / مورد ۴ (نقشه‌راه): قبلاً این لوپ به‌ازای هر فاکتورِ
+       مشتری یک dbSaveInvoice تکی صدا می‌زد — یعنی هم N بار idbPut و هم N بار
+       InvoiceRepo.save جدا (N+1 روی SQLite). حالا آرایه/IndexedDB با یک
+       idbBulkPut (به‌جای N idbPut) به‌روز می‌شوند و SQLite با یک UPDATE
+       گروهی واحد (InvoiceRepo.updateCustomerNameForInvoices) — نه لوپ. */
+    const affected=invoices.filter(inv=>inv.customerId===id);
+    if(affected.length){
+      affected.forEach(inv=>{inv.customerName=name;});
+      idbBulkPut('invoices',affected);
+      if(typeof invalidateInvoiceCursorCache==='function') invalidateInvoiceCursorCache();
+      if(window.__InvoiceRepo&&typeof window.__InvoiceRepo.updateCustomerNameForInvoices==='function'){
+        window.__InvoiceRepo.updateCustomerNameForInvoices(id,name).catch(e=>console.debug('InvoiceRepo.updateCustomerNameForInvoices ناموفق (فاز ۲ / گروه ب / مورد ۴) — IndexedDB همچنان به‌روز است:',e?.message));
+      }
+    }
     renderInvoicesFilterOptions();renderInvoicesList();
   }
   editingCustomerId=null;
@@ -4482,13 +4504,34 @@ function selectInvDateExact(val){
   renderInvoicesList();
 }
 
-function renderInvoicesFilterOptions(){
+/* ✅ نقشه‌راه SQLite / فاز ۲ / گروه ب / مورد ۶ — قبلاً مستقیم و sync روی
+   آرایه‌ی حافظه‌ی `invoices` کار می‌کرد (`[...new Set(invoices.map(...))]` +
+   `invoices.find(...)` برای برچسبِ fallback). الان از
+   `InvoiceRepo.getDistinctCustomers()` (یک کوئری تجمیعی GROUP BY، نه N کوئری)
+   می‌خواند. مثل `renderInvoicesList`/`fetchInvMonthCount` در همین فایل، این
+   تابع async شده ولی همه‌جای کد بدون await صدا زده می‌شود («fire-and-forget»
+   — الگوی از قبل جاافتاده‌ی همین کدبیس برای توابع render*)؛ چون تنها اثر جانبی
+   این تابع نوشتن innerHTML یک <select> است، تأخیر چند میلی‌ثانیه‌ای کوئری
+   قابل توجه/خطرناک نیست. اگر Repo در دسترس نباشد یا خطا بدهد، لیست مشتریان
+   خالی می‌ماند (فقط «همه مشتریان») به‌جای کرش — همان قرارداد خطای
+   fetchInvMonthList/fetchInvMonthCount در گروه الف همین فاز. */
+async function renderInvoicesFilterOptions(){
   const sel=$('inv-filter-customer'); if(!sel) return;
-  const ids=[...new Set(invoices.map(i=>i.customerId))];
   const cur=sel.value;
+  let rows=[];
+  if(window.__InvoiceRepo&&typeof window.__InvoiceRepo.getDistinctCustomers==='function'){
+    try{
+      rows=await window.__InvoiceRepo.getDistinctCustomers()||[];
+    }catch(e){
+      console.error('renderInvoicesFilterOptions: getDistinctCustomers failed',e);
+      rows=[];
+    }
+  }
+  const ids=rows.map(r=>r.customerId);
+  const nameById=new Map(rows.map(r=>[String(r.customerId),r.customerName]));
   sel.innerHTML='<option value="">همه مشتریان</option>'+ids.map(id=>{
     const c=getCustomerById(id);
-    const label=c?c.name:(invoices.find(i=>i.customerId===id)?.customerName||'—');
+    const label=c?c.name:(nameById.get(String(id))||'—');
     return`<option value="${id}">${escapeHtml(label)}</option>`;
   }).join('');
   if(ids.map(String).includes(cur)) sel.value=cur;
@@ -5298,8 +5341,23 @@ async function deleteInvoice(id){
   const restoreBySheet={};
   inv.items.forEach(it=>{restoreBySheet[it.sheetId]=(restoreBySheet[it.sheetId]||0)+it.qty;});
   const stockRestorations=Object.entries(restoreBySheet).map(([sheetId,qtyDelta])=>({itemId:Number(sheetId),qtyDelta}));
-  invoices=invoices.filter(i=>i.id!==id);
-  dbDeleteInvoiceRecordWithStock(id,stockRestorations);
+  /* فاز ۲ گروه ب #۵ (نقشه‌راه): قبلاً اینجا `invoices=invoices.filter(i=>i.id!==id)`
+     بود و بلافاصله (بدون await) dbDeleteInvoiceRecordWithStock صدا زده می‌شد —
+     یعنی UI را از روی آرایه‌ی محلی، نه از منبع حقیقت (Repo)، به‌روز می‌کردیم، و
+     رندر مجدد ممکن بود قبل از commit شدن تراکنش SQL اجرا شود. حالا حذف واقعی
+     در Repo (deleteWithStockRestore/remove) await می‌شود؛ توابع render زیر
+     (renderInvoicesList/renderCustInvoicesModal و ...) طبق فاز ۲ گروه الف/ب
+     خودشان از InvoiceRepo.getPage می‌خوانند، پس بعد از این await دیگر فاکتور
+     حذف‌شده را نشان نمی‌دهند — بدون نیاز به دستکاری آرایه به‌عنوان «مکانیزم حذف». */
+  await dbDeleteInvoiceRecordWithStock(id,stockRestorations);
+  /* آرایه‌ی invoices[] و window.__invoiceCache اینجا فقط به‌عنوان کش خواندنِ
+     resolveInvoiceById پاک‌سازی می‌شوند، نه به‌عنوان مسیر حذف — اگر پاک نشوند،
+     resolveInvoiceById در کلیک بعدی همان رکورد حذف‌شده را از کش قدیمی برمی‌گرداند
+     (باگ واقعی که در این مورد پیدا شد: window.__invoiceCache قبلاً هیچ‌وقت اینجا
+     invalidate نمی‌شد، فقط آرایه‌ی حافظه فیلتر می‌شد). */
+  const idx=invoices.findIndex(i=>i.id===id);
+  if(idx!==-1) invoices.splice(idx,1);
+  if(window.__invoiceCache&&typeof window.__invoiceCache.delete==='function') window.__invoiceCache.delete(id);
   if(editingInvoiceId===id) editingInvoiceId=null;
   renderInventoryTable();renderInvoicesFilterOptions();renderInvoicesList();renderCustomersList();renderCustInvoicesModal();
   saveState();
