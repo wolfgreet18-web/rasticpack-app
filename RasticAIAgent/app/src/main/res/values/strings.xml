@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Rastic AI Agent</string>
+    <string name="accessibility_service_description">Rastic Agent برای خواندن صفحه و اجرای دستورات (کلیک، اسکرول، بازکردن برنامه) به این سرویس نیاز دارد.</string>
+</resources>
