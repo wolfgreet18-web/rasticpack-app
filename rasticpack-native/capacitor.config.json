@@ -1,0 +1,16 @@
+{
+  "appId": "ir.rasticpack.app",
+  "appName": "رستیک پک",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorSQLite": {
+      "androidIsEncryption": false
+    }
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
