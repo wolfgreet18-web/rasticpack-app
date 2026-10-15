@@ -8,6 +8,9 @@ on:
       - '.github/workflows/build-rasticpack-native.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -49,3 +52,14 @@ jobs:
         with:
           name: rasticpack-native-apk
           path: rasticpack-native/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Save APK into the branch
+        working-directory: .
+        run: |
+          mkdir -p rasticpack-native/dist
+          cp rasticpack-native/android/app/build/outputs/apk/debug/app-debug.apk rasticpack-native/dist/rasticpack-native-debug.apk
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -f rasticpack-native/dist/rasticpack-native-debug.apk
+          git commit -m "Add built APK [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:android-apk
