@@ -19,3 +19,16 @@ Compare against baseline-2026-10-17.jsonl. Run scenarios sequentially (2 CPU cor
 - Invoice list scroll (virtual list) stays smooth up to 500k invoices (1-4% missed frames, occasional 0.13-0.45 s hitches at x8 with big lists).
 - JS heap after GC: 7 MB (10k inv), 52 MB (100k), 102 MB (200k), 253 MB (500k).
 - SQLite paths in the HTML are inactive (window.__InvoiceRepo is the module namespace, methods undefined), so the app runs on in-memory arrays + IndexedDB.
+
+## After optimisation (HTML-only changes) — 2026-10-17
+Raw: `after-2026-10-17.jsonl`. Same harness/scenarios, CPU throttle x4 / x8 (ms, before -> after):
+
+| scenario (inv) | list re-render x4 | list re-render x8 | filter options x4 | stats year x4 | stats year x8 |
+|---|---|---|---|---|---|
+| 10k  | 221 -> 53 | 397 -> 96 | 106 -> 0 | 272 -> 43 | 542 -> 75 |
+| 30k  | 524 -> 70 | 1091 -> 130 | 475 -> 1 | 895 -> 141 | 1790 -> 254 |
+| 100k | 1770 -> 177 | 3421 -> 362 | 1727 -> 0 | 3382 -> 405 | 5414 -> 967 |
+| 200k | 3605 -> 252 | 7522 -> 664 | 1882 -> 1 | 6485 -> 770 | 13904 -> 1846 |
+
+Customer list is now virtualised (createVirtualList); per-keystroke render incl. layout (5k/20k customers, x4): 358/265 -> 113/115 ms; x8: 489/606 -> 164/182 ms.
+Note: `cust all` / `custK` numbers in the after file measure only synchronous JS (render is now async) — use `custrender` style timing (await a frame) for customer comparisons.

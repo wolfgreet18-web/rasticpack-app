@@ -3600,6 +3600,7 @@ function submitCalc2Invoice(){
   const newInv={id:nextInvoiceId++,customerId:customer.id,customerName:customer.name,
     date:new Date().toISOString(),type:'final',status:'draft',items,totalSheets:items.reduce((a,b)=>a+b.qty,0)};
   invoices.push(newInv);
+  invalidateInvFilterOptions();
   dbSaveInvoice(newInv);
   renderInventoryTable();renderInvoicesFilterOptions();renderInvoicesList();renderCustomersList();renderCustInvoicesModal();
   saveState();
@@ -4489,20 +4490,53 @@ function removeCustomer(id){
   renderCustomersList();renderCustomerDatalist();saveState();
 }
 
+/* ══ بهینه‌سازی لیست مشتری ══
+   ۱) شمارش فاکتور هر مشتری قبلاً داخل هر کارت با invoices.filter محاسبه می‌شد (هزینه = تعداد کارت × کل فاکتورها).
+      حالا یک‌بار برای همه شمرده می‌شود و تا وقتی فاکتورها عوض نشده کش می‌ماند.
+   ۲) «نمایش مشتریان بعدی» فقط کارت‌های جدید را به انتهای لیست اضافه می‌کند (نه ساخت دوباره‌ی همه‌ی کارت‌ها).
+   ۳) CSS content-visibility:auto روی کارت‌ها — کارت‌های خارج از صفحه رندر نمی‌شوند، اسکرول لیست‌های بلند روان می‌ماند. */
+let _custCountMap=null,_custCountSig=null,_custCountRef=null;
+function getCustInvCount(id){
+  const n=invoices.length;
+  const sig=_invFilterGen+'|'+n+'|'+(n?invoices[0].id:'')+'|'+(n?invoices[n-1].id:'');
+  if(!_custCountMap||_custCountSig!==sig||_custCountRef!==invoices){
+    const m=new Map();
+    for(let i=0;i<n;i++){const k=invoices[i].customerId; m.set(k,(m.get(k)||0)+1);}
+    _custCountMap=m;_custCountSig=sig;_custCountRef=invoices;
+  }
+  return _custCountMap.get(id)||0;
+}
+function _custFilteredList(){
+  const q=($('cust-search')?.value||'').trim().toLowerCase();
+  return{q,list:q?customers.filter(c=>c.name.toLowerCase().includes(q)||(c.company||'').toLowerCase().includes(q)):customers};
+}
+let _custVirtualList=null;
+const CUST_CARD_EST_H=84;
 function renderCustomersList(){
   const wrap=$('cust-list'); if(!wrap) return;
-  if(!customers.length){wrap.innerHTML=`<div class="empty-state">هیچ مشتری‌ای ثبت نشده.</div>`;return;}
-  const q=($('cust-search')?.value||'').trim().toLowerCase();
-  const list=q?customers.filter(c=>c.name.toLowerCase().includes(q)||(c.company||'').toLowerCase().includes(q)):customers;
-  if(!list.length){wrap.innerHTML=`<div class="empty-state">مشتری‌ای پیدا نشد.</div>`;return;}
-  /* اگر جستجو عوض شده، صفحه‌بندی از اول شروع شود */
-  if(_custRenderSig!==q){custRenderLimit=PAGE_SIZE;_custRenderSig=q;}
-  const visible=list.slice(0,custRenderLimit);
-  const remaining=list.length-custRenderLimit;
-  wrap.innerHTML=visible.map(c=>c.id===editingCustomerId?renderCustomerEditCard(c):renderCustomerViewCard(c)).join('')
-    +(remaining>0?`<button type="button" class="btn btn-flat" style="width:100%;margin-top:6px" onclick="custRenderLimit+=${PAGE_SIZE};renderCustomersList()">نمایش ${Math.min(PAGE_SIZE,remaining)} مشتری بعدی (${remaining} مورد باقیمانده)</button>`:'');
+  if(!customers.length){
+    if(_custVirtualList){_custVirtualList.destroy();_custVirtualList=null;}
+    wrap.innerHTML=`<div class="empty-state">هیچ مشتری‌ای ثبت نشده.</div>`;return;
+  }
+  const{q,list}=_custFilteredList();
+  if(!list.length){
+    if(_custVirtualList){_custVirtualList.destroy();_custVirtualList=null;}
+    wrap.innerHTML=`<div class="empty-state">مشتری‌ای پیدا نشد.</div>`;return;
+  }
+  _custRenderSig=q;
+  /* لیست مشتری مثل لیست فاکتور پنجره‌ای (virtual) است: فقط کارت‌های داخل صفحه + بافر در DOM هستند،
+     پس با ۱۰۰۰ یا ۵۰٬۰۰۰ مشتری هم تعداد کارت‌های DOM ثابت می‌ماند و دکمه‌ی «نمایش بعدی» لازم نیست. */
+  if(_custVirtualList) _custVirtualList.destroy();
+  _custVirtualList=createVirtualList({
+    container:wrap,
+    estimateItemHeight:CUST_CARD_EST_H,
+    buffer:6,
+    fetchItems:(offset,limit)=>list.slice(offset,offset+limit),
+    renderItem:c=>c.id===editingCustomerId?renderCustomerEditCard(c):renderCustomerViewCard(c),
+    emptyHtml:()=>`<div class="empty-state">مشتری‌ای پیدا نشد.</div>`
+  });
+  _custVirtualList.setTotal(list.length);
 }
-
 function customerMapHtml(c){
   const hasLoc=c.lat!=null&&c.lng!=null&&!isNaN(c.lat)&&!isNaN(c.lng);
   if(!hasLoc){
@@ -4520,7 +4554,7 @@ function customerMapHtml(c){
     </div>`;
 }
 function renderCustomerViewCard(c){
-    const ci=invoices.filter(inv=>inv.customerId===c.id);
+    const ciCount=getCustInvCount(c.id);
     const custPhone=sanitizePhone(c.phone);
     const cardBody=buildCardShabaSmsBody();
     const addressBody=buildStoreAddressSmsBody();
@@ -4533,7 +4567,7 @@ function renderCustomerViewCard(c){
           <div class="inv-card-dims">${escapeHtml(c.name)}${c.company?' — '+escapeHtml(c.company):''}</div>
           <div class="inv-card-meta">${c.phone?escapeHtml(c.phone):'بدون شماره'}${c.address?' · '+escapeHtml(c.address):''}</div>
         </div>
-        <div class="inv-card-stats"><div class="inv-stat"><div class="iv">${ci.length}</div><div class="il">سند</div></div></div>
+        <div class="inv-card-stats"><div class="inv-stat"><div class="iv">${ciCount}</div><div class="il">سند</div></div></div>
       </div>
       <div class="inv-card-body">
         <div class="inv-detail-grid" style="grid-template-columns:1fr 1fr">
@@ -4689,7 +4723,7 @@ function saveCustomerEdit(id){
   dbSaveCustomer(c);
   if(nameChanged){
     invoices.forEach(inv=>{if(inv.customerId===id){inv.customerName=name;dbSaveInvoice(inv);}});
-    renderInvoicesFilterOptions();renderInvoicesList();
+    invalidateInvFilterOptions();renderInvoicesFilterOptions();renderInvoicesList();
   }
   editingCustomerId=null;
   renderCustomersList();renderCustomerDatalist();saveState();
@@ -4697,7 +4731,10 @@ function saveCustomerEdit(id){
 
 function renderCustomerDatalist(){
   const dl=$('customer-datalist');
-  if(dl) dl.innerHTML=customers.map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join('');
+  if(!dl) return;
+  const html=customers.map(c=>`<option value="${escapeHtml(c.name)}"></option>`).join('');
+  if(dl.dataset.rpHtmlLen===String(html.length)&&dl._rpHtml===html) return; /* بدون تغییر — DOM دوباره ساخته نشود */
+  dl.innerHTML=html; dl._rpHtml=html; dl.dataset.rpHtmlLen=String(html.length);
 }
 
 /* ══ تنظیمات — راننده وانت‌ها ══ */
@@ -4844,6 +4881,29 @@ function getStatsBuckets(period){
 
 function computeStatsData(period){
   const buckets=getStatsBuckets(period);
+  const res=buckets.map(b=>({label:b.label,turnover:0,profit:0,count:0}));
+  const st=buckets.map(b=>b.start.getTime?b.start.getTime():+b.start);
+  const en=buckets.map(b=>b.end.getTime?b.end.getTime():+b.end);
+  /* بهینه‌سازی: یک گذر روی فاکتورها + جستجوی دودویی بازه (به‌جای ضرب «تعداد بازه × کل فاکتورها»
+     با new Date برای هر جفت). اگر بازه‌ها مرتب/بدون هم‌پوشانی نبودند، همان روش قدیمی. */
+  let sorted=true;
+  for(let i=1;i<buckets.length;i++){ if(!(st[i]>=en[i-1])||!(en[i]>st[i])){sorted=false;break;} }
+  if(sorted&&buckets.length){
+    for(let k=0;k<invoices.length;k++){
+      const inv=invoices[k];
+      const ts=invDateInfo(inv).ts;
+      if(!(ts>=st[0])||!(ts<en[en.length-1])) continue;
+      let lo=0,hi=buckets.length-1;
+      while(lo<hi){const mid=(lo+hi+1)>>1; if(st[mid]<=ts) lo=mid; else hi=mid-1;}
+      if(ts>=st[lo]&&ts<en[lo]){
+        const r=res[lo];
+        r.turnover+=calcInvoiceTurnover(inv);
+        r.profit+=calcInvoiceProfit(inv);
+        r.count+=1;
+      }
+    }
+    return res;
+  }
   return buckets.map(b=>{
     let turnover=0,profit=0,count=0;
     invoices.forEach(inv=>{
@@ -4905,9 +4965,10 @@ function computeStatsLeaders(period){
   const buyerMap=new Map();    // customerId -> {name,turnover}
   const profitMap=new Map();   // customerId -> {name,profit}
 
+  const _rs=+range.start,_re=+range.end;
   invoices.forEach(inv=>{
-    const t=new Date(inv.date);
-    if(t<range.start||t>=range.end) return;
+    const t=invDateInfo(inv).ts;
+    if(!(t>=_rs)||t>=_re) return;
     const custKey=inv.customerId!=null?inv.customerId:inv.customerName;
     const custName=inv.customerName||'—';
 
@@ -5035,6 +5096,28 @@ function getPersianMonthInfo(date){
   const[jy,jm]=gregorianToJalali(date.getFullYear(),date.getMonth()+1,date.getDate());
   return{key:jy+'-'+String(jm).padStart(2,'0'),sortVal:jy*100+jm,label:JALALI_MONTH_NAMES[jm-1]+' '+toFaDigits(jy)};
 }
+/* ══ بهینه‌سازی سرعت: کش تاریخ هر فاکتور ══
+   قبلاً هر بار رندر لیست، برای «همه‌ی» فاکتورها new Date + تبدیل شمسی انجام می‌شد (هزینه ∝ کل فاکتورها).
+   حالا نتیجه‌ی محاسبه (timestamp، sortVal ماه شمسی، روز ISO) برای هر شیء فاکتور در یک WeakMap نگه
+   داشته می‌شود و فقط اگر inv.date عوض شده باشد دوباره محاسبه می‌شود. چیزی روی خود فاکتور
+   (و در نتیجه در IndexedDB) ذخیره نمی‌شود. */
+const _invDateCache=new WeakMap();
+function invDateInfo(inv){
+  let c=_invDateCache.get(inv);
+  if(c&&c.d===inv.date) return c;
+  const t=new Date(inv.date);
+  const ts=t.getTime();
+  c={d:inv.date,ts:ts,sv:0,day:null};
+  if(!isNaN(ts)) c.sv=getPersianMonthInfo(t).sortVal;
+  _invDateCache.set(inv,c);
+  return c;
+}
+/* رشته‌ی روز ISO (فقط وقتی فیلتر «روز دقیق» فعال است لازم می‌شود، پس تنبل محاسبه می‌شود) */
+function invDayStr(inv){
+  const c=invDateInfo(inv);
+  if(c.day===null) c.day=isNaN(c.ts)?'':new Date(c.ts).toISOString().slice(0,10);
+  return c.day;
+}
 let selectedInvMonthKey=null;
 let selectedInvMonthSort=null; /* مقدار sortVal (سال×۱۰۰+ماه شمسی) ماه فعلاً انتخاب‌شده در سوییچر فاکتورها */
 let selectedInvExactDate=null; /* اگر کاربر یک روز خاص را از تقویم انتخاب کند، فقط فاکتورهای همان روز نشان داده می‌شود */
@@ -5087,8 +5170,11 @@ async function buildInvMonthList(){
   if(_invMonthListCache&&_invMonthListSig===sig) return _invMonthListCache;
   const dates=await fetchInvMonthList();
   const map=new Map();
+  const _monthInfoByTs=new Map(); /* هر روز/تاریخ تکراری فقط یک‌بار تبدیل شمسی شود */
   dates.forEach(d=>{
-    const info=getPersianMonthInfo(new Date(d));
+    const t=new Date(d).getTime();
+    let info=_monthInfoByTs.get(t);
+    if(!info){info=getPersianMonthInfo(new Date(t));_monthInfoByTs.set(t,info);}
     const cur=map.get(info.key)||{key:info.key,label:info.label,sortVal:info.sortVal,count:0};
     cur.count++;
     map.set(info.key,cur);
@@ -5117,8 +5203,10 @@ async function fetchInvMonthCount(monthSortVal,exactDate){
       console.debug('InvoiceRepo.getMonthCount ناموفق — بازگشت موقت به شمارش دستی حافظه:',e?.message);
     }
   }
-  if(exactDate) return invoices.filter(inv=>new Date(inv.date).toISOString().slice(0,10)===exactDate).length;
-  return invoices.filter(inv=>getPersianMonthInfo(new Date(inv.date)).sortVal===monthSortVal).length;
+  let n=0;
+  if(exactDate){for(let i=0;i<invoices.length;i++) if(invDayStr(invoices[i])===exactDate) n++;return n;}
+  for(let i=0;i<invoices.length;i++) if(invDateInfo(invoices[i]).sv===monthSortVal) n++;
+  return n;
 }
 
 async function renderInvMonthSwitcher(){
@@ -5325,16 +5413,27 @@ function selectInvDateExact(val){
   renderInvoicesList();
 }
 
+/* بهینه‌سازی: فهرست مشتریان فیلتر فاکتور فقط وقتی داده‌ی مربوط عوض شده دوباره ساخته می‌شود
+   (قبلاً با هر عوض‌کردن ماه/ذخیره‌ی فاکتور کل فاکتورها پیمایش و کل <option>ها دوباره ساخته می‌شد).
+   _invFilterGen با ثبت/ویرایش فاکتور و تغییر نام مشتری بالا می‌رود (invalidateInvFilterOptions). */
+let _invFilterGen=0,_invFilterSig=null,_invFilterRefInv=null,_invFilterRefCust=null;
+function invalidateInvFilterOptions(){_invFilterGen++;}
 function renderInvoicesFilterOptions(){
   const sel=$('inv-filter-customer'); if(!sel) return;
-  const ids=[...new Set(invoices.map(i=>i.customerId))];
+  const n=invoices.length;
+  const sig=_invFilterGen+'|'+n+'|'+(n?invoices[0].id:'')+'|'+(n?invoices[n-1].id:'')+'|'+customers.length;
   const cur=sel.value;
+  if(sig===_invFilterSig&&sel.dataset.rpSig===sig&&invoices===_invFilterRefInv&&customers===_invFilterRefCust) return; /* بدون تغییر — دست به DOM نمی‌زنیم (مقدار انتخاب‌شده هم حفظ می‌شود) */
+  const ids=[...new Set(invoices.map(i=>i.customerId))];
+  const nameFallback=new Map();
+  for(let i=0;i<n;i++){const inv=invoices[i]; if(!nameFallback.has(inv.customerId)) nameFallback.set(inv.customerId,inv.customerName);}
   sel.innerHTML='<option value="">همه مشتریان</option>'+ids.map(id=>{
     const c=getCustomerById(id);
-    const label=c?c.name:(invoices.find(i=>i.customerId===id)?.customerName||'—');
+    const label=c?c.name:(nameFallback.get(id)||'—');
     return`<option value="${id}">${escapeHtml(label)}</option>`;
   }).join('');
   if(ids.map(String).includes(cur)) sel.value=cur;
+  _invFilterSig=sig; sel.dataset.rpSig=sig; _invFilterRefInv=invoices; _invFilterRefCust=customers;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5466,11 +5565,19 @@ async function renderInvoicesList(){
      نگاه کن به تابع renderInvStatusCounts و توضیحات roadmap-infinite-records-v4.md.
      رندر خودِ کارت‌ها (پایین همین تابع) از این نقطه به بعد پنجره‌ای (VirtualList) است
      و در صورت در دسترس بودن InvoiceRepo، مستقیماً از آن صفحه‌بندی می‌گیرد. */
-  let baseList=invoices.slice();
-  if(selectedInvExactDate) baseList=baseList.filter(inv=>new Date(inv.date).toISOString().slice(0,10)===selectedInvExactDate);
-  else if(selectedInvMonthSort) baseList=baseList.filter(inv=>getPersianMonthInfo(new Date(inv.date)).sortVal===selectedInvMonthSort);
-  if(filterId) baseList=baseList.filter(inv=>String(inv.customerId)===String(filterId));
-  if(searchTerm) baseList=baseList.filter(inv=>(inv.customerName||'').toLowerCase().includes(searchTerm));
+  /* یک گذر روی آرایه با تاریخ کش‌شده (به‌جای slice + چند filter با new Date برای هر فاکتور) */
+  const baseList=[];
+  {
+    const fid=filterId?String(filterId):'';
+    for(let i=0;i<invoices.length;i++){
+      const inv=invoices[i];
+      if(selectedInvExactDate){ if(invDayStr(inv)!==selectedInvExactDate) continue; }
+      else if(selectedInvMonthSort){ if(invDateInfo(inv).sv!==selectedInvMonthSort) continue; }
+      if(fid&&String(inv.customerId)!==fid) continue;
+      if(searchTerm&&!(inv.customerName||'').toLowerCase().includes(searchTerm)) continue;
+      baseList.push(inv);
+    }
+  }
   renderInvStatusCounts(baseList,{
     /* دقیقاً همان معنای ctx.month/exactDate که در fetchInvoicesPage/createVirtualList پایین
        همین تابع استفاده می‌شود — sortVal شمسی (سال×۱۰۰+ماه)، نه بازه‌ی میلادی. این یک محدودیت
@@ -5482,7 +5589,7 @@ async function renderInvoicesList(){
   let list=baseList;
   if(invoiceStatusFilter==='debtor') list=list.filter(isInvoiceDebtor);
   else if(invoiceStatusFilter) list=list.filter(inv=>invoiceStatusOf(inv)===invoiceStatusFilter&&!isInvoiceDebtor(inv));
-  list=list.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  list=list.slice().sort((a,b)=>invDateInfo(b).ts-invDateInfo(a).ts);
 
   const wrap=$('invoices-list'); if(!wrap) return;
   if(!list.length){
@@ -5955,6 +6062,7 @@ function saveInvoiceEdit(invId){
   newItems.forEach(it=>{const s=inventory.find(s=>s.id===it.sheetId);s.qty-=it.qty;it.stockAfter=s.qty;});
   Object.assign(inv,{items:newItems,customerId:customer.id,customerName:customer.name,
     totalSheets:newItems.reduce((a,b)=>a+b.qty,0),editedAt:new Date().toISOString()});
+  invalidateInvFilterOptions();
   dbSaveInvoice(inv);
   editingInvoiceId=null;
   renderInventoryTable();renderInvoicesFilterOptions();renderInvoicesList();renderCustomersList();renderCustInvoicesModal();
@@ -6037,6 +6145,7 @@ function deleteInvoice(id){
   if(!confirm('حذف این فاکتور موجودی ورق‌ها را به انبار بازمی‌گرداند. ادامه می‌دهید؟')) return;
   inv.items.forEach(it=>{const s=inventory.find(s=>s.id===it.sheetId);if(s)s.qty+=it.qty;});
   invoices=invoices.filter(i=>i.id!==id);
+  invalidateInvFilterOptions();
   dbDeleteInvoiceRecord(id);
   if(editingInvoiceId===id) editingInvoiceId=null;
   renderInventoryTable();renderInvoicesFilterOptions();renderInvoicesList();renderCustomersList();renderCustInvoicesModal();
