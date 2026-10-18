@@ -1663,7 +1663,8 @@ function updateInvoiceSetting(field,val){
    - ویجت واقعی صفحه‌ی هوم کد بومی اندروید لازم دارد (فایل android-widget-guide.md)؛ این بخش فقط:
      (۱) گزینه‌ی تنظیمات، (۲) صفحه‌ی قیمت‌دهی سریع، (۳) پل Capacitor به پلاگین «RestikWidget» را دارد.
    - ویجت با لینک restikpack://quick برنامه را باز می‌کند؛ در مرورگر هم با ?quick=1 یا #quick باز می‌شود. */
-const widgetBridge=()=>window.Capacitor?.Plugins?.RestikWidget||null;
+const capPlugin=n=>{ const C=window.Capacitor; if(!C||!(C.isNativePlatform?C.isNativePlatform():true)) return null; try{ return C.Plugins?.[n]||(C.registerPlugin?C.registerPlugin(n):null); }catch(_){ return null; } };
+const widgetBridge=()=>capPlugin('RestikWidget');
 function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update({enabled:!!widgetSettings.enabled,last:widgetSettings.last||''}); }catch(_){} }
 function applyWidgetUI(){
   const on=!!widgetSettings.enabled, t=$('widget-toggle');
@@ -1676,7 +1677,7 @@ async function toggleWidgetEnabled(){
     try{
       await b.update({enabled:widgetSettings.enabled,last:widgetSettings.last||''});
       if(widgetSettings.enabled){ const r=await b.pin(); msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «قیمت‌دهی سریع».'; }
-    }catch(_){ msg='ارتباط با بخش بومی برقرار نشد.'; }
+    }catch(_){ msg='بخش بومی ویجت در برنامه نصب نیست؛ فایل install_widget.py را اجرا و برنامه را دوباره بسازید.'; }
   }else if(widgetSettings.enabled){
     msg='در مرورگر ویجت واقعی ساخته نمی‌شود؛ با دکمه‌ی «امتحان حالت ویجت» می‌توانید ظاهرش را ببینید. ویجت واقعی بعد از ساخت نسخه‌ی اندروید (Capacitor) کار می‌کند.';
   }
@@ -1696,7 +1697,7 @@ function closeQuickPrice(){
   window.addEventListener('load',()=>{
     setTimeout(()=>{ chk(); applyWidgetUI(); syncWidget(); },400);
     try{ const _r=renderCalc2Results; renderCalc2Results=function(res,total){ const o=_r.apply(this,arguments); try{ if(widgetSettings.enabled&&res&&res[0]){ widgetSettings.last=formatNum(total); saveState(); syncWidget(); } }catch(_){} return o; }; }catch(_){}
-    const A=window.Capacitor?.Plugins?.App; if(!A) return;
+    const A=capPlugin('App'); if(!A) return;
     try{
       A.addListener('appUrlOpen',e=>{ if(/quick/.test((e&&e.url)||'')) openQuickPrice(); });
       A.getLaunchUrl?.().then(r=>{ if(r&&/quick/.test(r.url||'')) setTimeout(openQuickPrice,500); });

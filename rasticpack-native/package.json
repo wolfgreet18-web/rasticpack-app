@@ -14,7 +14,8 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "vazirmatn": "^33.0.3",
-    "@fontsource/great-vibes": "^5.0.0"
+    "@fontsource/great-vibes": "^5.0.0",
+    "@capacitor/app": "^6.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",
