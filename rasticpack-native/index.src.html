@@ -20,6 +20,9 @@
 .calc2-add-btn.hold-pressing{animation:holdGrow 1s linear forwards}
 @keyframes holdGrow{from{box-shadow:0 0 0 0 rgba(220,38,38,.55)}to{box-shadow:0 0 0 7px rgba(220,38,38,.55);transform:scale(1.12)}}
 .c2-price-removed{display:none!important}
+body.widget-mode .tab-bar{display:none}
+.wm-close{display:none}
+body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:900;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--tx2);font-size:1.1rem;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--sh-md)}
 </style>
 </head>
 <body>
@@ -383,6 +386,9 @@
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('widths-panel')">
           📏 عرض ورق
         </button>
+        <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('widget-panel')">
+          🧩 ویجت
+        </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('backup-panel')">
           💾 بکاپ
         </button>
@@ -574,6 +580,21 @@
         </button>
       </div>
 
+      <div id="widget-panel" style="display:none;margin-top:14px">
+        <div class="inv-results-header" style="margin-top:0">🧩 ویجت قیمت‌دهی سریع</div>
+        <p style="font-size:.78rem;color:var(--tx2);line-height:1.8;margin-bottom:16px">
+          با فعال‌کردن این گزینه، یک ویجت روی صفحه‌ی هوم گوشی قرار می‌گیرد. با لمس ویجت، برنامه مستقیم روی تب «قیمت» باز می‌شود (فقط همین تب، بدون بقیه‌ی تب‌ها).
+        </p>
+        <div class="field full" style="margin-bottom:8px">
+          <label style="display:flex;justify-content:space-between;align-items:center">
+            <span>ویجت صفحه‌ی هوم</span>
+            <button type="button" id="widget-toggle" onclick="toggleWidgetEnabled()" style="border:1.5px solid var(--border);border-radius:20px;padding:6px 18px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer"></button>
+          </label>
+        </div>
+        <div id="widget-note" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
+        <button type="button" class="btn btn-flat" style="width:100%;margin-top:14px" onclick="openQuickPrice()">👁 امتحان حالت ویجت</button>
+      </div>
+
       <div id="backup-panel" style="display:none;margin-top:14px">
         <p style="font-size:.83rem;color:var(--tx2);line-height:1.75;margin-bottom:20px">
           اطلاعات شما به‌صورت خودکار روی دستگاه ذخیره می‌شود.<br>
@@ -608,6 +629,8 @@
 
 
 </div>
+
+<button type="button" class="wm-close" onclick="closeQuickPrice()" aria-label="خروج از حالت ویجت">×</button>
 
 <div id="cust-inv-modal" style="display:none;position:fixed;inset:0;background:rgba(24,24,27,.55);z-index:1000;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeCustInvoicesModal()">
   <div style="background:var(--surface);border-radius:var(--r-lg);max-width:420px;width:100%;max-height:78vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden">
@@ -864,6 +887,8 @@ let inventoryFilter={'3':null,'5':null};
 let smsTemplate='';
 let invoiceSettings={customerPriceMode:'discount',sheetPickMode:'price',companyName:'رستیک پک',phone:'09302162676',address:'',footer:'با تشکر از خرید شما',cardNumber:'',shaba:'',accountHolderName:''};
 let displaySettings={fontScale:100,zoom:85,soundEnabled:true};
+let widgetSettings={enabled:false,last:''};   /* ویجت صفحه‌ی هوم — بخش «ویجت و قیمت‌دهی سریع» */
+
 let nextId=1, nextCustId=1, nextInvoiceId=1, nextProdId=1, nextDriverId=1;
 let editingInvoiceId=null;
 let invoiceStatusFilter=null;
@@ -968,7 +993,7 @@ function escapeForJsSingleQuoted(str){
     .replace(/\r/g,'');
   return escapeHtml(jsEscaped);
 }
-const SETTINGS_PANEL_IDS=['widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel'];
+const SETTINGS_PANEL_IDS=['widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel'];
 
 const toggleSection = id => {
   const el=$(id); if(!el) return;
@@ -987,6 +1012,7 @@ const toggleSection = id => {
   if(opening&&id==='status-panel') renderSheetStatusPanel();
   if(opening&&id==='widths-panel') renderSheetWidthsBox();
   if(opening&&id==='display-panel') renderDisplaySettingsInput();
+  if(opening&&id==='widget-panel') applyWidgetUI();
   if(opening&&id==='drivers-panel') renderDriversList();
 };
 const setVisible = (id,v) => $(id)?.classList.toggle('visible',v);
@@ -1148,7 +1174,7 @@ async function loadState() {
     if(await waitForStorage()){
       const res=await window.storage.get('rasticpack-data',false).catch(()=>null);
       if(res?.value){
-        const{inventory:iv,customers:cu,invoices:inv,productionQueue:pq,vanDrivers:vd,sheetPrices:sp,sheetPriceBreakdown:spb,sheetWeights:swt,wastePrice:wp,sheetThresholds:sth,sheetWidthList:swl,minSuggestSheetLen:msl,smsTemplate:st,invoiceSettings:invS,displaySettings:dispS,meta={}}=JSON.parse(res.value);
+        const{inventory:iv,customers:cu,invoices:inv,productionQueue:pq,vanDrivers:vd,sheetPrices:sp,sheetPriceBreakdown:spb,sheetWeights:swt,wastePrice:wp,sheetThresholds:sth,sheetWidthList:swl,minSuggestSheetLen:msl,smsTemplate:st,invoiceSettings:invS,displaySettings:dispS,widgetSettings:wgS,meta={}}=JSON.parse(res.value);
         inventory=Array.isArray(iv)?iv:[];
         productionQueue=Array.isArray(pq)?pq:[];
         vanDrivers=Array.isArray(vd)?vd:[];
@@ -1162,6 +1188,7 @@ async function loadState() {
         smsTemplate=typeof st==='string'?st:'';
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
         if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false};
+        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||'')}; try{applyWidgetUI();}catch(_){} }
         nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=meta.nextInvoiceId||1; nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         /* ══ مهاجرت یک‌باره: در نسخه‌ی قبلی، فاکتورها/مشتریان داخل همین کلید (با سقف 5 مگابایت)
            ذخیره می‌شدند. اگر چنین داده‌ای پیدا شود، به IndexedDB منتقل می‌شود تا از این پس
@@ -1444,7 +1471,7 @@ function saveState(){
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(async()=>{
     if(!window.storage?.set) return;
-    const payload=JSON.stringify({inventory,productionQueue,vanDrivers,sheetPrices,sheetPriceBreakdown,sheetWeights,wastePrice,sheetThresholds,sheetWidthList,minSuggestSheetLen,smsTemplate,invoiceSettings,displaySettings,meta:{nextId,nextCustId,nextInvoiceId,nextProdId,nextDriverId}});
+    const payload=JSON.stringify({inventory,productionQueue,vanDrivers,sheetPrices,sheetPriceBreakdown,sheetWeights,wastePrice,sheetThresholds,sheetWidthList,minSuggestSheetLen,smsTemplate,invoiceSettings,displaySettings,widgetSettings,meta:{nextId,nextCustId,nextInvoiceId,nextProdId,nextDriverId}});
     await window.storage.set('rasticpack-data',payload,false).catch(e=>console.debug('saveState:',e?.message));
   },350);
 }
@@ -1630,6 +1657,53 @@ function updateInvoiceSetting(field,val){
   invoiceSettings[field]=val||'';
   saveState();
 }
+
+
+/* ══ ویجت و قیمت‌دهی سریع ══
+   - ویجت واقعی صفحه‌ی هوم کد بومی اندروید لازم دارد (فایل android-widget-guide.md)؛ این بخش فقط:
+     (۱) گزینه‌ی تنظیمات، (۲) صفحه‌ی قیمت‌دهی سریع، (۳) پل Capacitor به پلاگین «RestikWidget» را دارد.
+   - ویجت با لینک restikpack://quick برنامه را باز می‌کند؛ در مرورگر هم با ?quick=1 یا #quick باز می‌شود. */
+const widgetBridge=()=>window.Capacitor?.Plugins?.RestikWidget||null;
+function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update({enabled:!!widgetSettings.enabled,last:widgetSettings.last||''}); }catch(_){} }
+function applyWidgetUI(){
+  const on=!!widgetSettings.enabled, t=$('widget-toggle');
+  if(t){ t.textContent=on?'فعال':'غیرفعال'; t.style.background=on?'var(--green)':'var(--surf-alt)'; t.style.color=on?'#fff':'var(--tx2)'; t.style.borderColor=on?'var(--green)':'var(--border)'; }
+}
+async function toggleWidgetEnabled(){
+  widgetSettings.enabled=!widgetSettings.enabled; applyWidgetUI(); saveState();
+  const note=$('widget-note'), b=widgetBridge(); let msg='';
+  if(b){
+    try{
+      await b.update({enabled:widgetSettings.enabled,last:widgetSettings.last||''});
+      if(widgetSettings.enabled){ const r=await b.pin(); msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «قیمت‌دهی سریع».'; }
+    }catch(_){ msg='ارتباط با بخش بومی برقرار نشد.'; }
+  }else if(widgetSettings.enabled){
+    msg='در مرورگر ویجت واقعی ساخته نمی‌شود؛ با دکمه‌ی «امتحان حالت ویجت» می‌توانید ظاهرش را ببینید. ویجت واقعی بعد از ساخت نسخه‌ی اندروید (Capacitor) کار می‌کند.';
+  }
+  if(note){ note.textContent=msg; note.style.display=msg?'block':'none'; }
+}
+function openQuickPrice(){
+  document.body.classList.add('widget-mode');
+  switchTab('calc2',document.querySelector('.tab-btn'));
+  window.scrollTo(0,0);
+}
+function closeQuickPrice(){
+  document.body.classList.remove('widget-mode');
+  const b=document.querySelector('.tab-btn'); if(b) switchTab('calc2',b);
+}
+(function(){
+  const chk=()=>{ if(/[?&]quick=1|#quick/.test(location.search+location.hash)) openQuickPrice(); };
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{ chk(); applyWidgetUI(); syncWidget(); },400);
+    try{ const _r=renderCalc2Results; renderCalc2Results=function(res,total){ const o=_r.apply(this,arguments); try{ if(widgetSettings.enabled&&res&&res[0]){ widgetSettings.last=formatNum(total); saveState(); syncWidget(); } }catch(_){} return o; }; }catch(_){}
+    const A=window.Capacitor?.Plugins?.App; if(!A) return;
+    try{
+      A.addListener('appUrlOpen',e=>{ if(/quick/.test((e&&e.url)||'')) openQuickPrice(); });
+      A.getLaunchUrl?.().then(r=>{ if(r&&/quick/.test(r.url||'')) setTimeout(openQuickPrice,500); });
+    }catch(_){}
+  });
+  window.addEventListener('hashchange',chk);
+})();
 
 /* ══ تنظیمات نمایشی (اندازه فونت و اندازه کل نرم‌افزار) ══ */
 /* اعداد در کل برنامه انگلیسی (لاتین) نمایش داده می‌شوند — نام تابع برای سازگاری با فراخوانی‌های قبلی حفظ شده */
@@ -4557,6 +4631,12 @@ function renderCustomersList(){
   });
   _custVirtualList.setTotal(list.length);
 }
+function loadCustMap(btn){
+  const f=document.createElement('iframe');
+  f.title='موقعیت مشتری';f.src=btn.getAttribute('data-map-src');
+  f.style.cssText='border:0;width:100%;height:170px;display:block';
+  btn.replaceWith(f);
+}
 function customerMapHtml(c){
   const hasLoc=c.lat!=null&&c.lng!=null&&!isNaN(c.lat)&&!isNaN(c.lng);
   if(!hasLoc){
@@ -4567,8 +4647,7 @@ function customerMapHtml(c){
   const bbox=`${lng-d}%2C${lat-d}%2C${lng+d}%2C${lat+d}`;
   const neshanUrl=neshanMapUrl(lat,lng);
   return`<div style="margin-top:10px;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden">
-      <iframe title="موقعیت مشتری" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}"
-        style="border:0;width:100%;height:170px;display:block" loading="lazy"></iframe>
+      <button type="button" data-map-src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}" onclick="loadCustMap(this)" style="border:0;width:100%;height:170px;display:block;background:var(--surf-dp);color:var(--tx2);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer">🗺️ نمایش نقشه (لمس کنید)</button>
       <a href="${neshanUrl}" target="_blank" rel="noopener"
          style="display:block;text-align:center;padding:8px;font-size:.78rem;font-weight:700;color:var(--brand);background:var(--surf-alt);text-decoration:none;border-top:1px solid var(--border)">🗺️ باز کردن در نشان / مسیریابی</a>
     </div>`;
@@ -5590,6 +5669,7 @@ function createVirtualList(opts){
     }
   }
 
+  itemsHost.addEventListener('click',()=>{requestAnimationFrame(()=>{if(domS>=0){measure();setSpacers(domS,domE);}});},true);
   let scrollScheduled=false;
   function onScroll(){
     if(scrollScheduled) return;
