@@ -1188,7 +1188,7 @@ async function loadState() {
         smsTemplate=typeof st==='string'?st:'';
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
         if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false};
-        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||'')}; try{applyWidgetUI();}catch(_){} }
+        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||'')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
         nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=meta.nextInvoiceId||1; nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         /* ══ مهاجرت یک‌باره: در نسخه‌ی قبلی، فاکتورها/مشتریان داخل همین کلید (با سقف 5 مگابایت)
            ذخیره می‌شدند. اگر چنین داده‌ای پیدا شود، به IndexedDB منتقل می‌شود تا از این پس
@@ -1665,7 +1665,56 @@ function updateInvoiceSetting(field,val){
    - ویجت با لینک restikpack://quick برنامه را باز می‌کند؛ در مرورگر هم با ?quick=1 یا #quick باز می‌شود. */
 const capPlugin=n=>{ const C=window.Capacitor; if(!C||!(C.isNativePlatform?C.isNativePlatform():true)) return null; try{ return C.Plugins?.[n]||(C.registerPlugin?C.registerPlugin(n):null); }catch(_){ return null; } };
 const widgetBridge=()=>capPlugin('RestikWidget');
-function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update({enabled:!!widgetSettings.enabled,last:widgetSettings.last||''}); }catch(_){} }
+/* ── موتور محاسبه‌ی ویجت ──
+   ویجت روی هوم همین توابع تب قیمت (matchSheets, evalSheet, sheetPricePerM2, ...) را با متن خودشان دریافت می‌کند
+   (widgetEngineSource) و در یک WebView پنهان اجرا می‌کند؛ پس نتیجه دقیقاً مثل تب قیمت است.
+   اگر منطق تب قیمت عوض شد، فقط widgetCalc (که نسخه‌ی تک‌کارتنه‌ی runCalc2 است) را هماهنگ کنید. */
+function widgetCalc(I){
+  const L=parseFloat(I.l),W=parseFloat(I.w),H=parseFloat(I.h),N=parseFloat(I.n);
+  if(![L,W,H,N].every(v=>v>0)) return {st:'incomplete'};
+  const layer=I.layer==='5'?'5':'3', cls=(I.cls==='A'||I.cls==='T')?I.cls:'';
+  let flute='C', paperType=I.paper||'';
+  if(paperType==='E'&&layer==='3'){ paperType='KT'; flute='E'; }
+  else if(paperType!=='2T'&&paperType!=='KT') paperType='';
+  if(!paperType){ const cat=c2CheapestCat(layer,cls); paperType=(cat==='2T')?'2T':'KT'; flute=(cat==='E')?'E':'C'; }
+  const glue=parseFloat(I.g)>0?parseFloat(I.g):4;
+  if(!(sheetPricePerM2(layer,paperType,flute)>0)) return {st:'noprice'};
+  const pv=parseFloat(I.p)||0, months=Math.max(0,parseFloat(I.c)||0);
+  const rate=parseFloat(invoiceSettings.checkProfitPerMonth), checkPct=months*(isNaN(rate)?4:rate);
+  const meter=invoiceSettings.profitMode==='meter';
+  const totalLength=(L+W)*2+glue, totalWidth=W+H, areaM2=totalLength*totalWidth/10000;
+  const best=inventory.length?(matchSheets(totalWidth,totalLength,N,'horizontal',layer,flute,paperType,cls)[0]||null):null;
+  const pricePerM2=sheetPricePerM2(layer,paperType,flute,best?.sw,cls);
+  const basePrice=areaM2*pricePerM2;
+  const wastePerUnit=(best&&best.perSheet>0)?(((best.wasteArea/10000)*pricePerM2)/best.perSheet):0;
+  const base=basePrice+wastePerUnit;
+  const cash=meter?base+pv*areaM2:base*(1+pv/100);
+  const sale=meter?cash+base*checkPct/100:base*(1+(pv+checkPct)/100);
+  let scrapTotal=0;
+  if(best){ const wg=sheetWeights[layer]||0; scrapTotal=(best.totalWasteArea/10000)*(wg/1000)*wastePrice; }
+  return {st:'ok',isCheck:checkPct>0,sale,cash,disc:sale-(N>0?scrapTotal/N:0),base,total:sale*N,profit:(sale-base)*N,waste:scrapTotal,noInv:!inventory.length,
+    sheet:best?{cls:widthClassOf(best.sw),sh:best.sh,sw:best.sw,waste:best.waste,per:best.perSheet,need:best.sheetsNeed===Infinity?null:best.sheetsNeed,ok:!!best.canFulfill,qty:best.qty}:null};
+}
+function widgetEngineSource(){
+  const fns=[catsForLayer,priceCategoryOf,widthClassOf,sheetPriceKey,sheetPricePerM2,getSheetPickMode,calcLayout,evalSheet,matchSheets,c2CheapestCat,widgetCalc].map(f=>String(f)).join('\n');
+  return 'function(S,I){var inventory=S.inventory,sheetPrices=S.sheetPrices,invoiceSettings=S.invoiceSettings,sheetWeights=S.sheetWeights,wastePrice=S.wastePrice,PRICE_CATEGORIES=["2T","KT","E"],isGrainCorrect='+String(isGrainCorrect)+';\n'+fns+'\nreturn JSON.stringify(widgetCalc(I));}';
+}
+function buildWidgetSnapshot(){
+  return JSON.stringify({v:1,
+    inventory:inventory.map(x=>({id:x.id,sw:x.sw,sh:x.sh,qty:x.qty,layer:x.layer,flute:x.flute,paperType:x.paperType})),
+    sheetPrices,
+    invoiceSettings:{sheetPickMode:invoiceSettings.sheetPickMode,profitMode:invoiceSettings.profitMode,checkProfitPerMonth:invoiceSettings.checkProfitPerMonth},
+    sheetWeights,wastePrice,
+    profit:getNum('calc2-profit')||0,check:getNum('calc2-check')||0,meter:getProfitMode()==='meter'});
+}
+function widgetPayload(){
+  const p={enabled:!!widgetSettings.enabled};
+  if(p.enabled){ try{ p.snapshot=buildWidgetSnapshot(); p.engine=widgetEngineSource(); }catch(e){ console.error('widget snapshot',e); } }
+  return p;
+}
+function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update(widgetPayload()); }catch(_){} }
+let _wgSyncT=null;
+function scheduleWidgetSync(){ if(!widgetSettings.enabled||!widgetBridge()) return; clearTimeout(_wgSyncT); _wgSyncT=setTimeout(syncWidget,1500); }
 function applyWidgetUI(){
   const on=!!widgetSettings.enabled, t=$('widget-toggle');
   if(t){ t.textContent=on?'فعال':'غیرفعال'; t.style.background=on?'var(--green)':'var(--surf-alt)'; t.style.color=on?'#fff':'var(--tx2)'; t.style.borderColor=on?'var(--green)':'var(--border)'; }
@@ -1675,7 +1724,7 @@ async function toggleWidgetEnabled(){
   const note=$('widget-note'), b=widgetBridge(); let msg='';
   if(b){
     try{
-      await b.update({enabled:widgetSettings.enabled,last:widgetSettings.last||''});
+      await b.update(widgetPayload());
       if(widgetSettings.enabled){ const r=await b.pin(); msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «قیمت‌دهی سریع».'; }
     }catch(_){ msg='بخش بومی ویجت در برنامه نصب نیست؛ فایل install_widget.py را اجرا و برنامه را دوباره بسازید.'; }
   }else if(widgetSettings.enabled){
@@ -1696,7 +1745,7 @@ function closeQuickPrice(){
   const chk=()=>{ if(/[?&]quick=1|#quick/.test(location.search+location.hash)) openQuickPrice(); };
   window.addEventListener('load',()=>{
     setTimeout(()=>{ chk(); applyWidgetUI(); syncWidget(); },400);
-    try{ const _r=renderCalc2Results; renderCalc2Results=function(res,total){ const o=_r.apply(this,arguments); try{ if(widgetSettings.enabled&&res&&res[0]){ widgetSettings.last=formatNum(total); saveState(); syncWidget(); } }catch(_){} return o; }; }catch(_){}
+    try{ const _ss=saveState; saveState=function(){ const r=_ss.apply(this,arguments); try{ scheduleWidgetSync(); }catch(_){} return r; }; }catch(_){}
     const A=capPlugin('App'); if(!A) return;
     try{
       A.addListener('appUrlOpen',e=>{ if(/quick/.test((e&&e.url)||'')) openQuickPrice(); });
@@ -1704,6 +1753,7 @@ function closeQuickPrice(){
     }catch(_){}
   });
   window.addEventListener('hashchange',chk);
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden&&widgetSettings.enabled) syncWidget(); });   /* هنگام خروج از برنامه، آخرین قیمت‌ها/موجودی به ویجت می‌رسد */
 })();
 
 /* ══ تنظیمات نمایشی (اندازه فونت و اندازه کل نرم‌افزار) ══ */
