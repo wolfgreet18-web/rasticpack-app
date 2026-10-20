@@ -1693,11 +1693,11 @@ function widgetCalc(I){
   let scrapTotal=0;
   if(best){ const wg=sheetWeights[layer]||0; scrapTotal=(best.totalWasteArea/10000)*(wg/1000)*wastePrice; }
   return {st:'ok',isCheck:checkPct>0,sale,cash,disc:sale-(N>0?scrapTotal/N:0),base,total:sale*N,profit:(sale-base)*N,waste:scrapTotal,noInv:!inventory.length,
-    sheet:best?{cls:widthClassOf(best.sw),sh:best.sh,sw:best.sw,waste:best.waste,per:best.perSheet,need:best.sheetsNeed===Infinity?null:best.sheetsNeed,ok:!!best.canFulfill,qty:best.qty}:null};
+    sheet:best?{cls:widthClassOf(best.sw),sh:best.sh,sw:best.sw,waste:best.waste,per:best.perSheet,need:best.sheetsNeed===Infinity?null:best.sheetsNeed,ok:!!best.canFulfill,qty:best.qty,cat:catLabel(priceCategoryOf(paperType,flute),layer,widthClassOf(best.sw))}:null};
 }
 function widgetEngineSource(){
-  const fns=[catsForLayer,priceCategoryOf,widthClassOf,sheetPriceKey,sheetPricePerM2,getSheetPickMode,calcLayout,evalSheet,matchSheets,c2CheapestCat,widgetCalc].map(f=>String(f)).join('\n');
-  return 'function(S,I){var inventory=S.inventory,sheetPrices=S.sheetPrices,invoiceSettings=S.invoiceSettings,sheetWeights=S.sheetWeights,wastePrice=S.wastePrice,PRICE_CATEGORIES=["2T","KT","E"],isGrainCorrect='+String(isGrainCorrect)+';\n'+fns+'\nreturn JSON.stringify(widgetCalc(I));}';
+  const fns=[catsForLayer,priceCategoryOf,widthClassOf,sheetPriceKey,sheetPricePerM2,getSheetPickMode,calcLayout,evalSheet,matchSheets,c2CheapestCat,catLabel,widgetCalc].map(f=>String(f)).join('\n');
+  return 'function(S,I){var inventory=S.inventory,sheetPrices=S.sheetPrices,invoiceSettings=S.invoiceSettings,sheetWeights=S.sheetWeights,wastePrice=S.wastePrice,PRICE_CATEGORIES=["2T","KT","E"],CAT_LABELS='+JSON.stringify(CAT_LABELS)+',isGrainCorrect='+String(isGrainCorrect)+';\n'+fns+'\nreturn JSON.stringify(widgetCalc(I));}';
 }
 function buildWidgetSnapshot(){
   return JSON.stringify({v:1,
@@ -1725,7 +1725,7 @@ async function toggleWidgetEnabled(){
   if(b){
     try{
       await b.update(widgetPayload());
-      if(widgetSettings.enabled){ const r=await b.pin(); msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «قیمت‌دهی سریع».'; }
+      if(widgetSettings.enabled){ const r=await b.pin(); msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید. اگر پیام «No space left on current screen» آمد، به یک صفحه‌ی خالی‌تر هوم بروید یا چند آیکون را جابه‌جا کنید و دوباره فعال کنید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «قیمت‌دهی سریع».'; }
     }catch(_){ msg='بخش بومی ویجت در برنامه نصب نیست؛ فایل install_widget.py را اجرا و برنامه را دوباره بسازید.'; }
   }else if(widgetSettings.enabled){
     msg='در مرورگر ویجت واقعی ساخته نمی‌شود؛ با دکمه‌ی «امتحان حالت ویجت» می‌توانید ظاهرش را ببینید. ویجت واقعی بعد از ساخت نسخه‌ی اندروید (Capacitor) کار می‌کند.';
