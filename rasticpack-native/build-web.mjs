@@ -39,5 +39,6 @@ html = html.replace(/const \[\{ migrate \}, InvoiceRepo, CustomerRepo\] = await 
 if (html === before || !html.includes("import('./db-bundle.js')")) throw new Error('الگوی import دیتابیس در HTML پیدا نشد');
 if (/fonts\.googleapis\.com/.test(html)) console.warn('⚠ هنوز ارجاع به fonts.googleapis.com باقی مانده');
 
+if (fs.existsSync('quick-deeplink.js')) { const k = html.lastIndexOf('</body>'); if (k < 0) throw new Error('no </body>'); html = html.slice(0, k) + '<script>' + fs.readFileSync('quick-deeplink.js', 'utf8') + '</script>' + html.slice(k); }
 fs.writeFileSync('www/index.html', html);
 console.log('✓ www/index.html ساخته شد', (html.length / 1024).toFixed(0) + 'KB');
