@@ -11,6 +11,9 @@
 .tblk{width:100%;max-width:100%;overflow:hidden;box-sizing:border-box}
 .shrinkR{width:80%;margin-left:auto;margin-right:0}.shrinkR svg{display:block;min-width:0!important;width:100%!important;max-width:100%!important;height:auto!important}
 .tblk svg{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;margin:0 auto}
+.subtype-btn[data-cls]{position:relative;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+body.cls-off-A .subtype-btn[data-cls="A"]::after,body.cls-off-T .subtype-btn[data-cls="T"]::after{content:"×";position:absolute;top:0;right:2px;font-size:.7rem;line-height:1;font-weight:800;color:var(--danger,#dc2626)}
+body.cls-off-A .subtype-btn[data-cls="A"],body.cls-off-T .subtype-btn[data-cls="T"]{opacity:.55}
 .subtype-btn.auto-hint{background:var(--red-50,#fef2f2);color:var(--danger,#dc2626);box-shadow:inset 0 0 0 1.5px var(--danger,#dc2626)}
 [id^="c2-layer-toggle-"]{border-color:#db2777}
 [id^="c2-layer-toggle-"] .subtype-btn.active{background:#ec4899;color:#fff}
@@ -56,8 +59,8 @@ body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-
         <button type="button" aria-label="محاسبه" title="محاسبه" onclick="runCalc2()" style="background:var(--brand);border:none;border-radius:var(--r-md);width:34px;height:42px;padding:0;cursor:pointer;flex:0 0 auto;box-shadow:0 2px 6px rgba(185,28,28,.24)"></button>
         <div style="display:flex;align-items:flex-end;gap:4px;flex:0 0 auto" dir="ltr">
           <button type="button" aria-label="کاهش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,-1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(-1)" ontouchstart="" >−</button>
-          <div class="field" style="flex:0 0 46px;margin-bottom:0">
-            <input type="number" id="calc2-profit" min="0" max="100" placeholder="20" oninput="if(getProfitMode()!=='percent')formatThousands(this);calc2ProfitChanged()" style="color:var(--danger);font-weight:700"/>
+          <div class="field" style="flex:0 0 34px;margin-bottom:0">
+            <input type="number" id="calc2-profit" min="0" max="100" placeholder="20" oninput="if(getProfitMode()!=='percent')formatThousands(this);calc2ProfitChanged()" style="color:var(--danger);font-weight:700;text-align:center;padding-inline:2px;font-size:.85rem"/>
           </div>
           <button type="button" aria-label="افزایش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(1)" ontouchstart="" >+</button>
         </div>
@@ -1459,6 +1462,7 @@ function seedSampleDataIfEmpty(){
   if(profitEl&&!profitEl.value&&getProfitMode()!=='rial'){
     profitEl.value=getProfitDefault(getProfitMode());
   }
+  c2ApplyClsOff();
   applyProfitModeUI(); renderProfitModeInput();
   if(profitEl&&getProfitMode()==='meter') setProfitFieldValue(parseFloat((profitEl.value||'').replace(/,/g,''))||0);
 }
@@ -1908,8 +1912,10 @@ function evalSheet(s,bw,bh,need,grain){
     totalWasteArea:Math.round(totalWasteArea),score};
 }
 
+/* نوع‌های ورق (عرض A/T) که کاربر با نگه‌داشتن ۲ ثانیه‌ای از تب قیمت کنار گذاشته (علامت ×) */
+function c2ClsOff(k){ try{ return !!(typeof invoiceSettings!=='undefined'&&invoiceSettings.excludedCls&&invoiceSettings.excludedCls[k]); }catch(_){ return false; } }
 function matchSheets(bw,bh,need,grain,layerFilter,fluteFilter,paperFilter,clsFilter){
-  let usable=inventory.filter(s=>s.sw>=bw&&s.sh>=bh&&s.qty>0);
+  let usable=inventory.filter(s=>s.sw>=bw&&s.sh>=bh&&s.qty>0&&!c2ClsOff(widthClassOf(s.sw)));
   if(clsFilter==='A'||clsFilter==='T') usable=usable.filter(s=>widthClassOf(s.sw)===clsFilter);
   if(layerFilter) usable=usable.filter(s=>(s.layer||'3')===layerFilter);
   if(fluteFilter) usable=usable.filter(s=>(s.flute||'C')===fluteFilter);
@@ -2043,8 +2049,8 @@ function calc2RowTemplate(id){
           </div>
           <div style="display:flex;align-items:center;gap:0">
             <div class="subtype-toggle" style="margin-bottom:0;width:auto;display:inline-flex">
-              <button type="button" class="subtype-btn" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'A',this)">A</button>
-              <button type="button" class="subtype-btn" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'T',this)">T</button>
+              <button type="button" class="subtype-btn" data-cls="A" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'A',this)">A</button>
+              <button type="button" class="subtype-btn" data-cls="T" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'T',this)">T</button>
             </div>
             <input type="hidden" id="c2-cls-${id}" value=""/>
           </div>
@@ -2123,6 +2129,36 @@ function setCartonFlute(id,val,btn){
   btn.classList.add('active');
   calc2LiveRecalc();
 }
+function c2ApplyClsOff(){
+  ['A','T'].forEach(k=>document.body.classList.toggle('cls-off-'+k,c2ClsOff(k)));
+}
+function c2ToggleClsOff(k){
+  invoiceSettings.excludedCls=Object.assign({A:false,T:false},invoiceSettings.excludedCls||{});
+  invoiceSettings.excludedCls[k]=!invoiceSettings.excludedCls[k];
+  if(invoiceSettings.excludedCls[k]){   /* اگر این نوع در ردیف‌ها انتخاب شده بود، برداشته می‌شود */
+    document.querySelectorAll('.calc2-row').forEach(row=>{
+      const id=row.dataset.id, inp=$('c2-cls-'+id);
+      if(inp&&inp.value===k){ inp.value=''; row.querySelectorAll('.subtype-btn[data-cls]').forEach(b=>b.classList.remove('active')); c2SyncPaperButtons(id); }
+    });
+  }
+  saveState(); c2ApplyClsOff();
+  if(navigator.vibrate) try{navigator.vibrate(40);}catch(_){}
+  calc2LiveRecalc();
+}
+/* نگه‌داشتن ۲ ثانیه‌ای روی A یا T: کنار گذاشتن/برگرداندن آن نوع ورق در تب قیمت */
+(function(){
+  let t=null,fired=false,sx=0,sy=0;
+  const stop=()=>{ clearTimeout(t); t=null; };
+  document.addEventListener('pointerdown',e=>{
+    const b=e.target.closest&&e.target.closest('.subtype-btn[data-cls]'); if(!b) return;
+    fired=false; sx=e.clientX; sy=e.clientY; stop();
+    t=setTimeout(()=>{ t=null; fired=true; c2ToggleClsOff(b.dataset.cls); },2000);
+  },true);
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>document.addEventListener(ev,stop,true));
+  document.addEventListener('pointermove',e=>{ if(t&&(Math.abs(e.clientX-sx)>12||Math.abs(e.clientY-sy)>12)) stop(); },true);
+  document.addEventListener('click',e=>{ if(fired&&e.target.closest&&e.target.closest('.subtype-btn[data-cls]')){ e.stopImmediatePropagation(); e.preventDefault(); fired=false; } },true);
+  document.addEventListener('contextmenu',e=>{ if(e.target.closest&&e.target.closest('.subtype-btn[data-cls]')) e.preventDefault(); },true);
+})();
 function setCartonCls(id,val,btn){
   const inp=$('c2-cls-'+id); if(!inp) return;
   btn.parentElement.querySelectorAll('.auto-hint').forEach(b=>b.classList.remove('auto-hint'));
@@ -2138,6 +2174,7 @@ function c2CheapestCat(layer,cls){
   catsForLayer(layer).forEach(c=>{
     const classes=cls==='A'||cls==='T'?[cls]:['A','T'];
     classes.forEach(k=>{
+      if(c2ClsOff(k)) return;
       if(layer==='5'&&k==='T'&&c==='KT') return;   // پنج‌لایه عرض T: Sik ندارد
       const pr=sheetPrices[sheetPriceKey(layer,c,k)]||0;
       if(pr>0&&pr<bestP){bestP=pr;best=c;}
@@ -2331,7 +2368,7 @@ function applyProfitModeUI(){
   el.setAttribute('inputmode','decimal');
   el.placeholder=rial?'٪':meter?'200,000':'20';
   if(meter) el.removeAttribute('max'); else el.max='100';
-  if(el.parentElement) el.parentElement.style.flex=rial?'0 0 60px':meter?'0 0 84px':'0 0 46px';
+  if(el.parentElement) el.parentElement.style.flex=meter&&!rial?'0 0 84px':'0 0 34px';   /* درصدی و ریالی: هم‌اندازه‌ی کادر چک */
   el.title=rial?'درصد معادل سود (مبلغ ریالی از تنظیمات)':meter?'سود هر متر مربع (ریال)':'درصد سود';
   if(!isNaN(cur)) el.value=meter?formatNum(cur):String(cur);
 }
