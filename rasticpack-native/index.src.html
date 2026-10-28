@@ -57,7 +57,7 @@ body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-
         <div style="display:flex;align-items:flex-end;gap:4px;flex:0 0 auto" dir="ltr">
           <button type="button" aria-label="کاهش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,-1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(-1)" ontouchstart="" >−</button>
           <div class="field" style="flex:0 0 46px;margin-bottom:0">
-            <input type="number" id="calc2-profit" min="0" max="100" placeholder="20" oninput="if(getProfitMode()==='meter')formatThousands(this);calc2ProfitChanged()" style="color:var(--danger);font-weight:700"/>
+            <input type="number" id="calc2-profit" min="0" max="100" placeholder="20" oninput="if(getProfitMode()!=='percent')formatThousands(this);calc2ProfitChanged()" style="color:var(--danger);font-weight:700"/>
           </div>
           <button type="button" aria-label="افزایش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(1)" ontouchstart="" >+</button>
         </div>
@@ -433,6 +433,7 @@ body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-
         <div style="display:flex;gap:10px">
           <button type="button" id="profit-mode-btn-percent" onclick="updateProfitMode('percent')" style="flex:1;margin-top:0;padding:12px 8px;font-size:.9rem;font-weight:800;font-family:inherit;border-radius:var(--r-md);cursor:pointer">درصدی</button>
           <button type="button" id="profit-mode-btn-meter" onclick="updateProfitMode('meter')" style="flex:1;margin-top:0;padding:12px 8px;font-size:.9rem;font-weight:800;font-family:inherit;border-radius:var(--r-md);cursor:pointer">متری</button>
+          <button type="button" id="profit-mode-btn-rial" onclick="updateProfitMode('rial')" style="flex:1;margin-top:0;padding:12px 8px;font-size:.9rem;font-weight:800;font-family:inherit;border-radius:var(--r-md);cursor:pointer">ریالی</button>
         </div>
         <div style="margin-top:16px">
           <div style="display:flex;align-items:flex-end;gap:4px;flex:0 0 auto;width:max-content;margin:0 auto" dir="ltr">
@@ -1458,7 +1459,7 @@ function seedSampleDataIfEmpty(){
     profitEl.value=getProfitDefault(getProfitMode());
   }
   applyProfitModeUI(); renderProfitModeInput();
-  if(profitEl&&getProfitMode()==='meter') setProfitFieldValue(parseFloat((profitEl.value||'').replace(/,/g,''))||0);
+  if(profitEl&&getProfitMode()!=='percent') setProfitFieldValue(parseFloat((profitEl.value||'').replace(/,/g,''))||0);
 }
 
 let _saveTimer;
@@ -1681,15 +1682,15 @@ function widgetCalc(I){
   if(!(sheetPricePerM2(layer,paperType,flute)>0)) return {st:'noprice'};
   const pv=parseFloat(I.p)||0, months=Math.max(0,parseFloat(I.c)||0);
   const rate=parseFloat(invoiceSettings.checkProfitPerMonth), checkPct=months*(isNaN(rate)?4:rate);
-  const meter=invoiceSettings.profitMode==='meter';
+  const pm=invoiceSettings.profitMode, meter=pm==='meter', rial=pm==='rial';
   const totalLength=(L+W)*2+glue, totalWidth=W+H, areaM2=totalLength*totalWidth/10000;
   const best=inventory.length?(matchSheets(totalWidth,totalLength,N,'horizontal',layer,flute,paperType,cls)[0]||null):null;
   const pricePerM2=sheetPricePerM2(layer,paperType,flute,best?.sw,cls);
   const basePrice=areaM2*pricePerM2;
   const wastePerUnit=(best&&best.perSheet>0)?(((best.wasteArea/10000)*pricePerM2)/best.perSheet):0;
   const base=basePrice+wastePerUnit;
-  const cash=meter?base+pv*areaM2:base*(1+pv/100);
-  const sale=meter?cash+base*checkPct/100:base*(1+(pv+checkPct)/100);
+  const cash=rial?base+pv/Math.max(1,N):meter?base+pv*areaM2:base*(1+pv/100);
+  const sale=(meter||rial)?cash+base*checkPct/100:base*(1+(pv+checkPct)/100);
   let scrapTotal=0;
   if(best){ const wg=sheetWeights[layer]||0; scrapTotal=(best.totalWasteArea/10000)*(wg/1000)*wastePrice; }
   return {st:'ok',isCheck:checkPct>0,sale,cash,disc:sale-(N>0?scrapTotal/N:0),base,total:sale*N,profit:(sale-base)*N,waste:scrapTotal,noInv:!inventory.length,
@@ -1705,7 +1706,7 @@ function buildWidgetSnapshot(){
     sheetPrices,
     invoiceSettings:{sheetPickMode:invoiceSettings.sheetPickMode,profitMode:invoiceSettings.profitMode,checkProfitPerMonth:invoiceSettings.checkProfitPerMonth},
     sheetWeights,wastePrice,
-    profit:getNum('calc2-profit')||0,check:getNum('calc2-check')||0,meter:getProfitMode()==='meter'});
+    profit:getNum('calc2-profit')||0,check:getNum('calc2-check')||0,meter:getProfitMode()==='meter',rial:getProfitMode()==='rial'});
 }
 function widgetPayload(){
   const p={enabled:!!widgetSettings.enabled};
@@ -2301,40 +2302,41 @@ function calc2HoldStart(e,d){
   _c2HoldT=setTimeout(()=>{ _c2HoldI=setInterval(()=>calc2ProfitStep(d),140); },350);
 }
 /* ══ حالت سود: «درصدی» (پیش‌فرض) یا «متری» (مبلغ سود به‌ازای هر متر مربع کارتن) ══ */
-function getProfitMode(){ return invoiceSettings.profitMode==='meter'?'meter':'percent'; }
+function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='meter'||m==='rial'?m:'percent'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
-function calc2CashPrice(base,areaM2){
-  const v=getNum('calc2-profit')||0;
-  return getProfitMode()==='meter'?base+v*areaM2:base*(1+v/100);
+function calc2CashPrice(base,areaM2,qty){
+  const v=getNum('calc2-profit')||0, m=getProfitMode();
+  if(m==='rial') return base+v/Math.max(1,qty||1);   /* ریالی: کل سود این ردیف = مبلغ واردشده؛ سهم هر کارتن = مبلغ ÷ تعداد */
+  return m==='meter'?base+v*areaM2:base*(1+v/100);
 }
-function calc2SalePrice(base,areaM2){
-  if(getProfitMode()==='meter') return calc2CashPrice(base,areaM2)+base*calc2CheckPct()/100;   /* سود چک همچنان درصدی از قیمت پایه است */
+function calc2SalePrice(base,areaM2,qty){
+  if(getProfitMode()!=='percent') return calc2CashPrice(base,areaM2,qty)+base*calc2CheckPct()/100;   /* سود چک همچنان درصدی از قیمت پایه است */
   return base*(1+calc2EffProfit()/100);
 }
 function setProfitFieldValue(v){
   const el=$('calc2-profit'); if(!el) return;
-  el.value=getProfitMode()==='meter'?formatNum(v):String(v);
+  el.value=getProfitMode()!=='percent'?formatNum(v):String(v);
 }
 function applyProfitModeUI(){
   const el=$('calc2-profit'); if(!el) return;
-  const meter=getProfitMode()==='meter';
+  const meter=getProfitMode()!=='percent', rial=getProfitMode()==='rial';
   const cur=parseFloat((el.value||'').replace(/,/g,''));
   el.type=meter?'text':'number';          /* حالت متری: متن با جداکننده‌ی هزارگان مثل بقیه‌ی قیمت‌ها */
   el.setAttribute('inputmode','decimal');
-  el.placeholder=meter?'200,000':'20';
+  el.placeholder=rial?'1,000,000':meter?'200,000':'20';
   if(meter) el.removeAttribute('max'); else el.max='100';
-  if(el.parentElement) el.parentElement.style.flex=meter?'0 0 84px':'0 0 46px';
-  el.title=meter?'سود هر متر مربع (ریال)':'درصد سود';
+  if(el.parentElement) el.parentElement.style.flex=rial?'0 0 100px':meter?'0 0 84px':'0 0 46px';
+  el.title=rial?'مبلغ کل سود این ردیف (ریال)':meter?'سود هر متر مربع (ریال)':'درصد سود';
   if(!isNaN(cur)) el.value=meter?formatNum(cur):String(cur);
 }
 /* مقدار پیش‌فرض سود برای هر حالت — قابل تنظیم توسط کاربر (پیش‌فرض اولیه: 20% و 5000 برای متری) */
 function getProfitDefault(mode){
   const v=parseFloat(invoiceSettings['profitDefault_'+mode]);
-  return !isNaN(v)&&v>=0?v:(mode==='meter'?200000:20);
+  return !isNaN(v)&&v>=0?v:(mode==='rial'?1000000:mode==='meter'?200000:20);
 }
 function renderProfitModeInput(){
   const mode=getProfitMode();
-  [['percent','profit-mode-btn-percent'],['meter','profit-mode-btn-meter']].forEach(([m,id])=>{
+  [['percent','profit-mode-btn-percent'],['meter','profit-mode-btn-meter'],['rial','profit-mode-btn-rial']].forEach(([m,id])=>{
     const b=$(id); if(!b) return;
     const on=m===mode;   /* گزینه‌ی فعال قرمز می‌شود */
     b.style.background=on?'var(--brand)':'var(--surface)';
@@ -2346,28 +2348,29 @@ function renderProfitModeInput(){
   /* فقط پیش‌فرضِ حالت انتخاب‌شده نشان داده می‌شود */
   const inp=$('profit-default-input');
   if(inp){
-    const meter=mode==='meter';
+    const meter=mode!=='percent';
     inp.type=meter?'text':'number';
     inp.setAttribute('inputmode','decimal');
     if(meter) inp.removeAttribute('max'); else inp.max='100';
-    inp.value=meter?formatNum(getProfitDefault('meter')):String(getProfitDefault('percent'));
-    if(inp.parentElement) inp.parentElement.style.flex=meter?'0 0 84px':'0 0 46px';
+    inp.value=meter?formatNum(getProfitDefault(mode)):String(getProfitDefault('percent'));
+    if(inp.parentElement) inp.parentElement.style.flex=mode==='rial'?'0 0 100px':meter?'0 0 84px':'0 0 46px';
   }
   const lb=$('profit-default-label');
-  if(lb) lb.textContent=mode==='meter'?'پیش‌فرض متری (ریال، هر متر مربع)':'پیش‌فرض درصدی (٪)';
+  if(lb) lb.textContent=mode==='rial'?'پیش‌فرض ریالی (ریال، کل سود هر ردیف)':mode==='meter'?'پیش‌فرض متری (ریال، هر متر مربع)':'پیش‌فرض درصدی (٪)';
 }
 function profitDefInput(el){
   const mode=getProfitMode();
-  if(mode==='meter') formatThousands(el);
+  if(mode!=='percent') formatThousands(el);
   updateProfitDefault(mode,el.value);
 }
 function profitDefStep(d){
   const mode=getProfitMode();
   const cur=getProfitDefault(mode);
-  const v=mode==='meter'?Math.max(0,Math.round(cur+d*10000))   /* هر قدم = هزار تومان */
+  const v=mode==='rial'?Math.max(0,Math.round(cur+d*100000))
+         :mode==='meter'?Math.max(0,Math.round(cur+d*10000))   /* هر قدم = هزار تومان */
                         :Math.min(100,Math.max(0,Math.round((cur+d)*10)/10));
   updateProfitDefault(mode,v);
-  const inp=$('profit-default-input'); if(inp) inp.value=mode==='meter'?formatNum(v):String(v);
+  const inp=$('profit-default-input'); if(inp) inp.value=mode!=='percent'?formatNum(v):String(v);
 }
 let _pdHoldT=null,_pdHoldI=null;
 function profitDefHoldStop(){ clearTimeout(_pdHoldT); clearInterval(_pdHoldI); _pdHoldT=_pdHoldI=null; }
@@ -2379,7 +2382,7 @@ function profitDefHoldStart(e,d){
 }
 function updateProfitDefault(mode,val){
   const n=parseFloat(String(val).replace(/,/g,''));
-  invoiceSettings['profitDefault_'+mode]=(isNaN(n)||n<0)?(mode==='meter'?200000:20):n;
+  invoiceSettings['profitDefault_'+mode]=(isNaN(n)||n<0)?(mode==='rial'?1000000:mode==='meter'?200000:20):n;
   saveState();
   if(mode===getProfitMode()){   /* اگر همین حالت فعال است، کادر سود هم فوراً با پیش‌فرض جدید پر می‌شود */
     setProfitFieldValue(getProfitDefault(mode));
@@ -2387,7 +2390,7 @@ function updateProfitDefault(mode,val){
   }
 }
 function updateProfitMode(mode){
-  const next=mode==='meter'?'meter':'percent', prev=getProfitMode();
+  const next=mode==='meter'||mode==='rial'?mode:'percent', prev=getProfitMode();
   if(next===prev) return;
   invoiceSettings.profitMode=next;
   applyProfitModeUI(); renderProfitModeInput();
@@ -2397,9 +2400,9 @@ function updateProfitMode(mode){
 }
 function calc2ProfitStep(d){
   const el=$('calc2-profit'); if(!el) return;
-  const meter=getProfitMode()==='meter';
+  const meter=getProfitMode()!=='percent', rial=getProfitMode()==='rial';
   const cur=parseFloat((el.value||'').replace(/,/g,''))||0;
-  const v=meter?Math.max(0,Math.round(cur+d*10000))   /* هر قدم = هزار تومان = 10,000 ریال */
+  const v=meter?Math.max(0,Math.round(cur+d*(rial?100000:10000)))   /* متری: هر قدم 10,000 ریال؛ ریالی: 100,000 */
                :Math.min(100,Math.max(0,Math.round((cur+d)*10)/10));
   el.value=meter?formatNum(v):v;
   calc2ProfitRerun();
@@ -2574,8 +2577,8 @@ function runCalc2(opts){
     const wasteCostTotal=wasteCostPerUnit*c.qty;
     const basePriceWithWaste=basePrice+wasteCostPerUnit;
     const priceAreaM2=tp?2*((pieceLen*pieceHt)/10000):areaM2;   // مساحت مبنای سود در حالت متری
-    const finalPrice=calc2SalePrice(basePriceWithWaste,priceAreaM2);
-    const cashPrice=calc2CashPrice(basePriceWithWaste,priceAreaM2);   // قیمت نقدی (بدون سود چک)
+    const finalPrice=calc2SalePrice(basePriceWithWaste,priceAreaM2,c.qty);
+    const cashPrice=calc2CashPrice(basePriceWithWaste,priceAreaM2,c.qty);   // قیمت نقدی (بدون سود چک)
     const profitPerUnit=finalPrice-basePriceWithWaste;
     const totalProfit=profitPerUnit*c.qty;
     const totalPrice=finalPrice*c.qty;
@@ -3029,7 +3032,7 @@ function computeTwoPieceByClass(r,cls){
     const wasteArea=Math.max(0,o.sw*o.sh-o.count*pieceLen*pieceHt);
     const wasteCost=((wasteArea/10000)*pm2)/o.count;
     base=2*(pieceAreaM2*pm2+wasteCost);
-    fin=calc2SalePrice(base,2*pieceAreaM2);
+    fin=calc2SalePrice(base,2*pieceAreaM2,r.qty);
   }
   return Object.assign({},o,{cls,pieceLen:Math.round(pieceLen*10)/10,pieceHt:Math.round(pieceHt*10)/10,
     sheetsNeed:Math.ceil(r.qty*2/o.count),base,fin});
@@ -3088,7 +3091,7 @@ function c2CatLines(r,base,sw){
   const saleFactor=1+calc2EffProfit()/100;   /* قیمت فروش = قیمت پایه × (1 + درصد سود) — همان فرمول کارت نتیجه */
   const cur=priceCategoryOf(r.paperType,r.flute);
   const curP=sheetPrices[sheetPriceKey(r.layer,cur,cls)]||0;
-  const line=(c,v,first)=>`<div style="display:flex;align-items:baseline;gap:6px;line-height:1;margin-top:${first?0:4}px"><span class="il" style="color:var(--blue);font-weight:800">${catLabel(c,r.layer,cls)}</span><span class="iv" style="color:var(--danger)">${formatNum(Math.round(v))}</span><span class="iv" style="color:var(--green-d)">${formatNum(Math.round(calc2SalePrice(v,r.areaM2)))}</span></div>`;
+  const line=(c,v,first)=>`<div style="display:flex;align-items:baseline;gap:6px;line-height:1;margin-top:${first?0:4}px"><span class="il" style="color:var(--blue);font-weight:800">${catLabel(c,r.layer,cls)}</span><span class="iv" style="color:var(--danger)">${formatNum(Math.round(v))}</span><span class="iv" style="color:var(--green-d)">${formatNum(Math.round(calc2SalePrice(v,r.areaM2,r.qty)))}</span></div>`;
   let out=line(cur,base,true);
   catsForLayer(r.layer).filter(c=>c!==cur&&!(r.layer==='5'&&cls==='T'&&c==='KT')).forEach(c=>{
     const pp=sheetPrices[sheetPriceKey(r.layer,c,cls)]||0;
@@ -3164,7 +3167,7 @@ function renderCalc2SuggestSheet(rowId){
     const wasteArea=Math.max(0,o.sw*o.sh-o.count*bw*bh);
     const wasteUnit=((wasteArea/10000)*zeroPricePerM2)/o.count;
     const basePlus=base+wasteUnit;
-    const fin=calc2SalePrice(basePlus,r.areaM2);
+    const fin=calc2SalePrice(basePlus,r.areaM2,r.qty);
     return{basePlus,fin,total:fin*r.qty};
   };
   const zeroHtml=zeroWasteOptions.length
