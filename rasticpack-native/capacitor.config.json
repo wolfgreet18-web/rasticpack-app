@@ -1,6 +1,6 @@
 {
   "appId": "ir.rasticpack.app",
-  "appName": "رستیک پک",
+  "appName": "Rastic",
   "webDir": "www",
   "android": {
     "allowMixedContent": false

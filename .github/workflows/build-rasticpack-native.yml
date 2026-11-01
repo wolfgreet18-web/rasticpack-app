@@ -38,6 +38,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Apply Rastic name and icon
+        run: python3 apply_branding.py
+
       - name: Install home-screen widget (native Android code)
         run: python3 install_widget.py
 
