@@ -716,6 +716,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('status-panel')">
           📊 وضعیت ورق
         </button>
+        <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('opt-panel')">
+          ♻️ شیت بهینه
+        </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('pm-panel')">
           💰 قیمت مشتری
         </button>
@@ -815,6 +818,36 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
       </div>
 
+      <div id="opt-panel" style="display:none;margin-top:14px">
+        <div class="field full" style="margin-top:14px;margin-bottom:8px">
+          <label>♻️ شیت بهینه — ورق‌های موجودی انبار</label>
+          <div class="subtype-toggle" style="display:flex;gap:8px;margin-top:6px">
+            <button type="button" class="subtype-btn" id="rs-btn-off" onclick="setReuseStrips(false)">غیرفعال</button>
+            <button type="button" class="subtype-btn" id="rs-btn-on" onclick="setReuseStrips(true)">فعال</button>
+          </div>
+        </div>
+        <div id="rs-box" style="display:none">
+          <div class="alert alert-warning visible" style="margin-top:0">
+            <span class="alert-icon">♻️</span>
+            <div>پهنای باقی‌مانده‌ی ورق بعد از چیدن کارتن‌ها، با عددهای زیر پر می‌شود (مثلاً ورق ۱۶۰ با بلانک ۶۰: ۱۶۰ − ۶۰ = ۱۰۰ ← نوار ۱۰۰ پرت حساب نمی‌شود و کنار گذاشته می‌شود). هر ترکیبی از عددها که باقی‌مانده را بهتر پر کند انتخاب می‌شود و بقیه پرت است؛ ورقی که کمترین پرت را برای مشتری دارد پیشنهاد می‌شود.</div>
+          </div>
+          <div id="rs-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <div class="mini-field" style="flex:1 1 110px;display:flex;flex-direction:column;gap:4px"><label style="font-size:.72rem;font-weight:600;color:var(--txm)">عرض جدید (سانتی‌متر)</label><input type="number" id="rs-new" min="1" step="any" onkeydown="if(event.key==='Enter'){event.preventDefault();addReuseWidth();}"/></div>
+            <button type="button" class="btn btn-primary" style="margin-top:0;width:auto;padding:9px 16px;font-size:.78rem" onclick="addReuseWidth()">+ افزودن عرض</button>
+            <button type="button" class="btn btn-flat" style="margin-top:0;padding:9px 14px;font-size:.78rem" onclick="resetReuseWidths()">پیش‌فرض</button>
+          </div>
+        </div>
+        <div class="field full" style="margin-top:14px;margin-bottom:6px">
+          <label>♻️ شیت بهینه — ورق‌های پیشنهادی (بدون پرت)</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.86rem;font-weight:700;color:var(--tx)"><input type="checkbox" id="rs-sug-A" style="width:20px;height:20px;margin:0;accent-color:var(--brand)" onchange="setReuseSug('A',this.checked)"/> ورق‌های پیشنهادی A</label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.86rem;font-weight:700;color:var(--tx)"><input type="checkbox" id="rs-sug-T" style="width:20px;height:20px;margin:0;accent-color:var(--brand)" onchange="setReuseSug('T',this.checked)"/> ورق‌های پیشنهادی T</label>
+          </div>
+          <div style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin-top:6px">با تیک هر گزینه، پهنای باقی‌مانده‌ی ورق‌های پیشنهادیِ همان نوع هم با عرض‌های لیست زیر پر می‌شود و نوار کناری پرت حساب نمی‌شود.</div>
+        </div>
+      </div>
+
       <div id="pm-panel" style="display:none;margin-top:14px">
         <div class="field full" style="margin-bottom:8px">
           <label>قیمتی که برای مشتری پیامک و فاکتور می‌شود</label>
@@ -833,25 +866,6 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <div class="alert alert-warning visible" style="margin-top:0">
           <span class="alert-icon">💡</span>
           <div>«کمترین قیمت»: از بین ورق‌های موجودی که کارتن را درست و با موجودی کافی می‌برند، ورقی که هزینه‌ی ورق هر کارتن را کمتر می‌کند انتخاب می‌شود (قیمت هر دسته‌ی ورق از تب «ورق» محاسبه می‌شود). در تساوی، کمترین پرت ملاک است.</div>
-        </div>
-        <div class="field full" style="margin-top:14px;margin-bottom:8px">
-          <label>♻️ استفاده‌ی مجدد از نوار کناریِ ورق (فقط ورق‌های موجودی انبار)</label>
-          <div class="subtype-toggle" style="display:flex;gap:8px;margin-top:6px">
-            <button type="button" class="subtype-btn" id="rs-btn-off" onclick="setReuseStrips(false)">غیرفعال</button>
-            <button type="button" class="subtype-btn" id="rs-btn-on" onclick="setReuseStrips(true)">فعال</button>
-          </div>
-        </div>
-        <div id="rs-box" style="display:none">
-          <div class="alert alert-warning visible" style="margin-top:0">
-            <span class="alert-icon">♻️</span>
-            <div>پهنای باقی‌مانده‌ی ورق بعد از چیدن کارتن‌ها، با عددهای زیر پر می‌شود (مثلاً ورق ۱۶۰ با بلانک ۶۰: ۱۶۰ − ۶۰ = ۱۰۰ ← نوار ۱۰۰ پرت حساب نمی‌شود و کنار گذاشته می‌شود). هر ترکیبی از عددها که باقی‌مانده را بهتر پر کند انتخاب می‌شود و بقیه پرت است؛ ورقی که کمترین پرت را برای مشتری دارد پیشنهاد می‌شود.</div>
-          </div>
-          <div id="rs-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
-          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-            <div class="mini-field" style="flex:1 1 110px;display:flex;flex-direction:column;gap:4px"><label style="font-size:.72rem;font-weight:600;color:var(--txm)">عرض جدید (سانتی‌متر)</label><input type="number" id="rs-new" min="1" step="any" onkeydown="if(event.key==='Enter'){event.preventDefault();addReuseWidth();}"/></div>
-            <button type="button" class="btn btn-primary" style="margin-top:0;width:auto;padding:9px 16px;font-size:.78rem" onclick="addReuseWidth()">+ افزودن عرض</button>
-            <button type="button" class="btn btn-flat" style="margin-top:0;padding:9px 14px;font-size:.78rem" onclick="resetReuseWidths()">پیش‌فرض</button>
-          </div>
         </div>
         <div class="alert alert-warning visible" style="margin-top:0">
           <span class="alert-icon">💡</span>
@@ -1405,7 +1419,7 @@ function escapeForJsSingleQuoted(str){
     .replace(/\r/g,'');
   return escapeHtml(jsEscaped);
 }
-const SETTINGS_PANEL_IDS=['widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel'];
+const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel'];
 
 const toggleSection = id => {
   const el=$(id); if(!el) return;
@@ -2059,15 +2073,18 @@ const DEFAULT_REUSE_WIDTHS=[110,100,90,80,70,60,50];
 function getReuseCfg(){
   const r=invoiceSettings.reuseStrips;
   const ws=(r&&Array.isArray(r.widths))?r.widths:DEFAULT_REUSE_WIDTHS;
-  return {on:!!(r&&r.on),widths:ws.map(Number).filter(w=>w>0)};
+  return {on:!!(r&&r.on),sugA:!!(r&&r.sugA),sugT:!!(r&&r.sugT),widths:ws.map(Number).filter(w=>w>0)};
 }
-function saveReuseCfg(c){ invoiceSettings.reuseStrips={on:!!c.on,widths:c.widths.slice().sort((a,b)=>b-a)}; }
+function saveReuseCfg(c){ invoiceSettings.reuseStrips={on:!!c.on,sugA:!!c.sugA,sugT:!!c.sugT,widths:c.widths.slice().sort((a,b)=>b-a)}; }
+function setReuseSug(k,on){ const c=getReuseCfg(); c['sug'+k]=!!on; saveReuseCfg(c); _reuseChanged(); }
 function renderReuseStrips(){
   const c=getReuseCfg();
   const off=$('rs-btn-off'),on=$('rs-btn-on'),box=$('rs-box'),chips=$('rs-chips');
   if(off) off.classList.toggle('active',!c.on);
   if(on) on.classList.toggle('active',c.on);
-  if(box) box.style.display=c.on?'block':'none';
+  const anyOn=c.on||c.sugA||c.sugT;
+  if(box) box.style.display=anyOn?'block':'none';
+  const ca=$('rs-sug-A'),ct=$('rs-sug-T'); if(ca) ca.checked=c.sugA; if(ct) ct.checked=c.sugT;
   if(chips) chips.innerHTML=c.widths.length?c.widths.slice().sort((a,b)=>b-a).map(w=>`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:4px 6px 4px 12px;font-weight:700;font-size:.82rem">${w}<button type="button" onclick="removeReuseWidth(${w})" title="حذف" style="background:none;border:none;box-shadow:none;padding:0 4px;min-width:0;width:auto;cursor:pointer;color:var(--danger);font-size:1rem;line-height:1">×</button></span>`).join(''):'<span style="font-size:.78rem;color:var(--danger)">هیچ عددی تعریف نشده — نواری جدا نمی‌شود.</span>';
 }
 function _reuseChanged(){ renderReuseStrips(); saveState(); try{ if(calc2LastResults&&calc2LastResults.length) runCalc2({live:true}); }catch(e){} }
@@ -2440,7 +2457,9 @@ function calcLayout(sw,sh,bw,bh,grain){
 function c2ReuseStrip(s,leftW){
   try{
     const rs=(typeof invoiceSettings!=='undefined')?invoiceSettings.reuseStrips:null;
-    if(!rs||!rs.on||s.virtual||!(s.id>=0)||!(leftW>0.05)) return null;
+    if(!rs||!(leftW>0.05)) return null;
+    const isV=!!s.virtual||!(s.id>=0);
+    if(isV){ if(!rs['sug'+widthClassOf(s.sw)]) return null; } else if(!rs.on) return null;
     const ws=[...new Set((Array.isArray(rs.widths)?rs.widths:[]).map(w=>Math.round(parseFloat(w)*10)).filter(w=>w>0))];
     if(!ws.length) return null;
     const cap=Math.floor(leftW*10+1e-6);
@@ -3487,10 +3506,14 @@ function computeZeroWasteSheetSuggestions(bw,bh,layer){
       if(sh>MAX_SUGGEST_SHEET_LEN) break;
       const realRows=Math.floor(sh/bh+1e-9);
       if(realRows<1) continue;
-      const count=cols*realRows;
       const area=sw*sh;
-      const waste=Math.round(((area-count*bw*bh)/area)*1000)/10;
-      const cand={sw,sh,cols,rows:realRows,count,areaM2:Math.round(area/100)/100,waste};
+      let kBest=cols, stBest=c2ReuseStrip({virtual:true,sw,sh},sw-cols*bw);
+      const ppF=(k,st)=>(area-k*realRows*bw*bh-(st?st.sum*sh:0))/(k*realRows);
+      let ppBest=ppF(cols,stBest);
+      for(let k=cols-1;k>=1;k--){ const st=c2ReuseStrip({virtual:true,sw,sh},sw-k*bw), v=ppF(k,st); if(st&&v<ppBest-1e-6){ ppBest=v; kBest=k; stBest=st; } }
+      const count=kBest*realRows, reuseW=stBest?stBest.sum:0;
+      const waste=Math.round((Math.max(0,area-count*bw*bh-reuseW*sh)/area)*1000)/10;
+      const cand={sw,sh,cols:kBest,rows:realRows,count,areaM2:Math.round(area/100)/100,waste,reuseW,reuseArea:reuseW*sh};
       out.push(cand);
     }
   });
@@ -3692,10 +3715,10 @@ function computeTwoPieceByClass(r,cls){
   let base=null,fin=null;
   if(pm2>0&&o.count>0){
     const pieceAreaM2=(pieceLen*pieceHt)/10000;
-    const wasteArea=Math.max(0,o.sw*o.sh-o.count*pieceLen*pieceHt);
+    const wasteArea=Math.max(0,o.sw*o.sh-o.count*pieceLen*pieceHt-(o.reuseArea||0));
     const wasteCost=((wasteArea/10000)*pm2)/o.count;
     base=2*(pieceAreaM2*pm2+wasteCost);
-    if(r.qty>0) base=Math.max(base,(Math.ceil(r.qty*2/o.count)*(o.sw*o.sh/10000)*pm2)/r.qty);
+    if(r.qty>0) base=Math.max(base,(Math.ceil(r.qty*2/o.count)*((o.sw*o.sh-(o.reuseArea||0))/10000)*pm2)/r.qty);
     fin=calc2SalePrice(base,2*pieceAreaM2,r.qty);
   }
   return Object.assign({},o,{cls,pieceLen:Math.round(pieceLen*10)/10,pieceHt:Math.round(pieceHt*10)/10,
@@ -3714,7 +3737,7 @@ function toggleZeroSheetImage(rowId,idx,cls){
     _savedMid=window.__getMid();
     window.__setMid(1000*(rowId+1)+500+idx);
     window.resetArrowCache();
-    svg=window.svgSheetCutOnly(c.sh,c.sw,r.totalLength,r.totalWidth,0,0,true,0,0,true);
+    svg=window.svgSheetCutOnly(c.sh,c.sw,r.totalLength,r.totalWidth,0,0,true,0,0,true,(c.reuseW>0)?{cols:c.cols,reuseW:c.reuseW}:null);
   }catch(e){ console.error('zero sheet image',e); svg='<div class="empty-state" style="padding:14px">⚠️ ساخت تصویر شیت ممکن نشد</div>'; }
   finally{ try{ window.__setMid(_savedMid); window.resetArrowCache(); }catch(_){} }
   box.innerHTML='<div style="max-width:58%;margin:0 auto">'+svg+'</div>';
@@ -3791,7 +3814,7 @@ function renderCalc2SuggestSheet(rowId){
     const t=computeTwoPieceByClass(r,k);
     calc2TwoPieceCache[rowId]['cls-'+k]=t?{sheetId:null,sw:t.sw,sh:t.sh}:null;
   });
-  calc2SuggestCache[rowId]=zeroWasteOptions.map(o=>({sheetId:null,sw:o.sw,sh:o.sh,L:r.length,W:r.width,H:r.height}));
+  calc2SuggestCache[rowId]=zeroWasteOptions.map(o=>({sheetId:null,sw:o.sw,sh:o.sh,L:r.length,W:r.width,H:r.height,cols:o.cols,reuseW:o.reuseW||0}));
   const cartonSuggestions=suggestCartonDimsFromInventory(r.length,r.width,r.height,r.glue,r.layer,r.flute,r.paperType).slice(0,1);
   const cartonPricing=cartonSuggestions.length?computeCartonSuggestionPricing(cartonSuggestions[0],r):null;
   const singleBest=r.twoPiece?null:(r.sheets[0]||null);
@@ -3828,11 +3851,11 @@ function renderCalc2SuggestSheet(rowId){
     const zeroPricePerM2=zeroPriceFor(o);
     if(!(zeroPricePerM2>0)||!(o.count>0)) return null;
     const base=r.areaM2*zeroPricePerM2;
-    const wasteArea=Math.max(0,o.sw*o.sh-o.count*bw*bh);
+    const wasteArea=Math.max(0,o.sw*o.sh-o.count*bw*bh-(o.reuseArea||0));
     const wasteUnit=((wasteArea/10000)*zeroPricePerM2)/o.count;
     /* ورق‌های کامل مصرفی (بالا‌گرد): اگر روی آخرین ورق جای خالی بماند، پولش هم روی مشتری حساب می‌شود (هم‌سان با کارت نتیجه) */
     const sheetsUsedZ=Math.ceil(r.qty/o.count);
-    const allSheetsUnit=(r.qty>0)?(sheetsUsedZ*(o.sw*o.sh/10000)*zeroPricePerM2)/r.qty:0;
+    const allSheetsUnit=(r.qty>0)?(sheetsUsedZ*((o.sw*o.sh-(o.reuseArea||0))/10000)*zeroPricePerM2)/r.qty:0;
     const basePlus=Math.max(base+wasteUnit,allSheetsUnit);
     const fin=calc2SalePrice(basePlus,r.areaM2,r.qty);
     return{basePlus,fin,total:fin*r.qty};
@@ -3843,7 +3866,7 @@ function renderCalc2SuggestSheet(rowId){
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div class="inv-card-main" style="min-width:140px">
             <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:2px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${o.count>0?Math.ceil(r.qty/o.count):'—'} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${o.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${o.sw}</span></bdi><span style="color:#000">${o.cls}</span></div></div>
-            <div class="inv-card-meta" style="font-weight:700;margin-top:4px;color:${o.waste<=0.05?'var(--green-d)':'var(--gold)'}">${o.waste<=0.05?'✔ پرت صفر':'پرت '+o.waste+'%'}</div>
+            <div class="inv-card-meta" style="font-weight:700;margin-top:4px;color:${o.waste<=0.05?'var(--green-d)':'var(--gold)'}">${o.waste<=0.05?'✔ پرت صفر':'پرت '+o.waste+'%'}${o.reuseW>0?` <span style="color:var(--green-d)">♻️ نوار ${o.reuseW}</span>`:''}</div>
           </div>
           ${zp?`<div class="inv-card-stats"><div class="inv-stat" style="display:flex;flex-direction:column;align-items:flex-end;gap:0px">${c2CatLines(r,zp.basePlus,o.sw)}</div></div>`:''}
         </div>
@@ -4249,15 +4272,15 @@ function c2SmsPriceBasis(r){
     if(!o||!(o.count>0)) return r;
     const pm2=sheetPricePerM2(r.layer,r.paperType,r.flute,o.sw);
     if(!(pm2>0)) return r;
-    const wasteArea=Math.max(0,o.sw*o.sh-o.count*r.totalWidth*r.totalLength);
+    const wasteArea=Math.max(0,o.sw*o.sh-o.count*r.totalWidth*r.totalLength-(o.reuseArea||0));
     /* ورق‌های کامل مصرفی (بالا‌گرد) — اگر روی آخرین ورق جای خالی بماند، پولش هم حساب می‌شود */
     const sheetsUsed=Math.ceil(r.qty/o.count);
     const basePlus0=r.areaM2*pm2+((wasteArea/10000)*pm2)/o.count;
-    const basePlusAll=(r.qty>0)?(sheetsUsed*(o.sw*o.sh/10000)*pm2)/r.qty:basePlus0;
+    const basePlusAll=(r.qty>0)?(sheetsUsed*((o.sw*o.sh-(o.reuseArea||0))/10000)*pm2)/r.qty:basePlus0;
     const basePlus=Math.max(basePlus0,basePlusAll);
     const fin=Math.round(calc2SalePrice(basePlus,r.areaM2,r.qty));
     /* ضایعات همین ورقِ پیشنهادی (نه ورق قبلی) — تا قیمت تخفیفِ حالت «پرت صفر» با فروش یکی بماند */
-    const totalWasteArea=Math.max(0,sheetsUsed*o.sw*o.sh-r.qty*r.totalWidth*r.totalLength);
+    const totalWasteArea=Math.max(0,sheetsUsed*(o.sw*o.sh-(o.reuseArea||0))-r.qty*r.totalWidth*r.totalLength);
     const scrapTot=(totalWasteArea/10000)*((sheetWeights[r.layer]||0)/1000)*wastePrice;
     return {...r,basePriceWithWaste:basePlus,finalPrice:fin,cashPrice:calc2CashPrice(basePlus,r.areaM2,r.qty),totalPrice:fin*r.qty,sheets:[{sw:o.sw,sh:o.sh}],scrapWastePricePerCarton:(r.qty>0?scrapTot/r.qty:0)};
   }catch(e){ return r; }
