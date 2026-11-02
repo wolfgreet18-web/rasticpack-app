@@ -2585,6 +2585,8 @@ function drawSheetCanvas(canvas,sw,sh,bw,bh,grain,layout){
 
 /* ══ TAB — محاسبه کارتن ══ */
 let calc2RowIds=[1,2], calc2NextId=3, calc2LastResults=[];
+let _rcRes=null;   /* نتیجه‌ی کارت فرم «کارتن‌های موجود» */
+function c2FindRes(id){ return calc2LastResults.find(x=>x.id===id)||((_rcRes&&_rcRes.id===id)?_rcRes:undefined); }
 /* ورقی که کاربر با «اعمال ورق» برای یک ردیف انتخاب کرده؛ فقط تا وقتی ابعاد/لایه همان است معتبر می‌ماند */
 let calc2SheetOverride={};
 const calc2OverrideSig=(c)=>[c.length,c.width,c.height,c.glue,c.layer].join('|');
@@ -3144,6 +3146,51 @@ function calc2CheckPct(){
 }
 function calc2EffProfit(){ return getProfitAmt()+calc2CheckPct(); }
 
+/* محاسبه‌ی کامل یک کارتن (همان منطق تب قیمت) — برای تب قیمت و فرم «کارتن‌های موجود» */
+function calc2ComputeOne(c,checkPct,grain){
+    const totalLength=(c.length+c.width)*2+c.glue;
+    const totalWidth=c.width+c.height;
+    const areaM2=(totalLength*totalWidth)/10000;
+    const ov=calc2SheetOverride[c.id];
+    const tp=!!(ov&&ov.sig===calc2OverrideSig(c)&&ov.twoPiece);   // حالت برش دوتکه (اعمال‌شده از پیشنهاد دوتکه)
+    const pieceLen=c.length+c.width+c.glue, pieceHt=totalWidth;
+    let sheets;
+    if(ov&&ov.sig===calc2OverrideSig(c)){
+      const real=ov.sheetId!=null?inventory.find(x=>x.id===ov.sheetId):null;
+      const base=real||{id:-1,sw:ov.sw,sh:ov.sh,layer:c.layer,flute:c.flute,paperType:c.paperType,virtual:true};
+      const eBw=tp?pieceHt:totalWidth, eBh=tp?pieceLen:totalLength, eNeed=tp?c.qty*2:c.qty;
+      const per=calcLayout(base.sw,base.sh,eBw,eBh,grain).total;
+      /* ورق خارج از انبار: تعداد ورق لازم دقیقاً به‌اندازهٔ نیاز محاسبه می‌شود */
+      const sheetObj=real?base:{...base,qty:per>0?Math.ceil(eNeed/per):0};
+      sheets=per>0?[evalSheet(sheetObj,eBw,eBh,eNeed,grain)]:[];
+    }else{
+      if(ov) delete calc2SheetOverride[c.id];
+      sheets=inventory.length?matchSheets(totalWidth,totalLength,c.qty,grain,c.layer,c.flute,c.paperType,c.cls).slice(0,1):[];
+    }
+    const best=sheets[0]||null;
+    const pricePerM2=sheetPricePerM2(c.layer,c.paperType,c.flute,best?.sw,c.cls);   // قیمت بر اساس دسته‌ی عرض (A/T) ورق انتخاب‌شده
+    const basePrice=tp?2*((pieceLen*pieceHt)/10000)*pricePerM2:areaM2*pricePerM2;
+    let wasteCostPerUnit=(best?.perSheet>0)?(((best.wasteArea/10000)*pricePerM2)/best.perSheet)*(tp?2:1):0;
+    /* هزینه‌ی کل ورق مصرفی: تعداد ورق کامل (بالا‌گرد) × قیمت یک ورق، تقسیم بر تعداد کارتن.
+       اگر روی آخرین ورق جای خالی بماند (مثلاً ۳ کارتن روی ورق دوکارتنی ← ۲ ورق)، پولِ آن قسمتِ پرت‌شده هم روی مشتری حساب می‌شود. */
+    if(best&&best.perSheet>0&&c.qty>0){
+      const needPieces=tp?c.qty*2:c.qty;
+      const sheetsUsed=Math.ceil(needPieces/best.perSheet);
+      const sheetCost=((best.sw*best.sh-(best.reuseArea||0))/10000)*pricePerM2;
+      const perUnitAllSheets=(sheetsUsed*sheetCost)/c.qty;
+      if(perUnitAllSheets>basePrice+wasteCostPerUnit) wasteCostPerUnit=perUnitAllSheets-basePrice;
+    }
+    const wasteCostTotal=wasteCostPerUnit*c.qty;
+    const basePriceWithWaste=basePrice+wasteCostPerUnit;
+    const priceAreaM2=tp?2*((pieceLen*pieceHt)/10000):areaM2;   // مساحت مبنای سود در حالت متری
+    const finalPrice=calc2SalePrice(basePriceWithWaste,priceAreaM2,c.qty);
+    const cashPrice=calc2CashPrice(basePriceWithWaste,priceAreaM2,c.qty);   // قیمت نقدی (بدون سود چک)
+    const profitPerUnit=finalPrice-basePriceWithWaste;
+    const totalProfit=profitPerUnit*c.qty;
+    const totalPrice=finalPrice*c.qty;
+    return{...c,twoPiece:tp,pieceLen,pieceHt,totalLength,totalWidth,areaM2,basePrice,wasteCostPerUnit,wasteCostTotal,
+      basePriceWithWaste,finalPrice,cashPrice,isCheck:checkPct>0,profitPerUnit,totalProfit,totalPrice,sheets};
+}
 function runCalc2(opts){
   const live=!!(opts&&opts.live);
   setVisible('calc2-alert',false);
@@ -3199,49 +3246,9 @@ function runCalc2(opts){
 
   let totalAllCartons=0,totalProfitAll=0;
   const results=cartons.map(c=>{
-    const totalLength=(c.length+c.width)*2+c.glue;
-    const totalWidth=c.width+c.height;
-    const areaM2=(totalLength*totalWidth)/10000;
-    const ov=calc2SheetOverride[c.id];
-    const tp=!!(ov&&ov.sig===calc2OverrideSig(c)&&ov.twoPiece);   // حالت برش دوتکه (اعمال‌شده از پیشنهاد دوتکه)
-    const pieceLen=c.length+c.width+c.glue, pieceHt=totalWidth;
-    let sheets;
-    if(ov&&ov.sig===calc2OverrideSig(c)){
-      const real=ov.sheetId!=null?inventory.find(x=>x.id===ov.sheetId):null;
-      const base=real||{id:-1,sw:ov.sw,sh:ov.sh,layer:c.layer,flute:c.flute,paperType:c.paperType,virtual:true};
-      const eBw=tp?pieceHt:totalWidth, eBh=tp?pieceLen:totalLength, eNeed=tp?c.qty*2:c.qty;
-      const per=calcLayout(base.sw,base.sh,eBw,eBh,grain).total;
-      /* ورق خارج از انبار: تعداد ورق لازم دقیقاً به‌اندازهٔ نیاز محاسبه می‌شود */
-      const sheetObj=real?base:{...base,qty:per>0?Math.ceil(eNeed/per):0};
-      sheets=per>0?[evalSheet(sheetObj,eBw,eBh,eNeed,grain)]:[];
-    }else{
-      if(ov) delete calc2SheetOverride[c.id];
-      sheets=inventory.length?matchSheets(totalWidth,totalLength,c.qty,grain,c.layer,c.flute,c.paperType,c.cls).slice(0,1):[];
-    }
-    const best=sheets[0]||null;
-    const pricePerM2=sheetPricePerM2(c.layer,c.paperType,c.flute,best?.sw,c.cls);   // قیمت بر اساس دسته‌ی عرض (A/T) ورق انتخاب‌شده
-    const basePrice=tp?2*((pieceLen*pieceHt)/10000)*pricePerM2:areaM2*pricePerM2;
-    let wasteCostPerUnit=(best?.perSheet>0)?(((best.wasteArea/10000)*pricePerM2)/best.perSheet)*(tp?2:1):0;
-    /* هزینه‌ی کل ورق مصرفی: تعداد ورق کامل (بالا‌گرد) × قیمت یک ورق، تقسیم بر تعداد کارتن.
-       اگر روی آخرین ورق جای خالی بماند (مثلاً ۳ کارتن روی ورق دوکارتنی ← ۲ ورق)، پولِ آن قسمتِ پرت‌شده هم روی مشتری حساب می‌شود. */
-    if(best&&best.perSheet>0&&c.qty>0){
-      const needPieces=tp?c.qty*2:c.qty;
-      const sheetsUsed=Math.ceil(needPieces/best.perSheet);
-      const sheetCost=((best.sw*best.sh-(best.reuseArea||0))/10000)*pricePerM2;
-      const perUnitAllSheets=(sheetsUsed*sheetCost)/c.qty;
-      if(perUnitAllSheets>basePrice+wasteCostPerUnit) wasteCostPerUnit=perUnitAllSheets-basePrice;
-    }
-    const wasteCostTotal=wasteCostPerUnit*c.qty;
-    const basePriceWithWaste=basePrice+wasteCostPerUnit;
-    const priceAreaM2=tp?2*((pieceLen*pieceHt)/10000):areaM2;   // مساحت مبنای سود در حالت متری
-    const finalPrice=calc2SalePrice(basePriceWithWaste,priceAreaM2,c.qty);
-    const cashPrice=calc2CashPrice(basePriceWithWaste,priceAreaM2,c.qty);   // قیمت نقدی (بدون سود چک)
-    const profitPerUnit=finalPrice-basePriceWithWaste;
-    const totalProfit=profitPerUnit*c.qty;
-    const totalPrice=finalPrice*c.qty;
-    totalAllCartons+=totalPrice; totalProfitAll+=totalProfit;
-    return{...c,twoPiece:tp,pieceLen,pieceHt,totalLength,totalWidth,areaM2,basePrice,wasteCostPerUnit,wasteCostTotal,
-      basePriceWithWaste,finalPrice,cashPrice,isCheck:checkPct>0,profitPerUnit,totalProfit,totalPrice,sheets};
+    const rr=calc2ComputeOne(c,checkPct,grain);
+    totalAllCartons+=rr.totalPrice; totalProfitAll+=rr.totalProfit;
+    return rr;
   });
 
   let totalWasteCostAll=0;
@@ -3274,8 +3281,8 @@ function runCalc2(opts){
   renderCalc2Results(results,totalAllCartons,totalProfitAll,grain,totalWasteCostAll,wasteCostByCarton);
 }
 
-function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteCostByCarton){
-  $('calc2-result-list').innerHTML=results.map((r,idx)=>{
+/* HTML کارت نتیجه‌ی یک کارتن (تب قیمت و فرم «کارتن‌های موجود» هر دو از همین استفاده می‌کنند) */
+function calc2CardHtml(r,idx){
 
     const sheetSec=`
       ${!r.sheets.length
@@ -3382,7 +3389,9 @@ function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteC
         <div class="calc2-section-tinted" id="c2sec-cartons-${r.id}" style="display:none;background:#fffcf0;padding:10px 12px"></div>
       </div>
     </div>`;
-  }).join('');
+}
+function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteCostByCarton){
+  $('calc2-result-list').innerHTML=results.map((r,idx)=>calc2CardHtml(r,idx)).join('');
 
   $('c2sec-invoice-all').innerHTML=`
     <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:12px">
@@ -3730,7 +3739,7 @@ function toggleZeroSheetImage(rowId,idx,cls){
   if(box.style.display!=='none'){ box.style.display='none'; return; }
   const tpBox=$('c2zero-tp-'+rowId+'-'+cls); if(tpBox) tpBox.style.display='none';   // فقط یکی از دوتکه / تصویر شیت باز باشد
   const c=(calc2SuggestCache[rowId]||[])[idx];
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!c||!r) return;
   let svg='',_savedMid=0;
   try{
@@ -3790,7 +3799,7 @@ function renderCalc2SuggestSheet(rowId){
   const wrapTwo=$('c2sec-twopiece-'+rowId);
   const wrapZero=$('c2sec-zerosheet-'+rowId);
   if(!wrapTwo&&!wrapZero) return;
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!r){
     if(wrapTwo) wrapTwo.innerHTML=`<div class="empty-state">اطلاعاتی برای این کارتن پیدا نشد.</div>`;
     if(wrapZero) wrapZero.innerHTML=`<div class="empty-state">اطلاعاتی برای این کارتن پیدا نشد.</div>`;
@@ -3938,7 +3947,7 @@ function renderCalc2SuggestSheet(rowId){
 /* «اعمال ورق»: ورق (و در صورت لزوم ابعاد کمی کوچک‌تر) روی همان کارتن اعمال و قیمت/شیت/پرت دوباره محاسبه می‌شود */
 function applyCalc2SuggestedSheet(rowId,idx){
   const c=(calc2SuggestCache[rowId]||[])[idx];
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!c||!r) return;
   calc2SheetOverride[rowId]={
     sig:calc2OverrideSig({length:c.L,width:c.W,height:c.H,glue:r.glue,layer:r.layer}),
@@ -3950,7 +3959,7 @@ function applyCalc2SuggestedSheet(rowId,idx){
 /* ✅ اعمال ورق پیشنهادی روی حالت «برش دوتکه» — kind: 'inv' (ورق انبار) یا 'width' (عرض پیش‌فرض) */
 function applyCalc2TwoPieceSheet(rowId,kind){
   const c=(calc2TwoPieceCache[rowId]||{})[kind];
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!c||!r) return;
   calc2SheetOverride[rowId]={
     sig:calc2OverrideSig({length:r.length,width:r.width,height:r.height,glue:r.glue,layer:r.layer}),
@@ -3961,7 +3970,7 @@ function applyCalc2TwoPieceSheet(rowId,kind){
 
 /* 🏭 ارسال مستقیم کارتن از نتایج تب قیمت به صف تولید (با بهترین ورق همین کارت) */
 function sendCalc2CartonToProduction(rowId){
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!r) return;
   const sh=r.sheets&&r.sheets[0];
   if(!sh){alert('برای این کارتن ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.');return;}
@@ -3989,7 +3998,7 @@ function sendCalc2CartonToProduction(rowId){
 /* 🏭 ارسال ورق پیشنهادی دوتکه به صف تولید (تب تولید ابعاد کارتن کامل را روی همین ورق نشان می‌دهد) */
 function sendTwoPieceSheetToProduction(rowId,kind){
   const c=(calc2TwoPieceCache[rowId]||{})[kind];
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!c||!r) return;
   const sourceKey=['tp',kind,rowId,c.sh,c.sw,r.length,r.width,r.height].join('-');
   let rec=productionQueue.find(p=>p.sourceKey===sourceKey);
@@ -4008,7 +4017,7 @@ function sendTwoPieceSheetToProduction(rowId,kind){
 /* «رفتن به تولید»: بدون اعمال روی محاسبه، همین ورق + ابعاد مستقیم به صف تولید می‌رود و تب تولید باز می‌شود */
 function sendSuggestedSheetToProduction(rowId,idx){
   const c=(calc2SuggestCache[rowId]||[])[idx];
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!c||!r) return;
   const sourceKey=['sg',rowId,c.sh,c.sw,c.L,c.W,c.H].join('-');
   let rec=productionQueue.find(p=>p.sourceKey===sourceKey);
@@ -4383,7 +4392,7 @@ async function copyAndOpenPhoneApp(body,btn,compact){
   setTimeout(openPhoneApp,150);
 }
 async function sendCartonToSms(rowId){
-  const r=calc2LastResults.find(x=>x.id===rowId);
+  const r=c2FindRes(rowId);
   if(!r){alert('ابتدا محاسبه را انجام دهید.');return;}
   await copyAndOpenPhoneApp(buildCartonSmsText(r),$('c2-sms-btn-'+rowId));
 }
@@ -4901,7 +4910,6 @@ function rcFormHTML(c){
         <input type="text" id="rc-note" maxlength="200" value="${c?escapeHtml(c.note||''):''}" placeholder="مثلاً چاپ‌دار / مشتری خاص" autocomplete="off"/></div>
     </div>
     <div id="rc-preview" style="margin-top:12px"></div>
-    <div id="rc-blank"></div>
     <div id="rc-err" style="display:none;margin-top:10px;font-size:.8rem;font-weight:700;color:var(--danger)"></div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button type="button" class="btn" style="flex:1;background:var(--brand);color:#fff;box-shadow:0 2px 6px rgba(185,28,28,.24)" onclick="rcSave()">${d.id?'ذخیره تغییرات':'ثبت کارتن'}</button>
@@ -4934,47 +4942,32 @@ function rcReadForm(){
     layer:d.layer,paperType:d.cat==='2T'?'2T':'KT',flute:d.cat==='E'?'E':'C',cls:d.cls,
     qty:Math.max(0,parseInt($('rc-qty')?.value)||0),note:($('rc-note')?.value||'').trim()};
 }
-/* رسم بلانک کارتن (۱B) و برش آن روی بهترین ورق — زیر کادر نتیجه‌ی فرم کارتن جدید (با تأخیر کوتاه تا تایپ سنگین نشود) */
-let _rcDrawT=null;
-function rcDrawBlank(){
-  clearTimeout(_rcDrawT);
-  _rcDrawT=setTimeout(()=>{
-    const box=$('rc-blank'); if(!box||!rcDraft) return;
-    const c=rcReadForm();
-    if(!(c.length>0&&c.width>0&&c.height>0)){ box.innerHTML=''; return; }
-    const glue=(+c.glue>0)?+c.glue:4;
-    const p=rcPricing(c);
-    let svg1='',svgS='',mid=0;
-    try{
-      mid=window.__getMid(); window.__setMid(777000);
-      window.resetArrowCache();
-      svg1=window.svgBlank1BForSuggest(c.length,c.width,c.height,glue);
-      if(p.best){
-        window.resetArrowCache();
-        svgS=window.svgSheetCutOnly(p.best.sh,p.best.sw,p.totalLength,p.totalWidth,0,0,true,0,0,true,(p.best.reuseW>0)?{cols:p.best.layout.cols,reuseW:p.best.reuseW}:null);
-      }
-    }catch(e){ console.error('rc blank',e); svg1='<div class="empty-state" style="padding:14px">⚠️ رسم بلانک ممکن نشد</div>'; }
-    finally{ try{ window.__setMid(mid); window.resetArrowCache(); }catch(_){} }
-    const cap=t=>`<div style="font-size:.74rem;font-weight:800;color:var(--tx2);margin:2px 0 6px">${t}</div>`;
-    box.innerHTML=`<div style="border:1.5px solid var(--border);border-radius:var(--r-md);background:var(--surface);padding:10px;margin-top:10px">
-      ${cap('📐 بلانک کارتن <span dir="ltr" style="font-weight:700;color:var(--txm)">'+p.totalLength+' × '+p.totalWidth+'</span>')}
-      <div style="max-width:100%;margin:0 auto">${svg1}</div>
-      ${svgS?cap('✂️ برش روی ورق <span dir="ltr" style="font-weight:700;color:var(--txm)">'+p.best.sh+' × '+p.best.sw+'</span>')+'<div style="max-width:70%;margin:0 auto">'+svgS+'</div>':''}
-    </div>`;
-  },180);
+/* کادر نتیجه‌ی فرم «کارتن جدید»: دقیقاً همان کارت نتیجه + جمع‌های تب قیمت (از همان توابع) */
+const RC_ROW_ID=900001;
+function rcResultHtml(c){
+  const checkPct=calc2CheckPct();
+  const carton={id:RC_ROW_ID,name:'کارتن 1',length:c.length,width:c.width,height:c.height,qty:Math.max(1,c.qty||1),layer:c.layer,glue:(+c.glue>0)?+c.glue:4,flute:c.flute,paperType:c.paperType,cls:c.cls||'',paperAuto:false};
+  const r=calc2ComputeOne(carton,checkPct,'horizontal');
+  const best=r.sheets[0];
+  let costW=0;
+  if(best){ costW=(best.totalWasteArea/10000)*((sheetWeights[r.layer]||0)/1000)*wastePrice; }
+  r.scrapWastePricePerCarton=r.qty>0?costW/r.qty:0;
+  _rcRes=r;   /* جدا از نتایج تب قیمت تا وارد پیامک/فاکتور آن نشود */
+  const tb=(cls,val,col,lab,extra)=>`<div class="inv-detail-box ${cls}" style="${extra||''}"><div class="dv" style="color:${col}">${val}</div><div class="dl"><span style="color:var(--red-700);font-weight:700">${lab}</span> <span style="color:var(--blue);font-weight:700">کل</span></div></div>`;
+  return calc2CardHtml(r,0)+`<div class="inv-result-card" style="margin-top:16px;border-color:var(--brand)"><div class="inv-card-body open" style="border-top:none">
+    <div class="inv-detail-grid" style="grid-template-columns:1fr 1fr">${tb('stat-green',formatNum(r.totalPrice),'var(--green-d)','مبلغ')}${tb('stat-red',formatNum(r.totalProfit),'var(--red-700)','سود')}</div>
+    ${tb('stat-yellow',formatNum(costW),'#f97316','ضایعات','margin-top:10px')}
+  </div></div>`;
 }
+function rcDrawBlank(){ /* نگه‌داشته برای سازگاری */ }
 function rcFormChanged(){
   const err=$('rc-err'); if(err) err.style.display='none';
   const box=$('rc-preview'); if(!box||!rcDraft) return;
-  rcDrawBlank();
   const c=rcReadForm();
   if(!(c.length>0&&c.width>0&&c.height>0)){ box.innerHTML=''; return; }
   const p=rcPricing(c);
   box.innerHTML=p.ok
-    ?`<div style="border:1.5px dashed var(--green);background:var(--green-bg);border-radius:var(--r-md);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div style="font-size:.72rem;color:var(--tx2);line-height:1.8"><span dir="ltr">${p.totalLength} × ${p.totalWidth}</span> سانتی‌متر · <span dir="ltr">${p.areaM2.toFixed(3)} m²</span>${p.best?`<br>ورق مبنا <span dir="ltr">${p.best.sh} × ${p.best.sw}</span>`:''}</div>
-        <div style="text-align:left"><div style="font-size:.66rem;color:var(--txm)">قیمت هر کارتن</div><div style="font-weight:900;font-size:1.1rem;color:var(--green-d)">${formatNum(p.cashPrice)} </div>${p.hasCheck?`<div style="font-size:.72rem;font-weight:800;color:#7c3aed">چکی ${formatNum(p.finalPrice)}</div>`:''}</div>
-      </div>`
+    ?(()=>{ try{ return rcResultHtml(c); }catch(e){ console.error('rc result',e); return ''; } })()
     :`<div style="border:1.5px dashed var(--red-400);background:var(--red-50);border-radius:var(--r-md);padding:10px 14px;font-size:.78rem;font-weight:700;color:var(--danger);line-height:1.7">قیمت ورق ${layerLabel(c.layer)} · دسته ${catLabel(rcCatOf(c),c.layer,p.resCls==='T'?'T':'A')}${p.resCls?' · عرض '+p.resCls:''} ثبت نشده — از تب «ورق» وارد کنید.</div>`;
 }
 function rcSave(){
