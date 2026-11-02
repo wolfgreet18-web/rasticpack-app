@@ -4901,6 +4901,7 @@ function rcFormHTML(c){
         <input type="text" id="rc-note" maxlength="200" value="${c?escapeHtml(c.note||''):''}" placeholder="مثلاً چاپ‌دار / مشتری خاص" autocomplete="off"/></div>
     </div>
     <div id="rc-preview" style="margin-top:12px"></div>
+    <div id="rc-blank"></div>
     <div id="rc-err" style="display:none;margin-top:10px;font-size:.8rem;font-weight:700;color:var(--danger)"></div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button type="button" class="btn" style="flex:1;background:var(--brand);color:#fff;box-shadow:0 2px 6px rgba(185,28,28,.24)" onclick="rcSave()">${d.id?'ذخیره تغییرات':'ثبت کارتن'}</button>
@@ -4933,9 +4934,39 @@ function rcReadForm(){
     layer:d.layer,paperType:d.cat==='2T'?'2T':'KT',flute:d.cat==='E'?'E':'C',cls:d.cls,
     qty:Math.max(0,parseInt($('rc-qty')?.value)||0),note:($('rc-note')?.value||'').trim()};
 }
+/* رسم بلانک کارتن (۱B) و برش آن روی بهترین ورق — زیر کادر نتیجه‌ی فرم کارتن جدید (با تأخیر کوتاه تا تایپ سنگین نشود) */
+let _rcDrawT=null;
+function rcDrawBlank(){
+  clearTimeout(_rcDrawT);
+  _rcDrawT=setTimeout(()=>{
+    const box=$('rc-blank'); if(!box||!rcDraft) return;
+    const c=rcReadForm();
+    if(!(c.length>0&&c.width>0&&c.height>0)){ box.innerHTML=''; return; }
+    const glue=(+c.glue>0)?+c.glue:4;
+    const p=rcPricing(c);
+    let svg1='',svgS='',mid=0;
+    try{
+      mid=window.__getMid(); window.__setMid(777000);
+      window.resetArrowCache();
+      svg1=window.svgBlank1BForSuggest(c.length,c.width,c.height,glue);
+      if(p.best){
+        window.resetArrowCache();
+        svgS=window.svgSheetCutOnly(p.best.sh,p.best.sw,p.totalLength,p.totalWidth,0,0,true,0,0,true,(p.best.reuseW>0)?{cols:p.best.layout.cols,reuseW:p.best.reuseW}:null);
+      }
+    }catch(e){ console.error('rc blank',e); svg1='<div class="empty-state" style="padding:14px">⚠️ رسم بلانک ممکن نشد</div>'; }
+    finally{ try{ window.__setMid(mid); window.resetArrowCache(); }catch(_){} }
+    const cap=t=>`<div style="font-size:.74rem;font-weight:800;color:var(--tx2);margin:2px 0 6px">${t}</div>`;
+    box.innerHTML=`<div style="border:1.5px solid var(--border);border-radius:var(--r-md);background:var(--surface);padding:10px;margin-top:10px">
+      ${cap('📐 بلانک کارتن <span dir="ltr" style="font-weight:700;color:var(--txm)">'+p.totalLength+' × '+p.totalWidth+'</span>')}
+      <div style="max-width:100%;margin:0 auto">${svg1}</div>
+      ${svgS?cap('✂️ برش روی ورق <span dir="ltr" style="font-weight:700;color:var(--txm)">'+p.best.sh+' × '+p.best.sw+'</span>')+'<div style="max-width:70%;margin:0 auto">'+svgS+'</div>':''}
+    </div>`;
+  },180);
+}
 function rcFormChanged(){
   const err=$('rc-err'); if(err) err.style.display='none';
   const box=$('rc-preview'); if(!box||!rcDraft) return;
+  rcDrawBlank();
   const c=rcReadForm();
   if(!(c.length>0&&c.width>0&&c.height>0)){ box.innerHTML=''; return; }
   const p=rcPricing(c);
