@@ -679,6 +679,12 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 <input type="number" id="bH" min="1"/>
 </div>
 </div>
+<div class="sec-lbl">نوع کارتن</div>
+<div class="btabs" id="prod-type-tabs" style="margin-bottom:12px">
+<button type="button" class="bttab" data-pt="" onclick="__setBoxType('');" style="font-size:.8rem">معمولی</button>
+<button type="button" class="bttab" data-pt="F" onclick="__setBoxType('F');" style="font-size:.8rem" title="درب روی‌هم کامل (FOL)">F</button>
+<button type="button" class="bttab" data-pt="H" onclick="__setBoxType('H');" style="font-size:.8rem" title="بدون درب بالا (HSC)">H</button>
+</div>
 <div class="sec-lbl">لپ چسب (سانتی‌متر)</div>
 <div class="ig2" style="margin-bottom:4px">
 <div class="field">
@@ -2589,7 +2595,18 @@ let _rcRes=null;   /* نتیجه‌ی کارت فرم «کارتن‌های مو
 function c2FindRes(id){ return calc2LastResults.find(x=>x.id===id)||((_rcRes&&_rcRes.id===id)?_rcRes:undefined); }
 /* ورقی که کاربر با «اعمال ورق» برای یک ردیف انتخاب کرده؛ فقط تا وقتی ابعاد/لایه همان است معتبر می‌ماند */
 let calc2SheetOverride={};
-const calc2OverrideSig=(c)=>[c.length,c.width,c.height,c.glue,c.layer].join('|');
+/* نوع کارتن: '' = معمولی (RSC، درب نیم‌به‌نیم)، 'F' = درب روی‌هم کامل (FOL: درب‌های بالا و پایین هرکدام W)،
+   'H' = بدون درب بالا (HSC: فقط درب پایین W/2). عرض بازشده‌ی بلانک (ht) = ارتفاع + عمق درب بالا + عمق درب پایین. */
+function c2BoxGeom(W,H,type){
+  if(type==='F') return {top:W,bot:W,ht:H+2*W};
+  if(type==='H') return {top:0,bot:W/2,ht:H+W/2};
+  return {top:W/2,bot:W/2,ht:H+W};
+}
+function c2BlankHt(W,H,type){ return c2BoxGeom(W,H,type).ht; }
+/* معکوس: با عرض بازشده‌ی bw و ارتفاع H، مقدار W چقدر است */
+function c2WFromBlankHt(bw,H,type){ return type==='F'?(bw-H)/2:type==='H'?(bw-H)*2:(bw-H); }
+function c2TypeName(t){ return t==='F'?'درب روی‌هم کامل (F)':t==='H'?'بدون درب بالا (H)':''; }
+const calc2OverrideSig=(c)=>[c.length,c.width,c.height,c.glue,c.layer,c.type||''].join('|');
 let calc2InvoiceSubmitted=false;
 /* مقادیر نمونه پیش‌فرض برای تست — فقط برای ردیف‌های اولیه 1 و 2 */
 const calc2SampleDefaults={
@@ -2658,6 +2675,13 @@ function calc2RowTemplate(id){
               <button type="button" class="subtype-btn" data-cls="T" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'T',this)">T</button>
             </div>
             <input type="hidden" id="c2-cls-${id}" value=""/>
+          </div>
+          <div style="display:flex;align-items:center;gap:0;margin-inline-start:4px">
+            <div class="subtype-toggle" style="margin-bottom:0;width:auto;display:inline-flex">
+              <button type="button" class="subtype-btn" data-type="F" title="درب روی‌هم کامل (FOL)" style="padding:11px 7px;font-size:.74rem" onclick="setCartonType(${id},'F',this)">F</button>
+              <button type="button" class="subtype-btn" data-type="H" title="بدون درب بالا (HSC)" style="padding:11px 7px;font-size:.74rem" onclick="setCartonType(${id},'H',this)">H</button>
+            </div>
+            <input type="hidden" id="c2-type-${id}" value=""/>
           </div>
         </div>
       </div>
@@ -2764,6 +2788,14 @@ function c2ToggleClsOff(k){
   document.addEventListener('click',e=>{ if(fired&&e.target.closest&&e.target.closest('.subtype-btn[data-cls]')){ e.stopImmediatePropagation(); e.preventDefault(); fired=false; } },true);
   document.addEventListener('contextmenu',e=>{ if(e.target.closest&&e.target.closest('.subtype-btn[data-cls]')) e.preventDefault(); },true);
 })();
+function setCartonType(id,val,btn){
+  const inp=$('c2-type-'+id); if(!inp) return;
+  const was=btn.classList.contains('active');
+  btn.parentElement.querySelectorAll('.subtype-btn').forEach(b=>b.classList.remove('active'));
+  if(was){ inp.value=''; } else { inp.value=val; btn.classList.add('active'); }
+  delete calc2SheetOverride[id];   /* ورق دلخواه/اعمال‌شده برای نوع قبلی بود */
+  calc2LiveRecalc();
+}
 function setCartonCls(id,val,btn){
   const inp=$('c2-cls-'+id); if(!inp) return;
   btn.parentElement.querySelectorAll('.auto-hint').forEach(b=>b.classList.remove('auto-hint'));
@@ -2870,6 +2902,7 @@ function duplicateCartonRow2(srcId){
     const btn=[...document.querySelectorAll(`.calc2-row[data-id="${id}"] .subtype-btn`)].find(b=>(b.getAttribute('onclick')||'').startsWith(`${fn}(${id},'${v}'`));
     if(btn) btn.click();
   });
+  { const ty=$('c2-type-'+srcId)?.value; if(ty){ const bt=document.querySelector(`.calc2-row[data-id="${id}"] .subtype-btn[data-type="${ty}"]`); if(bt) bt.click(); } }
   const cls=$('c2-cls-'+srcId)?.value;
   if(cls){
     const btn=[...document.querySelectorAll(`.calc2-row[data-id="${id}"] .subtype-btn`)].find(b=>(b.getAttribute('onclick')||'').startsWith(`setCartonCls(${id},'${cls}'`));
@@ -3074,7 +3107,7 @@ const _c2scTimers={};
 function c2scCarton(id){
   const L=getNum('c2-length-'+id),W=getNum('c2-width-'+id),H=getNum('c2-height-'+id);
   const g=getNum('c2-glue-'+id);
-  return {L,W,H,glue:g>0?g:4,ok:[L,W,H].every(v=>v>0)};
+  return {L,W,H,glue:g>0?g:4,type:$('c2-type-'+id)?.value||'',ok:[L,W,H].every(v=>v>0)};
 }
 function toggleC2SheetCharts(id){
   const box=$('c2sc-'+id); if(!box) return;
@@ -3115,7 +3148,7 @@ function c2scDraw(id){
   const sh=getNum('c2sc-sL-'+id), sw=getNum('c2sc-sW-'+id);
   if(sh>0&&sw>0){
     calc2SheetOverride[id]={
-      sig:calc2OverrideSig({length:c.L,width:c.W,height:c.H,glue:c.glue,layer:$('c2-layer-'+id)?.value||''}),
+      sig:calc2OverrideSig({length:c.L,width:c.W,height:c.H,glue:c.glue,layer:$('c2-layer-'+id)?.value||'',type:c.type}),
       sheetId:null,sw:sw,sh:sh
     };
   }else{
@@ -3149,7 +3182,7 @@ function calc2EffProfit(){ return getProfitAmt()+calc2CheckPct(); }
 /* محاسبه‌ی کامل یک کارتن (همان منطق تب قیمت) — برای تب قیمت و فرم «کارتن‌های موجود» */
 function calc2ComputeOne(c,checkPct,grain){
     const totalLength=(c.length+c.width)*2+c.glue;
-    const totalWidth=c.width+c.height;
+    const totalWidth=c2BlankHt(c.width,c.height,c.type);   /* معمولی W+H ؛ F: H+2W ؛ H: H+W/2 */
     const areaM2=(totalLength*totalWidth)/10000;
     const ov=calc2SheetOverride[c.id];
     const tp=!!(ov&&ov.sig===calc2OverrideSig(c)&&ov.twoPiece);   // حالت برش دوتکه (اعمال‌شده از پیشنهاد دوتکه)
@@ -3226,7 +3259,8 @@ function runCalc2(opts){
       if(e){e.textContent='ابعاد و تعداد این کارتن را کامل وارد کنید.';e.classList.add('visible');}
       ok=false; return;
     }
-    cartons.push({id,name,length,width,height,qty,layer,glue,flute,paperType,cls,paperAuto});
+    const type=$('c2-type-'+id)?.value||'';
+    cartons.push({id,name,length,width,height,qty,layer,glue,flute,paperType,cls,paperAuto,type});
   });
   if(!ok||!cartons.length){ if(live){ const l=$('calc2-result-list'); if(l) l.innerHTML=''; } return; }
 
@@ -3557,8 +3591,8 @@ function findClosestExistingSheets(bw,bh,layer,limit=3){
    یعنی «اعمال» می‌شد ولی قیمت بدون تغییر می‌ماند. الان فقط ابعادی پیشنهاد داده
    می‌شود که واقعاً تعداد کارتن در هر ورق را نسبت به ابعاد فعلی افزایش می‌دهد —
    یعنی قیمت واقعاً کمتر می‌شود. */
-function suggestCartonDimsFromInventory(origL,origW,origH,glue,layer,flute,paperType){
-  const bwOrig=origW+origH;           // عرض بازشده اصلی
+function suggestCartonDimsFromInventory(origL,origW,origH,glue,layer,flute,paperType,type){
+  const bwOrig=c2BlankHt(origW,origH,type);           // عرض بازشده اصلی
   const bhOrig=2*(origL+origW)+glue;  // طول بازشده اصلی
   const MAX_W=220, MAX_H=280;
   const SHRINK_FLOOR=0.8; // حداکثر تا 20% کوچک‌تر از ابعاد درخواستی — نه کمتر (خیلی کوچک پیشنهاد داده نشود)
@@ -3581,9 +3615,9 @@ function suggestCartonDimsFromInventory(origL,origW,origH,glue,layer,flute,paper
     // گزینه 1: کمی باریک‌تر کردن عرض (W) تا یک ستون بیشتر در همان ورق جا شود
     if(origCols>0){
       const newBwExact=sheet.sw/(origCols+1);
-      const newW=Math.floor((newBwExact-origH)*10)/10;
+      const newW=Math.floor(c2WFromBlankHt(newBwExact,origH,type)*10)/10;
       if(newW>0&&newW<=origW+1e-9&&newW>=origW*SHRINK_FLOOR){
-        const bw=Math.round((newW+origH)*10)/10;
+        const bw=Math.round(c2BlankHt(newW,origH,type)*10)/10;
         const cols=Math.floor(sheet.sw/bw), total=cols*origRows;
         if(total>origTotal){
           out.push({sheetId:sheet.id,sheetSh:sheet.sh,sheetSw:sheet.sw,sheetQty:sheet.qty,
@@ -3688,7 +3722,7 @@ function computeCartonSuggestionPricing(c,r){
   if(c.count>0&&r.qty>0) singlePrice=Math.max(singlePrice,(Math.ceil(r.qty/c.count)*(sheetArea/10000)*pricePerM2)/r.qty);
 
   const pieceLen=c.L+c.W+r.glue;
-  const pieceHt=c.W+c.H;
+  const pieceHt=c2BlankHt(c.W,c.H,r.type);
   const matches=matchSheets(pieceHt,pieceLen,r.qty*2,'horizontal',r.layer,r.flute,r.paperType,r.cls);
   const best=matches[0]||null;
   let twoPrice=null;
@@ -3824,7 +3858,7 @@ function renderCalc2SuggestSheet(rowId){
     calc2TwoPieceCache[rowId]['cls-'+k]=t?{sheetId:null,sw:t.sw,sh:t.sh}:null;
   });
   calc2SuggestCache[rowId]=zeroWasteOptions.map(o=>({sheetId:null,sw:o.sw,sh:o.sh,L:r.length,W:r.width,H:r.height,cols:o.cols,reuseW:o.reuseW||0}));
-  const cartonSuggestions=suggestCartonDimsFromInventory(r.length,r.width,r.height,r.glue,r.layer,r.flute,r.paperType).slice(0,1);
+  const cartonSuggestions=suggestCartonDimsFromInventory(r.length,r.width,r.height,r.glue,r.layer,r.flute,r.paperType,r.type).slice(0,1);
   const cartonPricing=cartonSuggestions.length?computeCartonSuggestionPricing(cartonSuggestions[0],r):null;
   const singleBest=r.twoPiece?null:(r.sheets[0]||null);
   const twoPiece=computeTwoPieceSuggestion(r);
@@ -3950,7 +3984,7 @@ function applyCalc2SuggestedSheet(rowId,idx){
   const r=c2FindRes(rowId);
   if(!c||!r) return;
   calc2SheetOverride[rowId]={
-    sig:calc2OverrideSig({length:c.L,width:c.W,height:c.H,glue:r.glue,layer:r.layer}),
+    sig:calc2OverrideSig({length:c.L,width:c.W,height:c.H,glue:r.glue,layer:r.layer,type:r.type}),
     sheetId:c.sheetId,sw:c.sw,sh:c.sh
   };
   applyCalc2SuggestedDims(rowId,c.L,c.W,c.H);
@@ -3962,7 +3996,7 @@ function applyCalc2TwoPieceSheet(rowId,kind){
   const r=c2FindRes(rowId);
   if(!c||!r) return;
   calc2SheetOverride[rowId]={
-    sig:calc2OverrideSig({length:r.length,width:r.width,height:r.height,glue:r.glue,layer:r.layer}),
+    sig:calc2OverrideSig({length:r.length,width:r.width,height:r.height,glue:r.glue,layer:r.layer,type:r.type}),
     sheetId:c.sheetId,sw:c.sw,sh:c.sh,twoPiece:true
   };
   applyCalc2SuggestedDims(rowId,r.length,r.width,r.height);
@@ -3974,12 +4008,13 @@ function sendCalc2CartonToProduction(rowId){
   if(!r) return;
   const sh=r.sheets&&r.sheets[0];
   if(!sh){alert('برای این کارتن ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.');return;}
-  const sourceKey=['c2',rowId,sh.sh,sh.sw,r.length,r.width,r.height,r.twoPiece?'tp':'1p'].join('-');
+  const sourceKey=['c2',rowId,sh.sh,sh.sw,r.length,r.width,r.height,r.twoPiece?'tp':'1p',r.type||''].join('-');
   let rec=productionQueue.find(p=>p.sourceKey===sourceKey);
   if(!rec){
     rec={id:nextProdId++,sourceKey,name:r.name||'کارتن',length:r.length,width:r.width,height:r.height,glue:r.glue,
       sh:sh.sh,sw:sh.sw,layer:r.layer,customerName:($('c2inv-customer')?.value||'').trim(),sentAt:new Date().toISOString()};
     if(r.twoPiece) rec.twoPiece=true;
+    if(r.type) rec.boxType=r.type;
     productionQueue.unshift(rec);
     if(productionQueue.length>30) productionQueue.length=30;
     saveState();
@@ -4088,17 +4123,18 @@ function openCalc2Sheet(rowId){
   calc2Accordion(rowId,'sheet');
 }
 /* ══ 📦 10 پیشنهاد کارتن از روی شیتِ دستیِ واردشده (فقط وقتی کاربر خودش ابعاد شیت را وارد کرده) ══ */
-function c2PickToggle(head,L,W,H,glue,sL,sW){
+function c2PickToggle(head,L,W,H,glue,sL,sW,ty){
+  ty=ty||'';
   const item=head.parentElement, blank=item.querySelector('.c2pk-blank');
   const wasOpen=blank.style.display!=='none';
   const root=item.closest('[data-pk]');
   if(root) root.querySelectorAll('.c2pk-blank').forEach(b=>{ b.style.display='none'; b.innerHTML=''; });
   if(wasOpen) return;
   blank.dataset.v='f';
-  try{ blank.innerHTML='<div style="max-width:58%;margin:0 auto">'+window.svgBlankForSuggest(L,W,H,glue,sL,sW)+'</div>'; }
+  try{ blank.innerHTML='<div style="max-width:58%;margin:0 auto">'+window.svgBlankForSuggest(L,W,H,glue,sL,sW,ty)+'</div>'; }
   catch(e){ blank.innerHTML='<div class="alrt">رسم بلانک ممکن نشد.</div>'; }
   blank.style.position='relative';
-  const _args=L+','+W+','+H+','+glue+','+sL+','+sW;
+  const _args=L+','+W+','+H+','+glue+','+sL+','+sW+',\''+ty+'\'';
   const _bs='width:38px;height:38px;border:1.5px solid var(--border);border-radius:50%;background:#fff;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.12)';
   blank.insertAdjacentHTML('beforeend','<div style="position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center">'+
     '<button type="button" title="نمایش 1B" aria-label="1B" onclick="event.stopPropagation();c2PickShow1B(this,'+_args+')" style="'+_bs+';font-size:.78rem;font-weight:800;color:var(--tx2,#57534e);font-family:inherit">1B</button>'+
@@ -4107,12 +4143,13 @@ function c2PickToggle(head,L,W,H,glue,sL,sW){
 }
 window.c2PickToggle=c2PickToggle;
 /* 1B: همان‌جا نمای 1B را به‌جای F نشان می‌دهد (دوباره بزنی به F برمی‌گردد) */
-function c2PickShow1B(btn,L,W,H,glue,sL,sW){
+function c2PickShow1B(btn,L,W,H,glue,sL,sW,ty){
+  ty=ty||'';
   const blank=btn.closest('.c2pk-blank'); if(!blank) return;
   const box=blank.firstElementChild; if(!box) return;
   const on=blank.dataset.v==='1b';
   try{
-    box.innerHTML=on?window.svgBlankForSuggest(L,W,H,glue,sL,sW):window.svgBlank1BForSuggest(L,W,H,glue);
+    box.innerHTML=on?window.svgBlankForSuggest(L,W,H,glue,sL,sW,ty):window.svgBlank1BForSuggest(L,W,H,glue,ty);
     blank.dataset.v=on?'f':'1b';
     btn.style.background=on?'#fff':'var(--brand,#b91c1c)';
     btn.style.color=on?'var(--tx2,#57534e)':'#fff';
@@ -4120,13 +4157,14 @@ function c2PickShow1B(btn,L,W,H,glue,sL,sW){
 }
 window.c2PickShow1B=c2PickShow1B;
 /* 🏭 ارسال کارتن پیشنهادی (با همین جهت ورق) به صف تولید */
-function c2PickToProduction(L,W,H,glue,sL,sW,panelId){
-  panelId=panelId||'mainsheet';
-  const sourceKey=['pk',sL,sW,L,W,H,glue].join('-');
+function c2PickToProduction(L,W,H,glue,sL,sW,ty,panelId){
+  panelId=panelId||'mainsheet'; ty=ty||'';
+  const sourceKey=['pk',sL,sW,L,W,H,glue,ty].join('-');
   let rec=productionQueue.find(p=>p.sourceKey===sourceKey);
   if(!rec){
     rec={id:nextProdId++,sourceKey,name:'کارتن پیشنهادی',length:L,width:W,height:H,glue:glue,
       sh:sL,sw:sW,layer:'',customerName:'',sentAt:new Date().toISOString()};
+    if(ty) rec.boxType=ty;
     productionQueue.unshift(rec);
     if(productionQueue.length>30) productionQueue.length=30;
     saveState();
@@ -4141,7 +4179,8 @@ function c2PickToProduction(L,W,H,glue,sL,sW,panelId){
   }catch(e){}
 }
 window.c2PickToProduction=c2PickToProduction;
-function c2CartonPicksHtml(sL0,sW0,glue,N){
+function c2CartonPicksHtml(sL0,sW0,glue,N,type){
+  type=type||'';
   let cands=[];
   /* قانون فلوت: عرض ورق (sW0) همیشه موازی فلوت‌هاست و طول ورق (sL0) عمود بر فلوت‌ها.
      پس عرض بازشدهٔ بلانک (H+W) فقط روی عرض ورق و طول بازشدهٔ بلانک (2(L+W)+لپ) فقط روی طول ورق می‌نشیند.
@@ -4158,7 +4197,7 @@ function c2CartonPicksHtml(sL0,sW0,glue,N){
           const nL=Math.floor(sL/bl);
           const hMax=Math.floor((hBase==='L'?L:W)*maxH);
           for(let H=Math.max(5,Math.ceil(W*0.4));H<=hMax;H++){
-            const bh=H+W; if(bh>sW) break;
+            const bh=c2BlankHt(W,H,type); if(bh>sW) break;
             const n=nL*Math.floor(sW/bh);
             if(n<1) continue;
             if(N>0&&n!==N) continue;
@@ -4184,7 +4223,7 @@ function c2CartonPicksHtml(sL0,sW0,glue,N){
   if(!picks.length) return '<div class="alrt">⚠️ '+(N>0?'کارتنی که '+N+' عدد از این شیت دربیاد پیدا نشد.':'از این شیت هیچ کارتنی با ابعاد معمول درنمی‌آد.')+'</div>';
   return '<div data-pk="1"><div style="font-weight:800;font-size:.85rem;margin-bottom:8px">📦 10 کارتن '+(N>0?'با '+N+' عدد در هر شیت — ':'')+'قابل ساخت از شیت '+sL0+' × '+sW0+' <span style="font-weight:500;color:#6b7280;font-size:.74rem">(برای دیدن بلانک روی هر کدام بزن)</span></div>'+
     picks.map(c=>'<div class="c2pk" style="margin-bottom:6px;border:1.5px solid var(--border);border-radius:10px;background:#fff;overflow:hidden">'+
-      '<div onclick="c2PickToggle(this,'+c.L+','+c.W+','+c.H+','+glue+','+c.sL+','+c.sW+')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:.82rem;cursor:pointer">'+
+      '<div onclick="c2PickToggle(this,'+c.L+','+c.W+','+c.H+','+glue+','+c.sL+','+c.sW+',\''+type+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:.82rem;cursor:pointer">'+
       '<bdi dir="ltr" style="font-weight:800"><span style="color:#2563eb">'+c.L+'</span> × <span style="color:#dc2626">'+c.W+'</span> × <span style="color:#16a34a">'+c.H+'</span></bdi>'+
       '<span style="color:#6b7280">'+c.n+' عدد از شیت'+(c.rot?' (ورق چرخیده)':'')+' · پرت <b style="color:'+(c.waste<0.05?'#16a34a':c.waste<0.12?'#d97706':'#dc2626')+'">'+(c.waste*100).toFixed(1)+'٪</b></span></div>'+
       '<div class="c2pk-blank" style="display:none;padding:4px 8px 10px;border-top:1px dashed var(--border)"></div></div>').join('')+'</div>';
@@ -4194,14 +4233,14 @@ function c2scSuggestInto(id){
   const el=$('c2sc-sug-'+id); if(!el) return;
   const sL=getNum('c2sc-sL-'+id), sW=getNum('c2sc-sW-'+id);
   if(!(sL>0&&sW>0)){ el.innerHTML=''; return; }
-  el.innerHTML=c2CartonPicksHtml(sL,sW,c2scCarton(id).glue,parseInt((c2scState[id]||{}).n)||0);
+  el.innerHTML=c2CartonPicksHtml(sL,sW,c2scCarton(id).glue,parseInt((c2scState[id]||{}).n)||0,c2scCarton(id).type);
 }
 function c2SuggestCartons(rowId){
   if(!calc2Accordion(rowId,'cartons')) return;
   const box=$('c2sec-cartons-'+rowId); if(!box) return;
   const ov=calc2SheetOverride[rowId];
   if(!ov){ box.innerHTML='<div class="alrt">ابعاد شیت را وارد کنید.</div>'; return; }
-  box.innerHTML=c2CartonPicksHtml(ov.sh,ov.sw,c2scCarton(rowId).glue,parseInt((c2scState[rowId]||{}).n)||0);
+  box.innerHTML=c2CartonPicksHtml(ov.sh,ov.sw,c2scCarton(rowId).glue,parseInt((c2scState[rowId]||{}).n)||0,c2scCarton(rowId).type);
 }
 window.c2SuggestCartons=c2SuggestCartons;
 
@@ -4304,6 +4343,7 @@ function buildCartonSmsText(r){
   r=c2SmsPriceBasis(r);
   const lines=[];
   lines.push(`📦 کارتن ${dimStrX(r.height,r.width,r.length)} سانتی‌متر`);
+  if(r.type) lines.push(c2TypeName(r.type));
   lines.push(`${r.layer==='5'?'پنج':'سه'} لایه`);
   if(r.paperAuto){
     c2AutoModelLines(r).forEach(l=>lines.push(l));
@@ -4595,7 +4635,7 @@ function submitCalc2Invoice(){
     const sheet=inventory.find(s=>s.id===best.id); if(!sheet) return[];
     return[{sheetId:sheet.id,sw:sheet.sw,sh:sheet.sh,layer:sheet.layer,qty,stockAfter:null,
       cartonName:r.name,cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,glue:r.glue,
-      cartonQty:r.qty,unitPrice:c2DiscountUnit(r),lineTotal:c2DiscountUnit(r)*r.qty,
+      cartonQty:r.qty,cartonType:r.type||'',unitPrice:c2DiscountUnit(r),lineTotal:c2DiscountUnit(r)*r.qty,
       itemProfit:r.totalProfit-(r.finalPrice-c2DiscountUnit(r))*r.qty}];
   });
   if(!items.length){$('c2inv-alert-msg-all').textContent='هیچ ورق معتبری برای صدور سند پیدا نشد.';setVisible('c2inv-alert-all',true);return;}
@@ -8022,7 +8062,7 @@ function renderProductionQueue(){
         <div class="rank-badge">📦</div>
         <div class="inv-card-main">
           <div class="inv-card-dims">${p.twoPiece?'✂️ ':''}${escapeHtml(p.name)}</div>
-          <div class="inv-card-meta">${dimStr(p.length,p.width,p.height)} سانتیمتر · ورق ${dimStrX(p.sh,p.sw)} (${layerLabel(p.layer)})${p.customerName?' · '+escapeHtml(p.customerName):''}</div>
+          <div class="inv-card-meta">${dimStr(p.length,p.width,p.height)} سانتیمتر${p.boxType?' · <b style="color:var(--brand)">'+p.boxType+'</b>':''} · ورق ${dimStrX(p.sh,p.sw)} (${layerLabel(p.layer)})${p.customerName?' · '+escapeHtml(p.customerName):''}</div>
         </div>
         <button type="button" title="حذف" onclick="event.stopPropagation();removeProductionItem(${p.id})"
                 style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0">🗑️</button>
@@ -8054,6 +8094,7 @@ function applyProductionItem(id){
   if(bW) bW.value=p.width;
   if(bH) bH.value=p.height;
   if(glue) glue.value=p.glue;
+  if(typeof window.__setBoxType==='function') window.__setBoxType(p.boxType||'');
   if(typeof window.calculate==='function') window.calculate();
   $('prod-dims-tab')?.style.setProperty('display','none');
   $('prod-calc-btn')?.style.setProperty('display','none');
@@ -8410,6 +8451,17 @@ W:'#fed7aa',L:'#bbf7d0',F:'#fbcfe8',G:'#fef08a',
 fold:'#2563eb',cut:'#dc2626',
 };
 let _mid=0;
+let _boxType='';   /* نوع کارتن در تب تولید: '' معمولی، 'F' درب روی‌هم کامل، 'H' بدون درب بالا */
+function _fLbl(d,W){ d=Math.round(d*100)/100; return Math.abs(d-W)<1e-6?`W=${d}`:Math.abs(d-W/2)<1e-6?`W/2=${d}`:`${d}`; }
+function _htLbl(W,H,top,bHt){ const bot=bHt-top-H; if(top<1e-6) return Math.abs(bot-W/2)<1e-6?'H+W/2':'H+'+_fLbl(bot,W).split('=')[0]; return (Math.abs(top-W)<1e-6&&Math.abs(bot-W)<1e-6)?'H+2W':'H+W'; }
+function _syncTypeTabs(){ document.querySelectorAll('#prod-type-tabs .bttab').forEach(b=>b.classList.toggle('on',(b.dataset.pt||'')===_boxType)); }
+window.__setBoxType=function(t){
+  _boxType=(t==='F'||t==='H')?t:'';
+  _syncTypeTabs();
+  /* اگر ابعاد کامل است و قبلاً نتیجه نشان داده شده، همان‌جا دوباره محاسبه شود */
+  try{ const ok=['sL','sW','bL','bW','bH'].every(id=>gv(id)>0); const res=document.getElementById('res'); if(ok&&res&&res.innerHTML.trim()) calculate(true); }catch(e){ console.error(e); }
+};
+window.__getBoxType=function(){ return _boxType; };
 function uid(){return 'm'+(++_mid);}
 function hatchDefs(arr,size=8,sw=1.2){
 const id=uid();
@@ -8635,7 +8687,7 @@ const by0=oy+r*bHt*sc;
 const bw=bLen*sc;
 s.push(`<rect x="${bx0}" y="${by0}" width="${bw}" height="${flapH*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0}" y="${by0+flapH*sc}" width="${bw}" height="${H*sc}" fill="${CLR.L}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
-s.push(`<rect x="${bx0}" y="${by0+(flapH+H)*sc}" width="${bw}" height="${flapH*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
+s.push(`<rect x="${bx0}" y="${by0+(flapH+H)*sc}" width="${bw}" height="${(bHt-flapH-H)*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0+v4*sc}" y="${by0}" width="${glue*sc}" height="${bHt*sc}" fill="${CLR.G}" opacity="0.6" clip-path="url(#${clipAll})"/>`);
 }
 }
@@ -8756,7 +8808,7 @@ s.push(`<rect x="${bx0}" y="${by0+v2*sc}" width="${bw}" height="${(v3-v2)*sc}" f
 s.push(`<rect x="${bx0}" y="${by0+v3*sc}" width="${bw}" height="${(v4-v3)*sc}" fill="${CLR.W}" opacity="0.4" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0}" y="${by0+v4*sc}" width="${bw}" height="${glue*sc}" fill="${CLR.G}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0}" y="${by0}" width="${flapH*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
-s.push(`<rect x="${bx0+(flapH+H)*sc}" y="${by0}" width="${flapH*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
+s.push(`<rect x="${bx0+(flapH+H)*sc}" y="${by0}" width="${(bHt-flapH-H)*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
 }
 }
 }
@@ -9067,7 +9119,7 @@ s.push(`<rect x="${bx0}" y="${by0+v2*sc}" width="${bw}" height="${v1*sc}" fill="
 s.push(`<rect x="${bx0}" y="${by0+v3*sc}" width="${bw}" height="${W*sc}" fill="${CLR.W}" opacity="0.55" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0}" y="${by0+v4*sc}" width="${bw}" height="${glue*sc}" fill="${CLR.G}" opacity="0.6" clip-path="url(#${clipAll})"/>`);
 s.push(`<rect x="${bx0}" y="${by0}" width="${flapH*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
-s.push(`<rect x="${bx0+(flapH+H)*sc}" y="${by0}" width="${flapH*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
+s.push(`<rect x="${bx0+(flapH+H)*sc}" y="${by0}" width="${(bHt-flapH-H)*sc}" height="${v4*sc}" fill="${CLR.F}" opacity="0.5" clip-path="url(#${clipAll})"/>`);
 }
 }
 for(let c=0;c<=nW;c++){
@@ -9120,7 +9172,7 @@ const pxL=bLen*sc,pxH=bHt*sc;
 const ox=ML+(dW-pxL)/2,oy=MT+(dH-pxH)/2;
 function px(c){return ox+c*sc;}
 function py(c){return oy+c*sc;}
-const gpx=glue*sc,fpx=flapH*sc;
+const gpx=glue*sc,fpx=flapH*sc,fpx2=(bHt-flapH-H)*sc;
 const s=[];
 s.push(`<rect x="${ox}" y="${oy}" width="${pxL}" height="${pxH}" fill="#fffbf0"/>`);
 addWave(s,ox,oy,pxL,pxH,uid(),5,2,'#c08010',0.5,0.8);
@@ -9130,7 +9182,7 @@ s.push(`<rect x="${px(v2)}" y="${py(flapH)}" width="${px(v3)-px(v2)}" height="${
 s.push(`<rect x="${px(v3)}" y="${py(flapH)}" width="${px(v4)-px(v3)}" height="${py(flapH+H)-py(flapH)}" fill="${CLR.W}"/>`);
 s.push(`<rect x="${px(v4)}" y="${oy}" width="${gpx}" height="${pxH}" fill="${CLR.G}"/>`);
 s.push(`<rect x="${px(0)}" y="${oy}" width="${px(v4)-px(0)}" height="${fpx}" fill="${CLR.F}"/>`);
-s.push(`<rect x="${px(0)}" y="${py(flapH+H)}" width="${px(v4)-px(0)}" height="${fpx}" fill="${CLR.F}"/>`);
+s.push(`<rect x="${px(0)}" y="${py(flapH+H)}" width="${px(v4)-px(0)}" height="${fpx2}" fill="${CLR.F}"/>`);
 s.push(`<rect x="${ox}" y="${oy}" width="${pxL}" height="${pxH}" fill="none" stroke="#374151" stroke-width="2" rx="2"/>`);
 for(let i=0;i<pxH;i+=7)
 s.push(`<line x1="${px(v4)}" y1="${oy+i}" x2="${px(v4)+gpx}" y2="${oy+i+5}" stroke="#a16207" stroke-width="1" opacity=".4"/>`);
@@ -9144,10 +9196,10 @@ const panels=[{x0:0,x1:v1,lbl:`طول`,c:'#166534'},{x0:v1,x1:v2,lbl:`عرض`,c:
 panels.forEach(p=>s.push(`<text x="${(px(p.x0)+px(p.x1))/2}" y="${midY+5}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${p.c}">${p.lbl}</text>`));
 s.push(`<text x="${(px(v4)+px(bLen))/2}" y="${oy+pxH/2-6}" text-anchor="middle" font-size="8" font-weight="500" fill="#a16207">لپ</text>`);
 s.push(`<text x="${(px(v4)+px(bLen))/2}" y="${oy+pxH/2+8}" text-anchor="middle" font-size="8" fill="#a16207">${glue}سانت</text>`);
-const fm1=oy+fpx/2,fm2=py(flapH+H)+fpx/2;
+const fm1=oy+fpx/2,fm2=py(flapH+H)+fpx2/2;
 [[0,v1,'درب بزرگ'],[v1,v2,'درب کوچک'],[v2,v3,'درب بزرگ'],[v3,v4,'درب کوچک']].forEach(([x0,x1,lbl])=>{
 const cx=(px(x0)+px(x1))/2;
-s.push(`<text x="${cx}" y="${fm1+4}" text-anchor="middle" font-size="7" fill="#9d174d">${lbl}</text>`);
+if(flapH>0.01) s.push(`<text x="${cx}" y="${fm1+4}" text-anchor="middle" font-size="7" fill="#9d174d">${lbl}</text>`);
 s.push(`<text x="${cx}" y="${fm2+4}" text-anchor="middle" font-size="7" fill="#9d174d">${lbl}</text>`);
 });
 if(showChakRuler){
@@ -9170,11 +9222,11 @@ const ay0=oy-44;
 bigDimH(s,ox,ox+pxL,ay0,`طول کل = ${bLen.toFixed(1)} سانت  (= ((L+W)×2)+D)`,{fs:9,off:6,fw:600});
 }
 const ax1=ox-22;
-arV(s,ax1,oy,py(flapH),'#9d174d',`W/2=${flapH}`,false,8.5,1.3,500,16);
+if(flapH>0.01) arV(s,ax1,oy,py(flapH),'#9d174d',_fLbl(flapH,W),false,8.5,1.3,500,16);
 arV(s,ax1,py(flapH),py(flapH+H),'#1e40af',`H=${H}`,false,8.5,1.3,500,16);
-arV(s,ax1,py(flapH+H),oy+pxH,'#9d174d',`W/2=${flapH}`,false,8.5,1.3,500,16);
+arV(s,ax1,py(flapH+H),oy+pxH,'#9d174d',_fLbl(bHt-flapH-H,W),false,8.5,1.3,500,16);
 const ax0=ox-46;
-bigDimV(s,ax0,oy,oy+pxH,`عرض کل = ${bHt.toFixed(1)} سانت (= H+W)`,{off:6,fs:9,fw:600});
+bigDimV(s,ax0,oy,oy+pxH,`عرض کل = ${bHt.toFixed(1)} سانت (= ${_htLbl(W,H,flapH,bHt)})`,{off:6,fs:9,fw:600});
 if(!showChakRuler){
 [v1,v2,v3,v4,bLen].forEach((pos,i)=>{
 const xp=px(pos);
@@ -9494,15 +9546,17 @@ const glue=(glueRaw==='')?3.5:(parseFloat(glueRaw)||0);
 if(!sL||!sW||!L||!W||!H){alert('لطفاً تمام ابعاد را وارد کنید.');return;}
 resetArrowCache();
 _mid=0;
+_syncTypeTabs();
 const girth=2*(L+W);
 const blankLen=girth+glue;
-const blankHt=H+W;
-const flapH=W/2;
+const _geo=c2BoxGeom(W,H,_boxType);
+const blankHt=_geo.ht;
+const flapH=_geo.top;   /* عمق درب بالا (در نوع H صفر)؛ درب پایین = blankHt − flapH − H */
 const areaCm2=blankLen*blankHt;
 const areaM2=parseFloat((areaCm2/10000).toFixed(4));
 const v1=L,v2=L+W,v3=2*L+W,v4=girth;
 const trim=0.5;
-const cb1=trim,cb2=trim+flapH,cb3=trim+flapH+H,cb4=trim+flapH+H+flapH;
+const cb1=trim,cb2=trim+flapH,cb3=trim+flapH+H,cb4=trim+blankHt;
 const chakOverflow=cb4>sW;
 const bestNL=Math.floor(sL/blankLen), bestNW=Math.floor(sW/blankHt);
 const bestCount=bestNL*bestNW;
@@ -9512,6 +9566,7 @@ if(machine==='m'){
 html+=`<div class="card">
 <div class="c-body">
 ${!fits?`<div class="alrt">⚠️ از این شیت هیچ کارتنی درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong></div>`:''}
+${_boxType?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
 <div style="margin-top:14px">
 <div class="btabs">
 <button id="btn-mainsheet" onclick="toggleAcc('mainsheet')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">F</button>
@@ -9590,14 +9645,14 @@ window.showKnifeSettings = showKnifeSettings;
 window.copyKnifeSeq = copyKnifeSeq;
 window.toggleKnifeFull = toggleKnifeFull;
 window.calculate = calculate;
-window.svgBlank1BForSuggest = function(L,W,H,glue){
+window.svgBlank1BForSuggest = function(L,W,H,glue,ty){
   resetArrowCache();
-  const girth=2*(L+W);
-  return svgBlank(L,W,H,L,L+W,2*L+W,girth,glue,W/2,girth+glue,H+W);
+  const girth=2*(L+W), g=c2BoxGeom(W,H,ty||'');
+  return svgBlank(L,W,H,L,L+W,2*L+W,girth,glue,g.top,girth+glue,g.ht);
 };
-window.svgBlankForSuggest = function(L,W,H,glue,sL,sW){
+window.svgBlankForSuggest = function(L,W,H,glue,sL,sW,ty){
   resetArrowCache();
-  const blankLen=2*(L+W)+glue, blankHt=H+W;
+  const blankLen=2*(L+W)+glue, blankHt=c2BlankHt(W,H,ty||'');
   /* همان نمای F (panel-mainsheet) تب تولید */
   return svgSheetCutOnly(sL,sW,blankLen,blankHt,0,0,true,0,0,true);
 };
