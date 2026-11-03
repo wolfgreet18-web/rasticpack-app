@@ -768,6 +768,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <button type="button" class="btn btn-flat" style="margin-top:0;padding:9px 14px;font-size:.78rem" onclick="resetSheetWidths()">پیش‌فرض</button>
         </div>
         <div class="mini-field" style="display:flex;flex-direction:column;gap:4px;max-width:200px"><label style="font-size:.72rem;font-weight:600;color:var(--txm)">حداقل طول ورق پیشنهادی (سانتی‌متر)</label><input type="number" id="min-suggest-len" min="1" step="any" oninput="setMinSuggestLen(this.value)" style="font-family:inherit;padding:8px;border:1.5px solid var(--border);border-radius:var(--r-xs);width:100%;background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700"/></div>
+        <div class="mini-field" style="display:flex;flex-direction:column;gap:4px;max-width:200px;margin-top:12px"><label style="font-size:.72rem;font-weight:600;color:var(--txm)">بیشترین طول ورق (سانتی‌متر) — حد دکمه‌ی ＋/－ بلانک در تب قیمت</label><input type="number" id="max-sheet-len" min="1" step="any" oninput="setMaxSheetLen(this.value)" style="font-family:inherit;padding:8px;border:1.5px solid var(--border);border-radius:var(--r-xs);width:100%;background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700"/></div>
       </div>
       </div>
 
@@ -3355,7 +3356,9 @@ function calc2CardHtml(r,idx){
       finally{
         try{ window.__setMid(_savedMid); window.resetArrowCache(); }catch(_){}
       }
-      return`<div style="max-width:58%;margin:0 auto">${svg}</div>`;
+      const bwS=r.twoPiece?r.pieceHt:r.totalWidth, bhS=r.twoPiece?r.pieceLen:r.totalLength;
+      const up=c2StepSheet(s.sw,s.sh,bwS,bhS,1), dn=c2StepSheet(s.sw,s.sh,bwS,bhS,-1);
+      return c2WithPm(svg,c2PmHtml(`c2StepPerSheet(${r.id},1)`,`c2StepPerSheet(${r.id},-1)`,!!up,!!dn));
     })();
 
     const topWasteSec=(()=>{
@@ -3507,6 +3510,7 @@ function renderSheetWidthsBox(){
     return`<div style="flex:1 1 100%"><div style="font-size:.72rem;font-weight:700;color:var(--tx2);margin-bottom:6px">دسته ${k}</div><div style="display:flex;flex-wrap:wrap;gap:8px">${ws.length?ws.map(chip).join(''):'<span style="font-size:.74rem;color:var(--txm)">—</span>'}</div></div>`;
   }).join(''):'<span style="font-size:.78rem;color:var(--danger)">هیچ عرضی تعریف نشده — پیشنهاد ورق کار نمی‌کند.</span>';
   const m=$('min-suggest-len'); if(m&&document.activeElement!==m) m.value=minSuggestSheetLen;
+  const mx=$('max-sheet-len'); if(mx&&document.activeElement!==mx) mx.value=getMaxSheetLen();
 }
 function addSheetWidth(){
   const inp=$('new-sheet-width'); if(!inp) return;
@@ -3525,10 +3529,84 @@ function resetSheetWidths(){
   sheetWidthList=DEFAULT_SHEET_WIDTHS.slice();
   renderSheetWidthsBox(); saveState();
 }
+/* بیشترین طول ورق برای دکمه‌ی ＋/－ بلانک (پیش‌فرض 280) — داخل invoiceSettings ذخیره می‌شود */
+function getMaxSheetLen(){ const n=parseFloat(invoiceSettings&&invoiceSettings.maxSheetLen); return n>0?n:280; }
+function setMaxSheetLen(v){
+  const n=parseFloat(v);
+  invoiceSettings.maxSheetLen=n>0?n:280;
+  saveState();
+}
 function setMinSuggestLen(v){
   const n=parseFloat(v);
   minSuggestSheetLen=n>0?n:60;
   saveState();
+}
+
+/* ══ ＋/－ کنار بلانک: تعداد بلانک در هر ورق را یکی‌یکی بالا/پایین می‌برد ══
+   ورق جدید فقط از عرض‌های لیست تنظیمات (همان دسته‌ی A/T ورق فعلی) و طولی تا «بیشترین طول ورق» ساخته می‌شود.
+   برای هر تعداد ممکن، گزینه‌ای با کمترین مساحت به‌ازای هر بلانک (کم‌ترین پرت) انتخاب می‌شود. */
+function c2SheetCandidates(sw0,bw,bh){
+  const maxLen=getMaxSheetLen(), cls=widthClassOf(sw0);
+  const widths=[...new Set([sw0].concat(sheetWidthList.filter(w=>widthClassOf(w)===cls)))].filter(w=>w>=bw-1e-9);
+  const byP={};
+  widths.forEach(sw=>{
+    for(let rows=1;;rows++){
+      const sh=Math.ceil(rows*bh-1e-9);
+      if(sh>maxLen) break;
+      const e=evalSheet({virtual:true,sw,sh,qty:1e9},bw,bh,1e6,'horizontal');
+      const p=e.perSheet; if(!(p>0)) continue;
+      const cost=(sw*sh-(e.reuseArea||0))/p;
+      const cur=byP[p];
+      if(!cur||cost<cur.cost-1e-6||(Math.abs(cost-cur.cost)<=1e-6&&(sh<cur.sh||(sh===cur.sh&&Math.abs(sw-sw0)<Math.abs(cur.sw-sw0))))) byP[p]={p,sw,sh,cost};
+    }
+  });
+  return byP;
+}
+/* dir=+1 / −1 ؛ خروجی null یعنی در همین جهت گزینه‌ای در محدوده‌ی عرض‌ها و بیشترین طول نیست */
+function c2StepSheet(sw0,sh0,bw,bh,dir){
+  const p0=Math.max(0,evalSheet({virtual:true,sw:sw0,sh:sh0,qty:1e9},bw,bh,1e6,'horizontal').perSheet);
+  const byP=c2SheetCandidates(sw0,bw,bh);
+  const ps=Object.keys(byP).map(Number).filter(p=>dir>0?p>p0:p<p0).sort((a,b)=>dir>0?a-b:b-a);
+  return ps.length?byP[ps[0]]:null;
+}
+function c2PmHtml(upFn,downFn,canUp,canDown){
+  const b=(txt,fn,ok)=>`<button type="button" ${ok?'':'disabled'} aria-label="${txt==='+'?'افزایش تعداد':'کاهش تعداد'}" onclick="event.stopPropagation();${fn}" style="background:none;border:none;box-shadow:none;margin:0;padding:0 8px;min-width:0;width:auto;font-size:2rem;font-weight:700;line-height:1;color:var(--tx);cursor:${ok?'pointer':'default'};opacity:${ok?1:.25}">${txt}</button>`;
+  return `<div dir="ltr" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;flex:0 0 auto">${b('+',upFn,canUp)}${b('−',downFn,canDown)}</div>`;
+}
+/* بلانک‌ها + دکمه‌های ＋/－ در سمت راست */
+function c2WithPm(svgHtml,pmHtml){
+  return `<div dir="ltr" style="display:flex;align-items:center;justify-content:center;gap:4px"><div style="flex:0 0 58%;min-width:0">${svgHtml}</div>${pmHtml}</div>`;
+}
+/* کارت نتیجه: ورق فعلی را به تعداد بلانک بیشتر/کمتر تغییر می‌دهد (ورق دلخواه برای همین کارتن) */
+function c2StepPerSheet(rowId,dir){
+  const r=c2FindRes(rowId); const s=r&&r.sheets&&r.sheets[0]; if(!r||!s) return;
+  const tp=!!r.twoPiece;
+  const bw=tp?r.pieceHt:r.totalWidth, bh=tp?r.pieceLen:r.totalLength;
+  const n=c2StepSheet(s.sw,s.sh,bw,bh,dir); if(!n) return;
+  const ov={sig:calc2OverrideSig(r),sheetId:null,sw:n.sw,sh:n.sh};
+  if(tp) ov.twoPiece=true;
+  calc2SheetOverride[rowId]=ov;
+  runCalc2();
+  const priceSec=$('c2sec-price-'+rowId), sheetSec=$('c2sec-sheet-'+rowId);
+  const card=priceSec?priceSec.closest('.inv-result-card'):null;
+  const body=card?card.querySelector('.inv-card-body'):null;
+  if(body) body.classList.add('open');
+  if(sheetSec) sheetSec.style.display='block';
+}
+/* پنل «پیشنهاد ورق»: ورق همان پیشنهاد را تغییر می‌دهد (تا وقتی ✅ نزده‌اید فقط پیشنهاد عوض می‌شود) */
+let calc2ZeroAdj={};
+function c2StepZero(rowId,idx,cls,dir){
+  const c=(calc2SuggestCache[rowId]||[])[idx]; const r=c2FindRes(rowId); if(!c||!r) return;
+  const n=c2StepSheet(c.sw,c.sh,r.totalWidth,r.totalLength,dir); if(!n) return;
+  calc2ZeroAdj[rowId+'-'+cls]={sw:n.sw,sh:n.sh,bw:r.totalWidth,bh:r.totalLength};
+  renderCalc2SuggestSheet(rowId);
+  toggleZeroSheetImage(rowId,idx,cls);
+}
+function c2ZeroOptFor(sw,sh,bw,bh){
+  const e=evalSheet({virtual:true,sw,sh,qty:1e9},bw,bh,1e6,'horizontal');
+  const count=e.perSheet, area=sw*sh, reuseW=e.reuseW||0;
+  return{sw,sh,cols:e.layout.cols,rows:e.layout.rows,count,areaM2:Math.round(area/100)/100,
+    waste:Math.round((Math.max(0,area-count*bw*bh-reuseW*sh)/area)*1000)/10,reuseW,reuseArea:reuseW*sh};
 }
 
 /* ══ پیشنهاد ورق بر اساس عرض‌های تعریف‌شده ══
@@ -3783,7 +3861,9 @@ function toggleZeroSheetImage(rowId,idx,cls){
     svg=window.svgSheetCutOnly(c.sh,c.sw,r.totalLength,r.totalWidth,0,0,true,0,0,true,(c.reuseW>0)?{cols:c.cols,reuseW:c.reuseW}:null);
   }catch(e){ console.error('zero sheet image',e); svg='<div class="empty-state" style="padding:14px">⚠️ ساخت تصویر شیت ممکن نشد</div>'; }
   finally{ try{ window.__setMid(_savedMid); window.resetArrowCache(); }catch(_){} }
-  box.innerHTML='<div style="max-width:58%;margin:0 auto">'+svg+'</div>';
+  const _bw=r.totalWidth,_bh=r.totalLength;
+  const _up=c2StepSheet(c.sw,c.sh,_bw,_bh,1), _dn=c2StepSheet(c.sw,c.sh,_bw,_bh,-1);
+  box.innerHTML=c2WithPm(svg,c2PmHtml(`c2StepZero(${rowId},${idx},'${cls}',1)`,`c2StepZero(${rowId},${idx},'${cls}',-1)`,!!_up,!!_dn));
   box.style.display='block';
 }
 /* باز/بسته کردن پنل دوتکهٔ هر کارت پیشنهاد ورق */
@@ -3851,7 +3931,10 @@ function renderCalc2SuggestSheet(rowId){
   const zeroAll=computeZeroWasteSheetSuggestions(bw,bh,r.layer);   // از قبل بر اساس کمترین پرت مرتب است
   const zeroWasteOptions=['T','A'].filter(k=>!c2ClsOff(k)).map(k=>{
     const o=zeroAll.find(c=>widthClassOf(c.sw)===k);
-    return o?Object.assign({},o,{cls:k}):null;
+    if(!o) return null;
+    const adj=calc2ZeroAdj[rowId+'-'+k];
+    if(adj&&adj.bw===bw&&adj.bh===bh){ const a=c2ZeroOptFor(adj.sw,adj.sh,bw,bh); if(a.count>0) return Object.assign({},a,{cls:k}); }
+    return Object.assign({},o,{cls:k});
   }).filter(Boolean);
   ['T','A'].filter(k=>!c2ClsOff(k)).forEach(k=>{
     const t=computeTwoPieceByClass(r,k);
