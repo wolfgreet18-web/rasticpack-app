@@ -3681,9 +3681,23 @@ function c2ReopenSheet(rowId){
   if(sheetSec) sheetSec.style.display='block';
 }
 /* ورق پیش‌فرض یک تکه: بهترین ورق انبار (کمترین قیمت/پرت)، وگرنه بهترین ورق از عرض‌های تنظیمات */
-function c2DefaultSheetFor(r,ht,len,need){
+function c2DefaultSheetFor(r,ht,len,need,minWaste){
   const grain='horizontal';
-  if(inventory.length){
+  if(minWaste){
+    /* کمترین پرت بین ورق‌های انبار (اول موجودی کافی، بعد کمترین درصد پرت، در تساوی ارزان‌تر) */
+    let usable=inventory.filter(x=>x.qty>0&&x.sw>=ht&&x.sh>=len&&!c2ClsOff(widthClassOf(x.sw)));
+    if(r.cls==='A'||r.cls==='T') usable=usable.filter(x=>widthClassOf(x.sw)===r.cls);
+    if(r.layer) usable=usable.filter(x=>(x.layer||'3')===r.layer);
+    if(r.flute) usable=usable.filter(x=>(x.flute||'C')===r.flute);
+    if(r.paperType) usable=usable.filter(x=>(x.paperType||'2T')===r.paperType);
+    const ev=usable.map(x=>evalSheet(x,ht,len,need,grain)).filter(e=>e.perSheet>0);
+    if(ev.length){
+      const cost=e=>{ const pm2=sheetPricePerM2(r.layer||e.layer||'3',r.paperType||e.paperType||'2T',r.flute||e.flute||'C',e.sw,r.cls)||0; return pm2*(e.sw*e.sh-(e.reuseArea||0))/e.perSheet; };
+      ev.sort((a,b)=>(b.canFulfill-a.canFulfill)||(a.waste-b.waste)||(cost(a)-cost(b)));
+      return{sheetId:ev[0].id,sw:ev[0].sw,sh:ev[0].sh};
+    }
+  }
+  if(!minWaste&&inventory.length){
     const m=matchSheets(ht,len,need,grain,r.layer,r.flute,r.paperType,r.cls);
     if(m[0]&&m[0].perSheet>0) return{sheetId:m[0].id,sw:m[0].sw,sh:m[0].sh};
   }
@@ -3706,7 +3720,7 @@ function c2SetCutMode(rowId,mode){
     calc2SheetOverride[rowId]={sig,sheetId:sp.sheetId,sw:sp.sw,sh:sp.sh,twoPiece:true};
   }else{
     const pcs=c2SplitPieces(r,mode);
-    const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty);
+    const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty,true), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty,true);
     if(!s1||!s2){ alert('برای این برش سه‌تکه ورق مناسبی پیدا نشد؛ عرض ورق‌ها را در تنظیمات بررسی کنید.'); return; }
     calc2SheetOverride[rowId]={sig,split:mode,sheetId:s1.sheetId,sw:s1.sw,sh:s1.sh,s2:{sheetId:s2.sheetId,sw:s2.sw,sh:s2.sh}};
   }
