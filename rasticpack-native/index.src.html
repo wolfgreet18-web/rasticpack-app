@@ -3571,11 +3571,11 @@ function c2StepSheet(sw0,sh0,bw,bh,dir){
 }
 function c2PmHtml(upFn,downFn,canUp,canDown){
   const b=(txt,fn,ok)=>`<button type="button" ${ok?'':'disabled'} aria-label="${txt==='+'?'افزایش تعداد':'کاهش تعداد'}" onclick="event.stopPropagation();${fn}" style="background:none;border:none;box-shadow:none;margin:0;padding:0 8px;min-width:0;width:auto;font-size:2rem;font-weight:700;line-height:1;color:var(--tx);cursor:${ok?'pointer':'default'};opacity:${ok?1:.25}">${txt}</button>`;
-  return `<div dir="ltr" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:52px;flex:0 0 auto;margin-left:30px">${b('+',upFn,canUp)}${b('−',downFn,canDown)}</div>`;
+  return `<div dir="ltr" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:52px;position:absolute;right:10px;top:50%;transform:translateY(-50%)">${b('+',upFn,canUp)}${b('−',downFn,canDown)}</div>`;
 }
 /* بلانک‌ها + دکمه‌های ＋/－ در سمت راست */
 function c2WithPm(svgHtml,pmHtml){
-  return `<div dir="ltr" style="display:flex;align-items:center;justify-content:center;gap:4px;padding-right:0"><div style="flex:0 0 58%;min-width:0">${svgHtml}</div>${pmHtml}</div>`;
+  return `<div dir="ltr" style="position:relative"><div style="max-width:58%;margin:0 auto">${svgHtml}</div>${pmHtml}</div>`;
 }
 /* کارت نتیجه: ورق فعلی را به تعداد بلانک بیشتر/کمتر تغییر می‌دهد (ورق دلخواه برای همین کارتن) */
 function c2StepPerSheet(rowId,dir){
