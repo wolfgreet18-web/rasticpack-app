@@ -2872,7 +2872,7 @@ function renderCartonRows2(){
 function resetCalc2Cards(){
   clearTimeout(calc2LiveTimer); clearTimeout(_profitTimer);
   calc2RowIds=[calc2NextId++];
-  calc2SheetOverride={};
+  calc2SheetOverride={}; calc2AutoOff={};
   Object.keys(c2scState).forEach(k=>delete c2scState[k]);
   calc2LastResults=[];
   calc2InvoiceSubmitted=false;
@@ -3337,7 +3337,7 @@ function runCalc2(opts){
 
   let totalAllCartons=0,totalProfitAll=0;
   const results=cartons.map(c=>{
-    const rr=calc2ComputeOne(c,checkPct,grain);
+    const rr=calc2ComputeAuto(c,checkPct,grain);
     totalAllCartons+=rr.totalPrice; totalProfitAll+=rr.totalProfit;
     return rr;
   });
@@ -3707,6 +3707,49 @@ function c2DefaultSheetFor(r,ht,len,need,minWaste){
   return o&&o.count>0?{sheetId:null,sw:o.sw,sh:o.sh}:null;
 }
 /* دکمه‌های ۲ / ۳ نارنجی / ۳ سبز: انتخاب نوع برش؛ زدن دوباره‌ی همان دکمه به حالت یک‌تکه برمی‌گرداند */
+/* ساخت override برای یک نوع برش ('2' دوتکه، 'o'/'g' سه‌تکه) با کم‌پرت‌ترین ورق‌های انبار؛ null اگر ورق مناسبی نباشد */
+function c2BuildModeOverride(r,mode,sig){
+  if(mode==='2'){
+    const sp=c2DefaultSheetFor(r,r.totalWidth,r.length+r.width+r.glue,r.qty*2,true);
+    return sp?{sig,sheetId:sp.sheetId,sw:sp.sw,sh:sp.sh,twoPiece:true}:null;
+  }
+  const pcs=c2SplitPieces(r,mode);
+  const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty,true), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty,true);
+  return(s1&&s2)?{sig,split:mode,sheetId:s1.sheetId,sw:s1.sw,sh:s1.sh,s2:{sheetId:s2.sheetId,sw:s2.sw,sh:s2.sh}}:null;
+}
+let calc2AutoOff={};   /* کارت‌هایی که کاربر خودش به حالت یک‌تکه برگردانده (sig) — انتخاب خودکار دیگر دست نمی‌زند */
+/* درصد پرت کل یک نتیجه (همه‌ی ورق‌ها با هم): پرت کل ÷ مساحت کل ورق‌های مصرفی */
+function c2ResultWaste(r){
+  if(!r.sheets||!r.sheets.length) return{w:Infinity,ok:false};
+  let waste=0,area=0,ok=true;
+  r.sheets.forEach(e=>{ waste+=e.totalWasteArea; area+=e.usedSheets*e.sw*e.sh; if(!e.canFulfill) ok=false; });
+  return{w:area>0?waste/area*100:Infinity,ok};
+}
+/* هنگام محاسبه: بین یک‌تکه، دوتکه و دو حالت سه‌تکه، حالتی که کمترین پرت را دارد خودکار انتخاب و اول نمایش داده می‌شود
+   (اگر کاربر خودش حالتی/ورقی انتخاب کرده یا به یک‌تکه برگردانده، دست نمی‌زند) */
+function calc2ComputeAuto(c,checkPct,grain){
+  const sig=calc2OverrideSig(c);
+  const o0=calc2SheetOverride[c.id];
+  if(o0&&o0.auto) delete calc2SheetOverride[c.id];
+  let r=calc2ComputeOne(c,checkPct,grain);
+  const cur=calc2SheetOverride[c.id];
+  if((cur&&cur.sig===sig)||calc2AutoOff[c.id]===sig||!inventory.length) return r;
+  let bestOv=null,bestR=r,bestS=c2ResultWaste(r);
+  ['2','o','g'].forEach(m=>{
+    const ov=c2BuildModeOverride(r,m,sig); if(!ov) return;
+    ov.auto=true;
+    calc2SheetOverride[c.id]=ov;
+    const rr=calc2ComputeOne(c,checkPct,grain);
+    delete calc2SheetOverride[c.id];
+    if(!(rr.twoPiece||rr.split)) return;
+    const sc=c2ResultWaste(rr);
+    const better=(sc.ok&&!bestS.ok)||(sc.ok===bestS.ok&&sc.w<bestS.w-0.05);
+    if(better){ bestOv=ov; bestR=rr; bestS=sc; }
+  });
+  if(bestOv){ calc2SheetOverride[c.id]=bestOv; return bestR; }
+  return r;
+}
+/* دکمه‌های ۲ / ۳ نارنجی / ۳ سبز: انتخاب نوع برش؛ زدن دوباره‌ی همان دکمه به حالت یک‌تکه برمی‌گرداند */
 function c2SetCutMode(rowId,mode){
   const r=c2FindRes(rowId); if(!r) return;
   const sig=calc2OverrideSig(r);
@@ -3714,15 +3757,11 @@ function c2SetCutMode(rowId,mode){
   const cur=(ov&&ov.sig===sig)?(ov.split||(ov.twoPiece?'2':'')):'';
   if(cur===mode){
     delete calc2SheetOverride[rowId];
-  }else if(mode==='2'){
-    const sp=c2DefaultSheetFor(r,r.totalWidth,r.length+r.width+r.glue,r.qty*2);
-    if(!sp){ alert('برای برش دوتکه ورق مناسبی پیدا نشد؛ عرض ورق‌ها را در تنظیمات بررسی کنید.'); return; }
-    calc2SheetOverride[rowId]={sig,sheetId:sp.sheetId,sw:sp.sw,sh:sp.sh,twoPiece:true};
+    calc2AutoOff[rowId]=sig;
   }else{
-    const pcs=c2SplitPieces(r,mode);
-    const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty,true), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty,true);
-    if(!s1||!s2){ alert('برای این برش سه‌تکه ورق مناسبی پیدا نشد؛ عرض ورق‌ها را در تنظیمات بررسی کنید.'); return; }
-    calc2SheetOverride[rowId]={sig,split:mode,sheetId:s1.sheetId,sw:s1.sw,sh:s1.sh,s2:{sheetId:s2.sheetId,sw:s2.sw,sh:s2.sh}};
+    const nov=c2BuildModeOverride(r,mode,sig);
+    if(!nov){ alert('برای این نوع برش ورق مناسبی پیدا نشد؛ عرض ورق‌ها را در تنظیمات بررسی کنید.'); return; }
+    calc2SheetOverride[rowId]=nov;
   }
   runCalc2();
   c2ReopenSheet(rowId);
@@ -3740,7 +3779,7 @@ function c2StepPerSheet(rowId,dir,k){
   const sig=calc2OverrideSig(r);
   const old=calc2SheetOverride[rowId];
   if(r.split&&old&&old.sig===sig){
-    const ov=Object.assign({},old);
+    const ov=Object.assign({},old); delete ov.auto;
     if(k===0){ ov.sheetId=nid; ov.sw=n.sw; ov.sh=n.sh; } else { ov.s2={sheetId:nid,sw:n.sw,sh:n.sh}; }
     calc2SheetOverride[rowId]=ov;
   }else{
@@ -5236,7 +5275,7 @@ const RC_ROW_ID=900001;
 function rcResultHtml(c){
   const checkPct=calc2CheckPct();
   const carton={id:RC_ROW_ID,name:'کارتن 1',length:c.length,width:c.width,height:c.height,qty:Math.max(1,c.qty||1),layer:c.layer,glue:(+c.glue>0)?+c.glue:4,flute:c.flute,paperType:c.paperType,cls:c.cls||'',paperAuto:false};
-  const r=calc2ComputeOne(carton,checkPct,'horizontal');
+  const r=calc2ComputeAuto(carton,checkPct,'horizontal');
   const best=r.sheets[0];
   let costW=0;
   if(best){ costW=(r.sheets.reduce((a,x)=>a+x.totalWasteArea,0)/10000)*((sheetWeights[r.layer]||0)/1000)*wastePrice; }
