@@ -3208,6 +3208,8 @@ function calc2ComputeSplit(c,checkPct,grain,ov){
   const e1=c2SplitEval(ov,pcs[0],c,grain), e2=ov.s2?c2SplitEval(ov.s2,pcs[1],c,grain):null;
   if(!e1||!e2) return null;
   const es=[e1,e2];
+  /* لپ چسب اضافه‌ی برش سه‌تکه (یکی بیشتر از بلانک یک‌تکه) نصف‌نصف روی پرت دو ورق حساب می‌شود */
+  es.forEach(e=>{ if(e.usedSheets>0) e.waste=Math.round((e.waste+(c.qty*(c.glue/2)*pcs[0].ht)/(e.usedSheets*e.sw*e.sh)*100)*10)/10; });
   let basePrice=0, baseWaste=0;
   es.forEach((e,i)=>{
     const pm2=sheetPricePerM2(c.layer,c.paperType,c.flute,e.sw,c.cls);
@@ -3257,6 +3259,8 @@ function calc2ComputeOne(c,checkPct,grain){
       if(ov) delete calc2SheetOverride[c.id];
       sheets=inventory.length?matchSheets(totalWidth,totalLength,c.qty,grain,c.layer,c.flute,c.paperType,c.cls).slice(0,1):[];
     }
+    /* برش دوتکه: لپ چسب اضافه (g × عرض بلانک برای هر کارتن) هم در درصد پرت نمایش‌داده‌شده حساب می‌شود */
+    if(tp&&sheets[0]&&sheets[0].usedSheets>0){ const e0=sheets[0]; e0.waste=Math.round((e0.waste+(c.qty*c.glue*totalWidth)/(e0.usedSheets*e0.sw*e0.sh)*100)*10)/10; }
     const best=sheets[0]||null;
     const pricePerM2=sheetPricePerM2(c.layer,c.paperType,c.flute,best?.sw,c.cls);   // قیمت بر اساس دسته‌ی عرض (A/T) ورق انتخاب‌شده
     const basePrice=tp?2*((pieceLen*pieceHt)/10000)*pricePerM2:areaM2*pricePerM2;
@@ -3723,6 +3727,8 @@ function c2ResultWaste(r){
   if(!r.sheets||!r.sheets.length) return{w:Infinity,ok:false};
   let waste=0,area=0,ok=true;
   r.sheets.forEach(e=>{ waste+=e.totalWasteArea; area+=e.usedSheets*e.sw*e.sh; if(!e.canFulfill) ok=false; });
+  /* برش دو/سه‌تکه یک لپ چسب اضافه دارد (g × عرض بلانک برای هر کارتن) — این مصرف اضافه هم پرت حساب می‌شود */
+  if(r.twoPiece||r.split) waste+=r.qty*r.glue*r.totalWidth;
   return{w:area>0?waste/area*100:Infinity,ok};
 }
 /* هنگام محاسبه: بین یک‌تکه، دوتکه و دو حالت سه‌تکه، حالتی که کمترین پرت را دارد خودکار انتخاب و اول نمایش داده می‌شود
@@ -3743,7 +3749,9 @@ function calc2ComputeAuto(c,checkPct,grain){
     delete calc2SheetOverride[c.id];
     if(!(rr.twoPiece||rr.split)) return;
     const sc=c2ResultWaste(rr);
-    const better=(sc.ok&&!bestS.ok)||(sc.ok===bestS.ok&&sc.w<bestS.w-0.05);
+    /* فقط وقتی دوتکه/سه‌تکه واقعاً ارزان‌تر از یک‌تکه تمام شود (لپ چسب اضافه هم حساب شده)؛ اگر برابر بود، یک‌تکه بهتر است */
+    const cheaper=rr.basePriceWithWaste<r.basePriceWithWaste*(1-0.001);
+    const better=((sc.ok&&!bestS.ok)||(cheaper&&sc.ok===bestS.ok&&sc.w<bestS.w-0.05));
     if(better){ bestOv=ov; bestR=rr; bestS=sc; }
   });
   if(bestOv){ calc2SheetOverride[c.id]=bestOv; return bestR; }
