@@ -3114,6 +3114,7 @@ function toggleC2SheetCharts(id){
   const box=$('c2sc-'+id); if(!box) return;
   if(box.style.display!=='none'){ box.style.display='none'; return; }
   const st=c2scState[id]||(c2scState[id]={sL:'',sW:'',hideW:false,hideL:false});
+  st.showSug=false;   /* لیست کارتن‌های قابل ساخت فقط با زدن دکمه‌ی «کارتن» نمایش داده می‌شود */
   const bs='background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer';
   box.innerHTML=`<div class="form-grid" style="opacity:.8">
       <div class="full" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
@@ -3130,9 +3131,17 @@ function toggleC2SheetCharts(id){
           <input type="number" id="c2sc-n-${id}" min="1" step="1" placeholder="تعداد" value="${st.n||''}" oninput="c2scState[${id}].n=this.value;c2scSuggestInto(${id})" style="background:#1c1917;border-color:#000;color:#fff;font-weight:700"/>
         </div>
       </div>
+      <div style="text-align:center;margin-top:12px"><button type="button" id="c2sc-btn-${id}" onclick="c2scToggleSug(${id})" style="margin:0;width:auto;min-width:0;padding:9px 22px;border-radius:12px;border:1.5px solid var(--border);box-shadow:none;background:none;color:var(--tx);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer">📦 کارتن</button></div>
       <div id="c2sc-sug-${id}" style="margin-top:12px"></div>
     </div>`;
   box.style.display='block';
+  c2scSuggestInto(id);
+}
+function c2scToggleSug(id){
+  const st=c2scState[id]; if(!st) return;
+  st.showSug=!st.showSug;
+  const b=$('c2sc-btn-'+id);
+  if(b){ b.style.background=st.showSug?'var(--brand,#2563eb)':'none'; b.style.color=st.showSug?'#fff':'var(--tx)'; b.style.borderColor=st.showSug?'var(--brand,#2563eb)':'var(--border)'; }
   c2scSuggestInto(id);
 }
 function c2scTogglePane(id,k){
@@ -4521,7 +4530,7 @@ function c2CartonPicksHtml(sL0,sW0,glue,N,type){
 function c2scSuggestInto(id){
   const el=$('c2sc-sug-'+id); if(!el) return;
   const sL=getNum('c2sc-sL-'+id), sW=getNum('c2sc-sW-'+id);
-  if(!(sL>0&&sW>0)){ el.innerHTML=''; return; }
+  if(!((c2scState[id]||{}).showSug)||!(sL>0&&sW>0)){ el.innerHTML=''; return; }
   el.innerHTML=c2CartonPicksHtml(sL,sW,c2scCarton(id).glue,parseInt((c2scState[id]||{}).n)||0,c2scCarton(id).type);
 }
 function c2SuggestCartons(rowId){
