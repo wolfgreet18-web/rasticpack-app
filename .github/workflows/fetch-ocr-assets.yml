@@ -1,0 +1,41 @@
+name: Fetch OCR assets (one-off)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: android-apk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download tesseract.js v5 + fas/eng data from npm
+        run: |
+          mkdir -p /tmp/ocrdl && cd /tmp/ocrdl && npm init -y >/dev/null
+          npm i tesseract.js@5 tesseract.js-core@5 @tesseract.js-data/fas @tesseract.js-data/eng
+          cd $GITHUB_WORKSPACE
+          rm -rf ocr-assets && mkdir -p ocr-assets
+          cp /tmp/ocrdl/node_modules/tesseract.js/dist/worker.min.js ocr-assets/
+          cp /tmp/ocrdl/node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js ocr-assets/
+          cp /tmp/ocrdl/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js ocr-assets/
+          for l in fas eng; do
+            d=$(ls -d /tmp/ocrdl/node_modules/@tesseract.js-data/$l/4.0.0_best_int)
+            cp $d/$l.traineddata.gz ocr-assets/
+          done
+          cp /tmp/ocrdl/node_modules/tesseract.js/package.json ocr-assets/tesseract.js.package.json
+          cp /tmp/ocrdl/node_modules/tesseract.js-core/package.json ocr-assets/tesseract.js-core.package.json
+          ls -la ocr-assets
+      - name: Commit assets
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add ocr-assets
+          git commit -m "Add offline OCR assets (tesseract.js v5, fas+eng) [skip ci]" || echo nothing
+          git push origin android-apk
