@@ -27,6 +27,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           rm -rf ocr-assets && mkdir -p ocr-assets
           cp /tmp/ocrdl/node_modules/tesseract.js/dist/worker.min.js ocr-assets/
+          cp /tmp/ocrdl/node_modules/tesseract.js/dist/tesseract.min.js ocr-assets/
           cp /tmp/ocrdl/node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js ocr-assets/
           cp /tmp/ocrdl/node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js ocr-assets/
           for l in fas eng; do
