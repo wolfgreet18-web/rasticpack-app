@@ -1028,12 +1028,19 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
       <div id="ocrp-panel" style="display:none;margin-top:14px">
         <div class="field full" style="margin-bottom:8px">
-          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0">
-            <button type="button" class="subtype-btn active" id="ocrp-cls-A" onclick="ocrSetCls('A')">A</button>
-            <button type="button" class="subtype-btn" id="ocrp-cls-T" onclick="ocrSetCls('T')">T</button>
-          </div>
           <input type="file" id="ocrp-file" accept="image/*" onchange="ocrPick(this)" style="display:none">
-          <div style="display:flex;justify-content:center;align-items:center;gap:26px;margin:6px 0"><button type="button" onclick="document.getElementById('ocrp-file').click()" aria-label="انتخاب عکس" style="background:none;border:none;box-shadow:none;padding:0;margin:0;cursor:pointer;font-size:3.2rem;line-height:1">📷</button><button type="button" onclick="ocrToggleDebug()" aria-label="نمایش عکس و متن خوانده‌شده" style="background:none;border:none;box-shadow:none;padding:0;margin:0;cursor:pointer;font-size:2.2rem;line-height:1">🔧</button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;flex-wrap:nowrap">
+            <button type="button" onclick="document.getElementById('ocrp-file').click()" aria-label="انتخاب عکس" style="background:none;border:none;box-shadow:none;padding:0;margin:0;cursor:pointer;font-size:2.1rem;line-height:1;flex:none">📷</button>
+            <div class="subtype-toggle" style="flex:1;margin:0;height:38px">
+              <button type="button" class="subtype-btn active" id="ocrp-cls-A" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetCls('A')">A</button>
+              <button type="button" class="subtype-btn" id="ocrp-cls-T" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetCls('T')">T</button>
+            </div>
+            <div class="subtype-toggle" id="ocrp-pay-wrap" style="flex:1;margin:0;height:38px">
+              <button type="button" class="subtype-btn active" id="ocrp-pay-cash" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetPay('cash')">نقد</button>
+              <button type="button" class="subtype-btn" id="ocrp-pay-check" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetPay('check')">چک</button>
+            </div>
+            <button type="button" onclick="ocrToggleDebug()" aria-label="تنظیم و نمایش عکس و متن خوانده‌شده" style="background:none;border:none;box-shadow:none;padding:0;margin:0;cursor:pointer;font-size:1.6rem;line-height:1;flex:none">🔧</button>
+          </div>
           <div id="ocrp-status" style="font-size:.82rem;color:var(--tx2);margin:6px 0"></div>
           <div id="ocrp-result"></div>
         </div>
@@ -10530,7 +10537,7 @@ const RpOcr=(function(){
   const TEXT_PARAMS={tessedit_char_whitelist:'',tessedit_pageseg_mode:'7',preserve_interword_spaces:'1'};
 
   async function readPrice(worker,src,cell){
-    const attempts=[[2.2,false],[3,true],[1.6,false]];
+    const attempts=[[2.2,false],[3,true],[1.6,false],[2.8,false],[4,true]];
     let best=null;
     for(const [sc,bin] of attempts){
       const c=cropPadded(src,cell.x0,cell.y0,cell.x1,cell.y1,sc,16,bin);
@@ -10542,33 +10549,39 @@ const RpOcr=(function(){
     }
     return best;
   }
-  /* فقط همین ۵ ترکیب شناخته می‌شوند: [برچسب، کلید ترکیب بدون «فلوت»، متن یکپارچه برای تطبیق تقریبی] */
-  const COMP_IDS=[
-    ['Ti','test|irani','تستفلوتایرانی'],
-    ['Ki','kraft|irani','کرافتفلوتایرانی'],
-    ['kT','kraft|test','کرافتفلوتتست'],
-    ['Kii','shebe|irani|irani|irani','شبهکرافتفلوتایرانیایرانیایرانی'],
-    ['KiT','sooper|irani|irani|shebe','سوپرکرافتفلوتایرانیایرانیشبهکرافت']
-  ];
-  function identifyComp(text,parsed){
-    const p=parsed||parseComposition(text);
-    if(p.ok){ const info=compositionInfo(p.parts); const f=COMP_IDS.find(x=>x[1]===info.key); if(f) return f[0]; }
-    const flat=normFa(text).replace(/[^\u0600-\u06FF]/g,'');
-    if(flat.length<8) return null;
-    let best=null,bs=0,second=0;
-    COMP_IDS.forEach(x=>{ const sc=sim(flat,x[2]); if(sc>bs){ second=bs; bs=sc; best=x[0]; } else if(sc>second) second=sc; });
-    return (bs>=0.84&&bs-second>=0.06)?best:null;
+  /* هدف‌ها (ورق‌هایی که باید پیدا شوند) از رابط کاربر می‌آیند: {id,label,key,flat}
+     key = اجزای ترکیب بدون «فلوت» ؛ flat = متن یکپارچه‌ی فارسی برای تطبیق تقریبی */
+  function makeTarget(t){
+    return {id:t.id,label:t.label,key:t.parts.filter(k=>k!=='flute').join('|'),
+            flat:normFa(t.parts.map(k=>WORD_LABEL[k]).join('')).replace(/[^\u0600-\u06FF]/g,'')};
   }
-  async function readComp(worker,src,cell){
-    const attempts=[[2,false],[2.6,true]];
+  function flatOf(text){ return normFa(text).replace(/[^\u0600-\u06FF]/g,''); }
+  /* اگر همه‌ی واژه‌ها شناخته شد، فقط تطبیق دقیق کلید معتبر است (ترکیب دیگری مثل «سفید-فلوت-ایرانی» هیچ‌وقت به‌اشتباه تطبیق داده نمی‌شود)؛
+     فقط وقتی واژه‌ای ناشناخته مانده از شباهت متنی استفاده می‌شود. */
+  function identify(text,parsed,targets,relaxed){
+    if(!targets||!targets.length) return null;
+    const p=parsed||parseComposition(text);
+    if(p.ok){ const info=compositionInfo(p.parts); return targets.find(t=>t.key===info.key)||null; }
+    const flat=flatOf(text); if(flat.length<8) return null;
+    const l=targets.map(t=>({t,sc:sim(flat,t.flat)})).sort((x,y)=>y.sc-x.sc);
+    const minSc=relaxed?0.78:0.84, mg=relaxed?0.05:0.06;
+    return (l[0].sc>=minSc&&l[0].sc-(l[1]?l[1].sc:0)>=mg)?l[0].t:null;
+  }
+  function fuzzyBest(text,targets){
+    const flat=flatOf(text); if(flat.length<8||!targets.length) return null;
+    let best=null; targets.forEach(t=>{ const sc=sim(flat,t.flat); if(!best||sc>best.sc) best={t,sc}; });
+    return best;
+  }
+  async function readComp(worker,src,cell,targets,extra){
+    const attempts=extra?[[1.5,false],[3.2,true],[2.6,false],[2,false]]:[[2,false],[2.6,true],[1.5,false]];
     let best=null;
     for(const [sc,bin] of attempts){
       const c=cropPadded(src,cell.x0,cell.y0,cell.x1,cell.y1,sc,16,bin);
       const r=await recognizeCanvas(worker,c,TEXT_PARAMS);
-      const p=parseComposition(r.text); const info=compositionInfo(p.parts); const id=identifyComp(r.text,p);
-      const score=(id?300:0)+(p.ok?100:0)+(info.layer?30:0)+r.conf*0.5;
-      if(!best||score>best.score) best={text:r.text,parsed:p,info,id,conf:r.conf,score};
-      if(id) break;
+      const p=parseComposition(r.text); const hit=identify(r.text,p,targets,!!extra);
+      const score=(hit?300:0)+(p.ok?100:0)+r.conf*0.5;
+      if(!best||score>best.score) best={text:r.text,parsed:p,hit,conf:r.conf,score};
+      if(hit||(p.ok&&!extra)) break;     /* ترکیب کاملاً خوانده شد (هدف یا غیرهدف): تلاش بیشتر لازم نیست */
     }
     return best;
   }
@@ -10606,26 +10619,44 @@ const RpOcr=(function(){
     const rowsGeo=[]; for(let i=0;i+1<hs.length;i++) rowsGeo.push({y0:hs[i],y1:hs[i+1],h:hs[i+1]-hs[i]});
     /* ردیف‌های بسیار کوتاه/بلند غیرعادی حذف نشوند ولی تیتر معمولاً قیمت ندارد و خودش کنار می‌رود */
     const inset=Math.max(3,Math.round(w*0.003));
+    const targets=opts.targets||[];
+    if(!targets.length){ out.notes.push('هیچ موردی برای پیدا کردن تیک نخورده است.'); return out; }
     const items=[], found={}, skipped=[]; let nFound=0;
-    for(let r=0;r<rowsGeo.length&&nFound<COMP_IDS.length;r++){
+    const takeRow=async(t,rg,c,rowIdx)=>{
+      const pc={x0:priceCol.x0+inset,x1:priceCol.x1-inset,y0:rg.y0+inset,y1:rg.y1-inset};
+      const p=await readPrice(pworker,flatCanvas,pc);
+      const okP=!!(p&&p.val!=null&&p.text.replace(/[^0-9۰-۹٠-٩]/g,'').length>=4);
+      const rc=cropPadded(canvas,vs[0],rg.y0,vs[vs.length-1],rg.y1,Math.min(1,760/(vs[vs.length-1]-vs[0])),4,false);
+      found[t.id]=1; nFound++;
+      items.push({id:t.id,label:t.label,gridRow:rowIdx,cropUrl:rc.toDataURL('image/jpeg',0.8),
+        price:okP?p.val:0,priceRaw:p?p.text:'',priceConf:p?Math.round(p.conf):0,priceOk:!!(okP&&p.shape&&p.conf>=75),
+        compRaw:c.text,compConf:Math.round(c.conf)});
+    };
+    for(let r=0;r<rowsGeo.length&&nFound<targets.length;r++){
       const rg=rowsGeo[r]; if(rg.h<w*0.015) continue;
       st(`بررسی ردیف ${r+1} از ${rowsGeo.length}…`);
       const cc={x0:compCol.x0+inset,x1:compCol.x1-inset,y0:rg.y0+inset,y1:rg.y1-inset};
-      const c=await readComp(worker,flatCanvas,cc);      /* اول فقط ترکیب خوانده می‌شود */
-      const id=c&&c.id;
-      if(!id||found[id]){ if(c&&c.text) skipped.push({n:r+1,text:c.text}); continue; }   /* ردیف غیرمرتبط: قیمتش خوانده نمی‌شود (سرعت بیشتر) */
-      const pc={x0:priceCol.x0+inset,x1:priceCol.x1-inset,y0:rg.y0+inset,y1:rg.y1-inset};
-      const p=await readPrice(pworker,flatCanvas,pc);
-      const okP=p&&p.val!=null&&p.text.replace(/[^0-9۰-۹٠-٩]/g,'').length>=4;
-      const rc=cropPadded(canvas,vs[0],rg.y0,vs[vs.length-1],rg.y1,Math.min(1,760/(vs[vs.length-1]-vs[0])),4,false);
-      found[id]=1; nFound++;
-      items.push({label:id,gridRow:r,cropUrl:rc.toDataURL('image/jpeg',0.8),price:okP?p.val:0,priceRaw:p?p.text:'',priceConf:p?Math.round(p.conf):0,compRaw:c.text,compConf:Math.round(c.conf)});
+      const free=targets.filter(t=>!found[t.id]);
+      const c=await readComp(worker,flatCanvas,cc,free,false);      /* اول فقط ترکیب خوانده می‌شود؛ قیمت ردیف‌های غیرمرتبط خوانده نمی‌شود */
+      if(c&&c.hit){ await takeRow(c.hit,rg,c,r); }
+      else if(c&&c.text) skipped.push({n:r,text:c.text,ok:c.parsed.ok,rg,cc});
     }
-    out.skipped=skipped;
+    /* دور دوم (دقت بیشتر): برای ورقی که پیدا نشد، ردیف‌هایی که متنشان ناقص خوانده شده و شبیه آن است با مقیاس‌های دیگر دوباره خوانده می‌شود */
+    if(nFound<targets.length){
+      for(const sk of skipped){
+        const missing=targets.filter(t=>!found[t.id]); if(!missing.length) break;
+        if(sk.ok) continue;
+        const fb=fuzzyBest(sk.text,missing); if(!fb||fb.sc<0.7) continue;
+        st(`بررسی دقیق‌تر ردیف ${sk.n+1}…`);
+        const c2=await readComp(worker,flatCanvas,sk.cc,missing,true);
+        if(c2&&c2.hit){ sk.used=true; await takeRow(c2.hit,sk.rg,c2,sk.n); }
+      }
+    }
+    out.skipped=skipped.filter(x=>!x.used).map(x=>({n:x.n,text:x.text}));
     out.rows=items;
     return out;
   }
-  return {run,terminate,prepare,getWorker,identifyComp,parsePrice,priceShapeOk,parseComposition,compositionInfo,matchWord,toLatinDigits,WORD_LABEL,
+  return {run,terminate,prepare,getWorker,makeTarget,parsePrice,priceShapeOk,parseComposition,compositionInfo,matchWord,toLatinDigits,WORD_LABEL,
           _internal:{normFa,sim,detectSkew,detectGrid,flatten,binarize,grayOf,rotateCanvas,newCanvas}};
 })();
 if(typeof window!=='undefined') window.RpOcr=RpOcr;
@@ -10633,102 +10664,188 @@ if(typeof window!=='undefined') window.RpOcr=RpOcr;
 </script>
 <script>
 /* ───── لیست قیمت از عکس (OCR آفلاین) — رابط تنظیمات ───── */
-/* فقط این ۵ ورق خوانده می‌شود. Kii همیشه روی عرض A و KiT همیشه روی عرض T ثبت می‌شود؛ بقیه روی دسته‌ی انتخاب‌شده (A یا T) */
-const OCR_ITEMS=[
-  {label:'Ti', layer:'3',cat:'2T',cls:null},
-  {label:'Ki', layer:'3',cat:'KT',cls:null},
-  {label:'kT', layer:'3',cat:'E', cls:null},
-  {label:'Kii',layer:'5',cat:'2T',cls:'A'},
-  {label:'KiT',layer:'5',cat:'2T',cls:'T'}
+/* مقصدهای ثبت قیمت. Kii همیشه عرض A ، KiT همیشه عرض T ، Sik عرض A ؛ بقیه روی دسته‌ی انتخاب‌شده‌ی A/T */
+const OCR_DESTS=[
+  {label:'Ti', layer:'3',cat:'2T',cls:null,text:'Ti'},
+  {label:'Ki', layer:'3',cat:'KT',cls:null,text:'Ki'},
+  {label:'kT', layer:'3',cat:'E', cls:null,text:'kT'},
+  {label:'Kii',layer:'5',cat:'2T',cls:'A', text:'Kii (عرض A)'},
+  {label:'KiT',layer:'5',cat:'2T',cls:'T', text:'KiT (عرض T)'},
+  {label:'Sik',layer:'5',cat:'KT',cls:'A', text:'Sik (عرض A)'}
 ];
-let ocrState={rows:[],preview:'',skipped:[],busy:false,cls:'A',notes:[],analyzed:false,debug:false};
+/* موردهای پیش‌فرض (طبق اسم‌هایی که در لیست قیمت نوشته شده). دو مورد «کرافت» ساده خاموش‌اند تا در صورت لزوم روشن شوند */
+const OCR_DEFAULT_TARGETS=[
+  {id:'t_Ti', label:'Ti', parts:['test','flute','irani'],layer:'3',cat:'2T',cls:null,on:true},
+  {id:'t_Ki', label:'Ki', parts:['shebe','flute','irani'],layer:'3',cat:'KT',cls:null,on:true},
+  {id:'t_kT', label:'kT', parts:['shebe','flute','shebe'],layer:'3',cat:'E', cls:null,on:true},
+  {id:'t_Kii',label:'Kii',parts:['shebe','flute','irani','irani','irani'],layer:'5',cat:'2T',cls:'A',on:true},
+  {id:'t_KiT',label:'KiT',parts:['sooper','flute','irani','irani','shebe'],layer:'5',cat:'2T',cls:'T',on:true},
+  {id:'t_Ki2',label:'Ki', parts:['kraft','flute','irani'],layer:'3',cat:'KT',cls:null,on:false},
+  {id:'t_kT2',label:'kT', parts:['kraft','flute','test'],layer:'3',cat:'E', cls:null,on:false}
+];
+let ocrState={rows:[],preview:'',skipped:[],busy:false,cls:'A',pay:'cash',notes:[],analyzed:false,debug:false,addText:'',addDest:0,addMsg:''};
 function ocrEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function ocrFmt(n){ return (n==null||isNaN(n)||!n)?'—':Math.round(n).toLocaleString('en-US'); }
-function ocrItemCls(r){ return r.cls||ocrState.cls; }
-function ocrOldPrice(r){
-  const b=sheetPriceBreakdown[sheetPriceKey(r.layer,r.cat,ocrItemCls(r))];
+function ocrTargets(){
+  let a=invoiceSettings.ocrTargets;
+  if(!Array.isArray(a)||!a.length){ a=invoiceSettings.ocrTargets=OCR_DEFAULT_TARGETS.map(t=>Object.assign({},t,{parts:t.parts.slice()})); try{ saveState(); }catch(_){} }
+  return a;
+}
+/* قیمت لیست A قیمت چکی (یک‌ماهه) است: در حالت «نقد» (پیش‌فرض) ۴٪ کم می‌شود. لیست T همان قیمت نقدی/۴۵ روزه است و تغییری نمی‌کند. */
+function ocrFinal(b){ return b>0?((ocrState.cls==='A'&&ocrState.pay==='cash')?Math.round(b*0.96):b):0; }
+function ocrApplyPay(){ ocrState.rows.forEach(r=>{ if(!r.edited) r.price=ocrFinal(r.base); }); }
+function ocrName(t){ return t.parts.map(k=>RpOcr.WORD_LABEL[k]||k).join(' – '); }
+function ocrCls(t){ return t.cls||ocrState.cls; }
+function ocrRowFor(t){
+  let r=ocrState.rows.find(x=>x.id===t.id);
+  if(!r){ r={id:t.id,found:false,base:0,price:0,edited:false,priceOk:true,compText:'',cropUrl:''}; ocrState.rows.push(r); }
+  return r;
+}
+function ocrView(){ return ocrTargets().filter(t=>t.on).map(t=>({t,r:ocrRowFor(t)})); }
+function ocrOldPrice(t){
+  const b=sheetPriceBreakdown[sheetPriceKey(t.layer,t.cat,ocrCls(t))];
   return b?(parseFloat(b.product)||0):0;
 }
 function ocrBlockers(){
-  const out=[], used=ocrState.rows.filter(r=>r.price>0);
+  const out=[], used=ocrView().filter(x=>x.r.price>0), slot={};
   if(!used.length) out.push('هیچ قیمتی برای ثبت وجود ندارد.');
-  used.forEach(r=>{ if(!(r.price>=100000&&r.price<=5000000)) out.push(r.label+': قیمت خارج از بازه‌ی مجاز.'); });
+  used.forEach(x=>{
+    if(!(x.r.price>=100000&&x.r.price<=5000000)) out.push(x.t.label+': قیمت خارج از بازه‌ی مجاز.');
+    const k=x.t.layer+'|'+x.t.cat+'|'+ocrCls(x.t); slot[k]=(slot[k]||0)+1;
+    if(slot[k]===2) out.push(x.t.label+': دو مورد با قیمت برای یک مقصد انتخاب شده؛ یکی را خاموش کنید.');
+  });
   return out;
 }
 function ocrRender(){
   const box=$('ocrp-result'); if(!box) return;
-  const S=ocrState;
-  if(!S.analyzed){ box.innerHTML=''; return; }
-  const cell='padding:11px 10px;display:flex;align-items:center';
-  const rowsHtml=S.rows.map((r,i)=>{
-    const has=r.price>0, bad=has&&(r.price<100000||r.price>5000000);
-    const old=ocrOldPrice(r), pct=(old>0&&has)?((r.price-old)/old*100):null;
-    const pcol=pct==null?'var(--txm,#888)':Math.abs(pct)>25?'#f59e0b':'var(--tx2,#888)';
-    return `<div style="display:grid;grid-template-columns:.9fr 1.5fr 1.1fr .9fr;align-items:center;border-top:1px solid rgba(128,128,128,.18);${r.found?'':'opacity:.8;'}">
-      <div style="${cell}"><span style="font-weight:800;font-size:.95rem;padding:5px 12px;border-radius:999px;background:rgba(99,102,241,.16);color:#818cf8">${r.label}</span></div>
-      <div style="${cell}"><input type="text" inputmode="numeric" dir="ltr" value="${has?ocrFmt(r.price):''}" placeholder="—" style="width:100%;font-size:.92rem;font-weight:700;text-align:center;padding:8px 6px;border-radius:10px;${bad?'border:1.5px solid #ef4444;':''}" onchange="ocrSet(${i},this.value)"></div>
-      <div style="${cell};justify-content:center;font-size:.82rem;color:var(--tx2,#888)" dir="ltr">${ocrFmt(old)}</div>
-      <div style="${cell};justify-content:center;font-size:.8rem;font-weight:700;color:${pcol}" dir="ltr">${pct==null?'—':(pct>0?'+':'')+pct.toFixed(1)+'%'}</div>
-    </div>`;
-  }).join('');
-  const bl=ocrBlockers();
-  const dbg=S.debug?`<div style="margin-top:14px;padding:12px;border-radius:14px;background:rgba(128,128,128,.1)">
-      ${S.preview?`<img src="${S.preview}" style="width:100%;border-radius:10px;cursor:zoom-in" onclick="ocrZoom()"><div style="font-size:.72rem;color:var(--tx2);text-align:center;margin:4px 0 10px">برای بزرگ‌نمایی لمس کنید</div>`:''}
-      ${S.rows.map(r=>`<div style="margin-bottom:12px"><div style="font-weight:800;margin-bottom:4px">${r.label} ${r.found?'':'<span style="font-weight:400;font-size:.75rem;color:#ef4444">(پیدا نشد)</span>'}</div>${r.cropUrl?`<img src="${r.cropUrl}" style="width:100%;border-radius:8px;display:block;margin-bottom:4px">`:''}${r.compText?`<div style="font-size:.78rem;color:var(--tx2);direction:rtl">متن خوانده‌شده: ${ocrEsc(r.compText)}</div>`:''}</div>`).join('')}
-      ${S.skipped.length?`<div style="font-size:.74rem;color:var(--txm,#888);line-height:1.8;border-top:1px dashed rgba(128,128,128,.4);padding-top:8px">ردیف‌های ردشده:<br>${S.skipped.map(x=>x.n+': '+ocrEsc(x.text)).join('<br>')}</div>`:''}
-    </div>`:'';
-  box.innerHTML=`
-    ${S.notes.map(n=>`<div style="font-size:.8rem;color:var(--tx2);margin:6px 0">${ocrEsc(n)}</div>`).join('')}
-    <div style="margin-top:12px;border-radius:16px;overflow:hidden;background:rgba(128,128,128,.07);border:1px solid rgba(128,128,128,.25)">
-      <div style="display:grid;grid-template-columns:.9fr 1.5fr 1.1fr .9fr;background:rgba(99,102,241,.14);font-size:.76rem;font-weight:800;text-align:center">
-        <div style="padding:10px">ورق</div><div style="padding:10px">قیمت جدید</div><div style="padding:10px">قیمت قبلی</div><div style="padding:10px">تغییر</div>
+  const S=ocrState, targets=ocrTargets();
+  const pill=(t)=>`<span style="font-weight:800;font-size:.95rem;padding:5px 12px;border-radius:999px;background:rgba(99,102,241,.16);color:#818cf8">${ocrEsc(t.label)}</span>`;
+  /* ── تنظیم: چه چیزهایی پیدا شود ── */
+  let cfg='';
+  if(S.debug){
+    cfg=`<div style="margin-top:12px;padding:12px;border-radius:16px;background:rgba(128,128,128,.1);border:1px solid rgba(128,128,128,.25)">
+      <div style="font-weight:800;font-size:.88rem;margin-bottom:6px">چه ورق‌هایی پیدا شود؟ (تیک بزنید)</div>
+      ${targets.map(t=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(128,128,128,.18)">
+        <input type="checkbox" ${t.on?'checked':''} onchange="ocrToggleTarget('${t.id}',this.checked)" style="width:20px;height:20px;flex:none">
+        ${pill(t)}
+        <span style="flex:1;font-size:.8rem;line-height:1.6">${ocrEsc(ocrName(t))}${t.layer==='5'||t.cls?`<span style="color:var(--txm,#888);font-size:.7rem"> ${t.cls?'· عرض '+t.cls:''}</span>`:''}</span>
+        ${t.custom?`<button type="button" onclick="ocrDelTarget('${t.id}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#ef4444;padding:4px" aria-label="حذف">✕</button>`:''}
+      </label>`).join('')}
+      <div style="margin-top:8px;padding-top:12px;border-top:1px dashed rgba(128,128,128,.4)">
+        <div style="font-size:.8rem;font-weight:800;margin-bottom:6px">افزودن مورد جدید</div>
+        <input type="text" value="${ocrEsc(S.addText)}" placeholder="مثلاً: سفید - فلوت - ایرانی" oninput="ocrState.addText=this.value" style="width:100%;font-size:.85rem;padding:9px;border-radius:10px">
+        <select onchange="ocrState.addDest=+this.value" style="width:100%;font-size:.85rem;padding:9px;border-radius:10px;margin-top:6px">
+          ${OCR_DESTS.map((d,i)=>`<option value="${i}" ${+S.addDest===i?'selected':''}>قیمتش در ${d.text} ثبت شود</option>`).join('')}
+        </select>
+        <button type="button" class="btn" style="margin-top:8px;width:100%" onclick="ocrAddTarget()">افزودن به لیست</button>
+        ${S.addMsg?`<div style="font-size:.76rem;color:#ef4444;margin-top:6px;line-height:1.7">${ocrEsc(S.addMsg)}</div>`:''}
+        <div style="font-size:.7rem;color:var(--txm,#888);margin-top:6px;line-height:1.7">کلمه‌های مجاز: تست، کرافت، شبه کرافت، سوپر کرافت، سفید، ایرانی، فلوت (با خط‌تیره یا فاصله جدا کنید).</div>
       </div>
-      ${rowsHtml}
-    </div>
-    <div style="margin-top:8px;font-size:.74rem;color:var(--txm,#888);line-height:1.8">فقط «قیمت محصول (بدون کرایه)» ثبت می‌شود؛ کرایه دست‌نخورده می‌ماند. Kii روی عرض A و KiT روی عرض T ثبت می‌شود.</div>
-    ${bl.length?`<div style="font-size:.78rem;color:#ef4444;margin-top:6px">${bl.slice(0,6).map(ocrEsc).join('<br>')}</div>`:''}
-    <button type="button" class="btn btn-primary" id="ocrp-register" style="margin-top:12px" onclick="ocrRegister()">ثبت قیمت‌ها در تب قیمت</button>
-    ${dbg}`;
+    </div>`;
+  }
+  /* ── نتیجه ── */
+  let res='', dbgHtml='';
+  if(S.analyzed){
+    const cell='padding:11px 8px;display:flex;align-items:center';
+    const view=ocrView();
+    const rowsHtml=view.map(({t,r},i)=>{
+      const has=r.price>0, bad=has&&(r.price<100000||r.price>5000000);
+      const old=ocrOldPrice(t), pct=(old>0&&has)?((r.price-old)/old*100):null;
+      const pcol=pct==null?'var(--txm,#888)':Math.abs(pct)>25?'#f59e0b':'var(--tx2,#888)';
+      const disc=(!r.edited&&r.base>0&&r.price!==r.base)?`<div style="font-size:.62rem;color:var(--txm,#888);margin-top:2px;text-align:center">لیست ${ocrFmt(r.base)} − ۴٪</div>`:'';
+      const warn=disc+((has&&!r.priceOk)?'<div style="font-size:.62rem;color:#f59e0b;margin-top:2px;text-align:center">⚠ با عکس مقایسه کنید</div>':'');
+      return `<div style="display:grid;grid-template-columns:1.15fr 1.4fr 1fr .85fr;align-items:center;border-top:1px solid rgba(128,128,128,.18);${r.found?'':'opacity:.85;'}">
+        <div style="${cell};flex-direction:column;align-items:flex-start;gap:3px">${pill(t)}<div style="font-size:.6rem;color:var(--txm,#888);line-height:1.5">${ocrEsc(ocrName(t))}</div></div>
+        <div style="${cell};flex-direction:column;align-items:stretch"><input type="text" inputmode="numeric" dir="ltr" value="${has?ocrFmt(r.price):''}" placeholder="${r.found?'—':'پیدا نشد'}" style="width:100%;font-size:.92rem;font-weight:700;text-align:center;padding:8px 6px;border-radius:10px;${bad?'border:1.5px solid #ef4444;':''}" onchange="ocrSetPrice('${t.id}',this.value)">${warn}</div>
+        <div style="${cell};justify-content:center;font-size:.8rem;color:var(--tx2,#888)" dir="ltr">${ocrFmt(old)}</div>
+        <div style="${cell};justify-content:center;font-size:.78rem;font-weight:700;color:${pcol}" dir="ltr">${pct==null?'—':(pct>0?'+':'')+pct.toFixed(1)+'%'}</div>
+      </div>`;
+    }).join('');
+    const bl=ocrBlockers();
+    const dbg=S.debug?`<div style="margin-top:14px;padding:12px;border-radius:14px;background:rgba(128,128,128,.1)">
+        ${S.preview?`<img src="${S.preview}" style="width:100%;border-radius:10px;cursor:zoom-in" onclick="ocrZoom()"><div style="font-size:.72rem;color:var(--tx2);text-align:center;margin:4px 0 10px">برای بزرگ‌نمایی لمس کنید</div>`:''}
+        ${view.map(({t,r})=>`<div style="margin-bottom:12px"><div style="font-weight:800;margin-bottom:4px">${ocrEsc(t.label)} ${r.found?'':'<span style="font-weight:400;font-size:.75rem;color:#ef4444">(پیدا نشد)</span>'}</div>${r.cropUrl?`<img src="${r.cropUrl}" style="width:100%;border-radius:8px;display:block;margin-bottom:4px">`:''}${r.compText?`<div style="font-size:.78rem;color:var(--tx2);direction:rtl">متن خوانده‌شده: ${ocrEsc(r.compText)}</div>`:''}</div>`).join('')}
+        ${S.skipped.length?`<div style="font-size:.74rem;color:var(--txm,#888);line-height:1.8;border-top:1px dashed rgba(128,128,128,.4);padding-top:8px">ردیف‌های ردشده (متنی که از هر ردیف خوانده شد):<br>${S.skipped.map(x=>x.n+': '+ocrEsc(x.text)).join('<br>')}</div>`:''}
+      </div>`:'';
+    res=`
+      ${S.notes.map(n=>`<div style="font-size:.8rem;color:var(--tx2);margin:6px 0">${ocrEsc(n)}</div>`).join('')}
+      <div style="margin-top:12px;border-radius:16px;overflow:hidden;background:rgba(128,128,128,.07);border:1px solid rgba(128,128,128,.25)">
+        <div style="display:grid;grid-template-columns:1.15fr 1.4fr 1fr .85fr;background:rgba(99,102,241,.14);font-size:.76rem;font-weight:800;text-align:center">
+          <div style="padding:10px">ورق</div><div style="padding:10px">قیمت جدید</div><div style="padding:10px">قیمت قبلی</div><div style="padding:10px">تغییر</div>
+        </div>
+        ${rowsHtml||'<div style="padding:14px;text-align:center;font-size:.8rem;color:var(--txm,#888)">هیچ موردی تیک نخورده است (🔧)</div>'}
+      </div>
+      <div style="margin-top:8px;font-size:.74rem;color:var(--txm,#888);line-height:1.8">فقط «قیمت محصول (بدون کرایه)» ثبت می‌شود؛ کرایه دست‌نخورده می‌ماند. Kii و Sik روی عرض A و KiT روی عرض T ثبت می‌شود.<br>لیست A: قیمت چکی است و در حالت «نقد» ۴٪ کم می‌شود؛ در حالت «چک» همان قیمت لیست ثبت می‌شود. لیست T: همان قیمت لیست ثبت می‌شود.</div>
+      ${bl.length?`<div style="font-size:.78rem;color:#ef4444;margin-top:6px">${bl.slice(0,6).map(ocrEsc).join('<br>')}</div>`:''}
+      <button type="button" class="btn btn-primary" id="ocrp-register" style="margin-top:12px" onclick="ocrRegister()">ثبت قیمت‌ها در تب قیمت</button>`;
+    dbgHtml=dbg;
+  }
+  /* با اچار فقط بخش اچار (تنظیم موردها + عکس و متن خوانده‌شده) دیده می‌شود؛ بدون اچار فقط جدول قیمت */
+  box.innerHTML=S.debug?(cfg+dbgHtml):res;
   ocrUpdateBtn();
 }
 function ocrUpdateBtn(){ const b=$('ocrp-register'); if(!b) return; const ok=!ocrBlockers().length; b.disabled=!ok; b.style.opacity=ok?'1':'.45'; }
-function ocrSet(i,v){
-  const r=ocrState.rows[i]; if(!r) return;
-  r.price=RpOcr.parsePrice(String(v))||0;
+function ocrSetPrice(id,v){
+  const t=ocrTargets().find(x=>x.id===id); if(!t) return;
+  const r=ocrRowFor(t); r.price=RpOcr.parsePrice(String(v))||0; r.edited=true;
   ocrRender();
 }
-function ocrToggleDebug(){
-  if(!ocrState.analyzed){ const st=$('ocrp-status'); if(st) st.textContent='اول عکس لیست قیمت را انتخاب کنید.'; return; }
-  ocrState.debug=!ocrState.debug; ocrRender();
+function ocrToggleTarget(id,on){
+  const t=ocrTargets().find(x=>x.id===id); if(!t) return;
+  t.on=!!on; try{ saveState(); }catch(_){}
+  ocrRender();
 }
+function ocrDelTarget(id){
+  const a=ocrTargets(), i=a.findIndex(x=>x.id===id&&x.custom); if(i<0) return;
+  a.splice(i,1); ocrState.rows=ocrState.rows.filter(r=>r.id!==id); try{ saveState(); }catch(_){}
+  ocrRender();
+}
+function ocrAddTarget(){
+  const S=ocrState, d=OCR_DESTS[+S.addDest]||OCR_DESTS[0];
+  const p=RpOcr.parseComposition(S.addText||'');
+  if(!S.addText.trim()){ S.addMsg='ترکیب را بنویسید.'; return ocrRender(); }
+  if(!p.ok){ S.addMsg='ترکیب شناخته نشد. فقط کلمه‌های مجاز را بنویسید.'; return ocrRender(); }
+  const ks=p.parts.map(x=>x.k);
+  if(!ks.includes('flute')){ S.addMsg='ترکیب باید «فلوت» داشته باشد.'; return ocrRender(); }
+  if(ks.length!==(d.layer==='3'?3:5)){ S.addMsg='مقصد '+d.label+' ترکیب '+(d.layer==='3'?'۳':'۵')+' جزئی می‌خواهد (الان '+ks.length+' جزء نوشته‌اید).'; return ocrRender(); }
+  const key=ks.filter(k=>k!=='flute').join('|');
+  if(ocrTargets().some(t=>t.parts.filter(k=>k!=='flute').join('|')===key)){ S.addMsg='این ترکیب قبلاً در لیست هست.'; return ocrRender(); }
+  ocrTargets().push({id:'c_'+Date.now(),label:d.label,parts:ks,layer:d.layer,cat:d.cat,cls:d.cls,on:true,custom:true});
+  S.addText=''; S.addMsg=''; try{ saveState(); }catch(_){}
+  ocrRender();
+}
+function ocrToggleDebug(){ ocrState.debug=!ocrState.debug; ocrRender(); }
 function ocrZoom(){
   const o=document.createElement('div'); o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:99999;overflow:auto;padding:8px';
   o.innerHTML=`<img src="${ocrState.preview}" style="width:220%;max-width:none;display:block">`; o.onclick=()=>o.remove(); document.body.appendChild(o);
 }
-function ocrSetCls(c){ ocrState.cls=c; ['A','T'].forEach(k=>{ const b=$('ocrp-cls-'+k); if(b) b.classList.toggle('active',k===c); }); ocrRender(); }
+function ocrSetCls(c){ ocrState.cls=c; ['A','T'].forEach(k=>{ const b=$('ocrp-cls-'+k); if(b) b.classList.toggle('active',k===c); }); const w=$('ocrp-pay-wrap'); if(w) w.style.opacity=c==='A'?'1':'.45'; ocrApplyPay(); ocrRender(); }
+function ocrSetPay(m){ ocrState.pay=m; ['cash','check'].forEach(k=>{ const b=$('ocrp-pay-'+k); if(b) b.classList.toggle('active',k===m); }); ocrApplyPay(); ocrRender(); }
 async function ocrPick(inp){
   const f=inp.files&&inp.files[0]; if(!f) return;
   const st=$('ocrp-status'); const say=m=>{ if(st) st.textContent=m; };
-  if(ocrState.busy) return; ocrState.busy=true;
+  if(ocrState.busy) return;
+  const on=ocrTargets().filter(t=>t.on);
+  if(!on.length){ say('اول از 🔧 حداقل یک مورد را تیک بزنید.'); inp.value=''; return; }
+  ocrState.busy=true;
   try{
     if(typeof RpOcr==='undefined') throw new Error('ماژول OCR در این نسخه موجود نیست.');
-    const res=await RpOcr.run(f,say);
+    const res=await RpOcr.run(f,say,{targets:on.map(RpOcr.makeTarget)});
     const S=ocrState;
     S.preview=res.preview||''; S.notes=res.notes||[]; S.skipped=res.skipped||[];
-    S.rows=OCR_ITEMS.map(it=>{ const x=res.rows.find(q=>q.label===it.label); return Object.assign({},it,{found:!!x,price:x?x.price:0,priceConf:x?x.priceConf:0,compText:x?x.compRaw:'',cropUrl:x?x.cropUrl:''}); });
+    S.rows=on.map(t=>{ const x=res.rows.find(q=>q.id===t.id); return {id:t.id,found:!!x,base:x?x.price:0,price:x?ocrFinal(x.price):0,edited:false,priceOk:x?x.priceOk:true,compText:x?x.compRaw:'',cropUrl:x?x.cropUrl:''}; });
     S.analyzed=true;
-    const n=S.rows.filter(r=>r.found).length;
-    say('پایان خواندن — '+n+' از '+OCR_ITEMS.length+' ورق پیدا شد.');
+    say('پایان خواندن — '+S.rows.filter(r=>r.found).length+' از '+on.length+' مورد پیدا شد.');
   }catch(e){ say('خطا: '+(e&&e.message||e)); console.error(e); }
   ocrState.busy=false; inp.value=''; ocrRender();
 }
 function ocrRegister(){
   if(ocrBlockers().length) return;
-  const used=ocrState.rows.filter(r=>r.price>0);
+  const used=ocrView().filter(x=>x.r.price>0);
   const backup={time:new Date().toISOString(),items:[]};
-  used.forEach(r=>{ const key=sheetPriceKey(r.layer,r.cat,ocrItemCls(r)); const b=sheetPriceBreakdown[key]||{product:0,freight:0}; backup.items.push({key,product:parseFloat(b.product)||0,freight:parseFloat(b.freight)||0,existed:!!sheetPriceBreakdown[key]}); });
+  used.forEach(({t})=>{ const key=sheetPriceKey(t.layer,t.cat,ocrCls(t)); const b=sheetPriceBreakdown[key]||{product:0,freight:0}; backup.items.push({key,product:parseFloat(b.product)||0,freight:parseFloat(b.freight)||0,existed:!!sheetPriceBreakdown[key]}); });
   invoiceSettings.ocrBackup=backup;
-  used.forEach(r=>{ const key=sheetPriceKey(r.layer,r.cat,ocrItemCls(r)); if(!sheetPriceBreakdown[key]) sheetPriceBreakdown[key]={product:0,freight:0}; sheetPriceBreakdown[key].product=r.price; recalcSheetPriceTotal(key); });
+  used.forEach(({t,r})=>{ const key=sheetPriceKey(t.layer,t.cat,ocrCls(t)); if(!sheetPriceBreakdown[key]) sheetPriceBreakdown[key]={product:0,freight:0}; sheetPriceBreakdown[key].product=r.price; recalcSheetPriceTotal(key); });
   saveState(); try{ renderSheetPrices(); }catch(_){} try{ runCalc2({live:true}); }catch(_){}
   const st=$('ocrp-status'); if(st) st.textContent='✅ '+used.length+' قیمت در تب قیمت ثبت شد.';
   ocrRender();
