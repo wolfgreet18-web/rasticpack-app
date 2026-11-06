@@ -23,6 +23,12 @@ const fileCss = css(f => f.file);
 const dataCss = css(f => 'data:font/woff2;base64,' + fs.readFileSync('www/' + f.file).toString('base64'));
 
 let html = fs.readFileSync('index.src.html', 'utf8');
+/* OCR آفلاین: تعبیه‌ی دارایی‌ها (در صورت وجود پوشه‌ی ../ocr-assets) */
+if (fs.existsSync('../ocr-assets/fas.traineddata.gz')) {
+  const { execFileSync } = await import('node:child_process');
+  const j = execFileSync('python3', ['make_ocr_assets.py', '--eng'], { maxBuffer: 1 << 30 }).toString();
+  html = html.replace('<script id="ocr-assets" type="application/json">{}</script>', () => '<script id="ocr-assets" type="application/json">' + j + '</script>');
+}
 
 // ۱) سند چاپ فاکتور (داخل رشته‌ی JS): لینک گوگل‌فونت → استایل محلی
 html = html.replace(/<link[^>]*Great\+Vibes[^>]*>/g, () => '<style>${window.__RP_FONT_CSS||""}</style>');
