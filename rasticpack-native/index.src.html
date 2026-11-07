@@ -1860,12 +1860,10 @@ function seedSampleDataIfEmpty(){
     dbSaveCustomer(sampleCust);
     changed=true;
   }
-  if(!inventory.length){
-    ['3','5'].forEach(layer=>{
-      TRUCK_FREIGHT_AUTO_DIMS_LIST.forEach(d=>{
-        inventory.push({id:nextId++,sh:d.sh,sw:d.sw,layer,qty:300});
-      });
-    });
+  if(!inventory.length&&!invoiceSettings.invSeedV2){
+    /* پیش‌فرض: فقط سه ورق Ki سه‌لایه‌ی مدل A، از هرکدام ۱۰۰ عدد (یک‌بار؛ بعد از آن حذف کاربر حفظ می‌شود) */
+    [127,152,177].forEach(sh=>inventory.push({id:nextId++,sh,sw:180,layer:'3',qty:100,flute:'C',paperType:'KT'}));
+    invoiceSettings.invSeedV2=true;
     changed=true;
   }
   if(!sheetPrices[sheetPriceKey('3','KT')]){
@@ -2600,7 +2598,7 @@ function evalSheet(s,bw,bh,need,grain){
 }
 
 /* نوع‌های ورق (عرض A/T) که کاربر با نگه‌داشتن ۲ ثانیه‌ای از تب قیمت کنار گذاشته (علامت ×) */
-function c2ClsOff(k){ try{ return !!(typeof invoiceSettings!=='undefined'&&invoiceSettings.excludedCls&&invoiceSettings.excludedCls[k]); }catch(_){ return false; } }
+function c2ClsOff(k){ try{ const e=(typeof invoiceSettings!=='undefined')&&invoiceSettings.excludedCls; if(e&&typeof e[k]==='boolean') return e[k]; return k==='T'; }catch(_){ return k==='T'; } }   /* پیش‌فرض: عرض M (=T) غیرفعال */
 function matchSheets(bw,bh,need,grain,layerFilter,fluteFilter,paperFilter,clsFilter){
   let usable=inventory.filter(s=>s.sw>=bw&&s.sh>=bh&&s.qty>0&&!c2ClsOff(widthClassOf(s.sw)));
   if(clsFilter==='A'||clsFilter==='T') usable=usable.filter(s=>widthClassOf(s.sw)===clsFilter);
@@ -2687,10 +2685,7 @@ function c2TypeName(t){ return t==='F'?'درب روی‌هم کامل (F)':t==='
 const calc2OverrideSig=(c)=>[c.length,c.width,c.height,c.glue,c.layer,c.type||''].join('|');
 let calc2InvoiceSubmitted=false;
 /* مقادیر نمونه پیش‌فرض برای تست — فقط برای ردیف‌های اولیه 1 و 2 */
-const calc2SampleDefaults={
-  1:{length:60,width:40,height:40,glue:4,qty:100,layer:'3'},
-  2:{length:30,width:20,height:30,glue:2,qty:100,layer:'3'}
-};
+const calc2SampleDefaults={};   /* بدون ابعاد پیش‌فرض */
 
 function calc2RowTemplate(id){
   const d=calc2SampleDefaults[id]||{};
@@ -2840,7 +2835,7 @@ function c2ApplyClsOff(){
   ['A','T'].forEach(k=>document.body.classList.toggle('cls-off-'+k,c2ClsOff(k)));
 }
 function c2ToggleClsOff(k){
-  invoiceSettings.excludedCls=Object.assign({A:false,T:false},invoiceSettings.excludedCls||{});
+  invoiceSettings.excludedCls={A:c2ClsOff('A'),T:c2ClsOff('T')};
   invoiceSettings.excludedCls[k]=!invoiceSettings.excludedCls[k];
   if(invoiceSettings.excludedCls[k]){   /* اگر این نوع در ردیف‌ها انتخاب شده بود، برداشته می‌شود */
     document.querySelectorAll('.calc2-row').forEach(row=>{
