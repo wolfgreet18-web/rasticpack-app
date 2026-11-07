@@ -44,6 +44,9 @@ jobs:
       - name: Install home-screen widget (native Android code)
         run: python3 install_widget.py
 
+      - name: Install card-number widget (native Android code)
+        run: python3 install_cardwidget.py
+
       - name: Sync Capacitor
         run: npx cap sync android
 

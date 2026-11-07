@@ -586,7 +586,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
         <div class="subtype-toggle" id="inv-class-toggle" style="flex:1;margin-bottom:0">
           <button type="button" class="subtype-btn active" data-cls="A" onclick="setInventoryClassView('A')">A</button>
-          <button type="button" class="subtype-btn" data-cls="T" onclick="setInventoryClassView('T')">T</button>
+          <button type="button" class="subtype-btn" data-cls="T" onclick="setInventoryClassView('T')">M</button>
         </div>
         <button type="button" onclick="openTruckFreightModal()" title="کرایه حمل بار ماشین"
           style="flex:0 0 auto;background:none;border:none;box-shadow:none;padding:4px;font-size:1.6rem;line-height:1;cursor:pointer">🚚</button>
@@ -1024,6 +1024,21 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
         <div id="widget-note" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
         <button type="button" class="btn btn-flat" style="width:100%;margin-top:14px" onclick="openQuickPrice()">👁 امتحان حالت ویجت</button>
+
+        <div class="inv-results-header" style="margin-top:26px">💳 ویجت شماره کارت</div>
+        <p style="font-size:.78rem;color:var(--tx2);line-height:1.8;margin-bottom:10px">
+          یک دکمه‌ی 💳 روی صفحه‌ی هوم گوشی؛ با یک لمس، متن زیر (شماره کارت و شبا) کپی می‌شود. هر متنی خواستید در کادر بنویسید.
+        </p>
+        <div class="field full" style="margin-bottom:8px">
+          <label>متنی که کپی می‌شود</label>
+          <textarea id="card-text" rows="6" dir="auto" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.9;padding:10px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--tx)" oninput="cardTextChanged(this.value)"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" style="flex:1;min-width:140px" onclick="cardPin()">💳 افزودن به صفحه‌ی هوم</button>
+          <button type="button" class="btn btn-flat" style="flex:1;min-width:120px" onclick="cardCopyNow()">📋 کپی همین الان</button>
+          <button type="button" class="btn btn-flat" style="flex:1;min-width:120px" onclick="cardReset()">↩️ متن پیش‌فرض</button>
+        </div>
+        <div id="card-note" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
       </div>
 
       <div id="ocrp-panel" style="display:none;margin-top:14px">
@@ -1033,7 +1048,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
             <button type="button" onclick="document.getElementById('ocrp-file').click()" aria-label="انتخاب عکس" style="background:none;border:none;box-shadow:none;padding:0;margin:0;cursor:pointer;font-size:2.1rem;line-height:1;flex:none">📷</button>
             <div class="subtype-toggle" style="flex:1;margin:0;height:38px">
               <button type="button" class="subtype-btn active" id="ocrp-cls-A" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetCls('A')">A</button>
-              <button type="button" class="subtype-btn" id="ocrp-cls-T" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetCls('T')">T</button>
+              <button type="button" class="subtype-btn" id="ocrp-cls-T" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetCls('T')">M</button>
             </div>
             <div class="subtype-toggle" id="ocrp-pay-wrap" style="flex:1;margin:0;height:38px">
               <button type="button" class="subtype-btn active" id="ocrp-pay-cash" style="flex:1;height:36px;padding:0 8px;font-size:.92rem;line-height:1" onclick="ocrSetPay('cash')">نقد</button>
@@ -1139,6 +1154,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 </div>
 
 <script>
+/* نمایش: مدل «T» در رابط کاربری به شکل «M» نشان داده می‌شود؛ مقدار داخلی/کلیدهای داده همچنان 'T' می‌ماند. */
+function clsD(c){ return c==='T'?'M':c; }
+
 /* ══ ذخیره‌سازی تنظیمات (window.storage) ══
    این برنامه در اصل برای محیطی نوشته شده بود که window.storage را خودش می‌داد. در مرورگر معمولی و در برنامه‌ی اندروید
    (Capacitor) چنین چیزی وجود ندارد و در نتیجه تنظیمات (قیمت ورق‌ها، موجودی، عرض ورق‌ها، اندازه‌ی نمایش، ...) بعد از
@@ -1646,7 +1664,7 @@ async function loadState() {
         smsTemplate=typeof st==='string'?st:'';
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
         if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false,theme:dispS.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(dispS.warmth)||0)),digits:dispS.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(dispS.tone))?50:Math.min(100,Math.max(0,parseInt(dispS.tone))))};
-        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||'')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
+        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||''),cardText:(typeof wgS.cardText==='string'?wgS.cardText:undefined)}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
         nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=meta.nextInvoiceId||1; nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         nextReadyId=Math.max(meta.nextReadyId||1,readyCartons.reduce((m,i)=>Math.max(m,i.id),0)+1);
         /* ══ مهاجرت یک‌باره: در نسخه‌ی قبلی، فاکتورها/مشتریان داخل همین کلید (با سقف 5 مگابایت)
@@ -1974,7 +1992,7 @@ function renderSheetPriceBox(layer){
           <button type="button" onclick="togglePriceBreakdown('${layer}','${cat}')"
             style="width:100%;max-width:${single?'':'32%'};text-align:center;font-family:inherit;font-size:.92rem;font-weight:700;
               padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);
-              color:var(--tx);cursor:pointer;box-shadow:inset 0 1px 2px rgba(24,24,27,.03)">${val?formatNum(val):'—'}</button>
+              color:#16a34a;cursor:pointer;box-shadow:inset 0 1px 2px rgba(24,24,27,.03)">${val?formatNum(val):'—'}</button>
           <div id="price-breakdown-${layer}-${cat}" style="display:none;margin-top:8px;border:1.5px solid var(--border);border-radius:var(--r-md);padding:12px;background:var(--surf-alt)"></div>
         </div>`;
       }).join('')}
@@ -2009,7 +2027,7 @@ function togglePriceBreakdown(layer,cat){
       </div>
     </div>
     <div style="font-size:.74rem;color:var(--tx2);margin-top:10px;text-align:center">
-      قیمت کل: <b id="pb-total-${layer}-${cat}" style="color:var(--brand)">${sheetPrices[key]?formatNum(sheetPrices[key]):'0'}</b> ریال
+      قیمت کل: <b id="pb-total-${layer}-${cat}" style="color:#16a34a">${sheetPrices[key]?formatNum(sheetPrices[key]):'0'}</b> ریال
     </div>`;
   panel.style.display='block';
 }
@@ -2213,7 +2231,37 @@ function widgetPayload(){
 function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update(widgetPayload()); }catch(_){} }
 let _wgSyncT=null;
 function scheduleWidgetSync(){ if(!widgetSettings.enabled||!widgetBridge()) return; clearTimeout(_wgSyncT); _wgSyncT=setTimeout(syncWidget,1500); }
+
+/* ───── ویجت شماره کارت ───── */
+const CARD_DEFAULT='شماره کارت:\n6219861427686307\nشماره شبا:\nIR620560611828005375757801\nعلیرضا پهلولن هاشمی';
+const cardBridge=()=>capPlugin('CardWidget');
+function cardText(){ return (typeof widgetSettings.cardText==='string')?widgetSettings.cardText:CARD_DEFAULT; }
+function cardNote(m){ const n=$('card-note'); if(n){ n.textContent=m||''; n.style.display=m?'block':'none'; } }
+function cardSyncNative(){ const b=cardBridge(); if(b){ try{ b.save({text:cardText()}); }catch(_){} } }
+function cardFillUI(){ const t=$('card-text'); if(t&&document.activeElement!==t) t.value=cardText(); }
+function cardTextChanged(v){ widgetSettings.cardText=v; saveState(); cardSyncNative(); }
+function cardReset(){ widgetSettings.cardText=undefined; saveState(); cardSyncNative(); const t=$('card-text'); if(t) t.value=CARD_DEFAULT; cardNote('متن پیش‌فرض برگردانده شد.'); }
+async function cardCopyNow(){
+  const txt=cardText(); let ok=false;
+  try{ await navigator.clipboard.writeText(txt); ok=true; }catch(_){
+    try{ const a=document.createElement('textarea'); a.value=txt; a.style.cssText='position:fixed;opacity:0'; document.body.appendChild(a); a.select(); ok=document.execCommand('copy'); a.remove(); }catch(__){}
+  }
+  cardNote(ok?'✅ کپی شد.':'کپی انجام نشد؛ متن را در کادر انتخاب و کپی کنید.');
+}
+async function cardPin(){
+  const b=cardBridge(); let msg='';
+  if(!b){ msg='در مرورگر ویجت واقعی ساخته نمی‌شود؛ این گزینه فقط در برنامه‌ی نصب‌شده روی گوشی کار می‌کند. می‌توانید با «کپی همین الان» امتحان کنید.'; }
+  else{
+    try{
+      await b.save({text:cardText()});
+      const r=await b.pin();
+      msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید. اگر پیام «No space left on current screen» آمد، به یک صفحه‌ی خالی‌تر هوم بروید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «شماره کارت».';
+    }catch(_){ msg='بخش بومی این ویجت در برنامه نصب نیست؛ برنامه را با نسخه‌ی جدید دوباره نصب کنید.'; }
+  }
+  cardNote(msg);
+}
 function applyWidgetUI(){
+  try{ cardFillUI(); }catch(_){}
   const on=!!widgetSettings.enabled, t=$('widget-toggle');
   if(t){ t.textContent=on?'فعال':'غیرفعال'; t.style.background=on?'var(--green)':'var(--surf-alt)'; t.style.color=on?'#fff':'var(--tx2)'; t.style.borderColor=on?'var(--green)':'var(--border)'; }
 }
@@ -2242,7 +2290,7 @@ function closeQuickPrice(){
 (function(){
   const chk=()=>{ if(/[?&]quick=1|#quick/.test(location.search+location.hash)) openQuickPrice(); };
   window.addEventListener('load',()=>{
-    setTimeout(()=>{ chk(); applyWidgetUI(); syncWidget(); },400);
+    setTimeout(()=>{ chk(); applyWidgetUI(); syncWidget(); cardSyncNative(); },400);
     try{ const _ss=saveState; saveState=function(){ const r=_ss.apply(this,arguments); try{ scheduleWidgetSync(); }catch(_){} return r; }; }catch(_){}
     const A=capPlugin('App'); if(!A) return;
     try{
@@ -2708,7 +2756,7 @@ function calc2RowTemplate(id){
           <div style="display:flex;align-items:center;gap:0">
             <div class="subtype-toggle" style="margin-bottom:0;width:auto;display:inline-flex">
               <button type="button" class="subtype-btn" data-cls="A" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'A',this)">A</button>
-              <button type="button" class="subtype-btn" data-cls="T" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'T',this)">T</button>
+              <button type="button" class="subtype-btn" data-cls="T" style="padding:11px 7px;font-size:.74rem" onclick="setCartonCls(${id},'T',this)">M</button>
             </div>
             <input type="hidden" id="c2-cls-${id}" value=""/>
           </div>
@@ -3434,7 +3482,7 @@ function calc2CardHtml(r,idx){
           const cls=widthClassOf(s.sw), wz=s.waste<=0.05;
           return`<div style="border:1.5px solid var(--gold);border-radius:var(--r-md);margin-bottom:10px;padding:12px;background:var(--surface)">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-              <span style="font-weight:700"><span style="background:var(--green-bg);border:1.5px solid var(--gold);border-radius:12px;padding:1px 8px;font-size:.72rem;margin-left:4px">ورق ${cls}</span> <bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${s.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${s.sw}</span></bdi></span>
+              <span style="font-weight:700"><span style="background:var(--green-bg);border:1.5px solid var(--gold);border-radius:12px;padding:1px 8px;font-size:.72rem;margin-left:4px">ورق ${clsD(cls)}</span> <bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${s.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${s.sw}</span></bdi></span>
               <span style="font-weight:700;font-size:.78rem;color:${wz?'var(--green-d)':'var(--gold)'}">${wz?'✔ پرت صفر':'پرت '+s.waste+'%'}</span>
             </div>
             <div class="inv-detail-grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px">
@@ -3515,9 +3563,9 @@ function calc2CardHtml(r,idx){
       <div class="inv-card-header" style="cursor:pointer" onclick="openCalc2Sheet(${r.id})">
         <div class="inv-card-main" style="padding-top:14px">
           <div class="inv-card-meta" style="font-weight:700;margin-top:2px"><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${r.length}</span><span style="color:#000">×</span><span style="color:var(--danger)">${r.width}</span><span style="color:#000">×</span><span style="color:#16a34a">${r.height}</span></bdi> · <span style="color:#000">${r.qty} کارتن</span></div>
-          <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:4px">${r.sheets[0]?`<div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${r.sheets[0].sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${r.sheets[0].sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${r.sheets[0].sw}</span></bdi><span style="color:#000">${widthClassOf(r.sheets[0].sw)}</span></div>`:'—'}</div>
+          <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:4px">${r.sheets[0]?`<div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${r.sheets[0].sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${r.sheets[0].sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${r.sheets[0].sw}</span></bdi><span style="color:#000">${clsD(widthClassOf(r.sheets[0].sw))}</span></div>`:'—'}</div>
           ${r.sheets[0]?`<div class="inv-card-meta" style="font-weight:700;margin-top:4px;display:flex;align-items:baseline;gap:10px"><span style="color:${r.sheets[0].waste<=0.05?'var(--green-d)':'var(--gold)'}">${r.sheets[0].waste<=0.05?'✔ پرت صفر':'پرت '+r.sheets[0].waste+'%'}</span>${r.sheets[0].reuseW>0?`<span title="نوار قابل استفاده مجدد" style="color:var(--green-d)">♻️ ${r.sheets[0].reuseW}</span>`:''}<bdi dir="ltr" style="unicode-bidi:isolate;color:#7c3aed">${catLabel(priceCategoryOf(r.paperType,r.flute),r.layer,widthClassOf(r.sheets[0].sw))}</bdi></div>`:''}
-          ${(r.split&&r.sheets[1])?`<div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:6px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${r.sheets[1].sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${r.sheets[1].sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${r.sheets[1].sw}</span></bdi><span style="color:#000">${widthClassOf(r.sheets[1].sw)}</span></div></div><div class="inv-card-meta" style="font-weight:700;margin-top:4px"><span style="color:${r.sheets[1].waste<=0.05?'var(--green-d)':'var(--gold)'}">${r.sheets[1].waste<=0.05?'✔ پرت صفر':'پرت '+r.sheets[1].waste+'%'}</span></div>`:''}
+          ${(r.split&&r.sheets[1])?`<div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:6px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${r.sheets[1].sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${r.sheets[1].sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${r.sheets[1].sw}</span></bdi><span style="color:#000">${clsD(widthClassOf(r.sheets[1].sw))}</span></div></div><div class="inv-card-meta" style="font-weight:700;margin-top:4px"><span style="color:${r.sheets[1].waste<=0.05?'var(--green-d)':'var(--gold)'}">${r.sheets[1].waste<=0.05?'✔ پرت صفر':'پرت '+r.sheets[1].waste+'%'}</span></div>`:''}
         </div>
         <div class="inv-card-stats"><div class="inv-stat" style="display:flex;flex-direction:column;align-items:flex-end;gap:0px">
           ${r.isCheck?`<div style="display:flex;align-items:baseline;gap:6px;line-height:1;margin-bottom:4px"><span class="il" style="color:#7c3aed;font-weight:800">چکی</span><span class="iv" style="color:#7c3aed">${formatNum(r.finalPrice)}</span></div>`:''}
@@ -4245,7 +4293,7 @@ function renderCalc2SuggestSheet(rowId){
       <div style="margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div class="inv-card-main" style="min-width:140px;margin-inline-start:-14px">
-              <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:2px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${twoPiece.best.sheetsNeed===Infinity?'—':twoPiece.best.sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${twoPiece.best.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${twoPiece.best.sw}</span></bdi><span style="color:#000">${widthClassOf(twoPiece.best.sw)}</span></div></div>
+              <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:2px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${twoPiece.best.sheetsNeed===Infinity?'—':twoPiece.best.sheetsNeed} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${twoPiece.best.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${twoPiece.best.sw}</span></bdi><span style="color:#000">${clsD(widthClassOf(twoPiece.best.sw))}</span></div></div>
               <div class="inv-card-meta" style="font-weight:700;margin-top:4px;color:${twoPiece.best.waste<=0.05?'var(--green-d)':'var(--gold)'}">${twoPiece.best.waste<=0.05?'✔ پرت صفر':'پرت '+twoPiece.best.waste+'%'}</div>
             </div>
             ${(hasCostTwo?twoPiece.costPerCartonTwo:0)?`<div class="inv-card-stats" style="margin-inline-start:auto;margin-inline-end:-12px"><div class="inv-stat" style="display:flex;flex-direction:column;align-items:flex-end;gap:0px">${c2CatLines(r,twoPiece.costPerCartonTwo,twoPiece.best.sw)}</div></div>`:''}
@@ -4275,7 +4323,7 @@ function renderCalc2SuggestSheet(rowId){
       <div onclick="if(event.target.closest('button,[id^=c2zero-]'))return;toggleZeroSheetImage(${rowId},${i},'${o.cls}')" style="cursor:pointer;border:1.5px solid ${i===0?'var(--gold)':'var(--border)'};border-radius:var(--r-md);margin-bottom:10px;padding:12px;background:var(--surface)">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div class="inv-card-main" style="min-width:140px">
-            <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:2px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${o.count>0?Math.ceil(r.qty/o.count):'—'} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${o.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${o.sw}</span></bdi><span style="color:#000">${o.cls}</span></div></div>
+            <div class="inv-card-meta" style="color:#9c7b56;font-weight:700;margin-top:2px"><div style="display:flex;justify-content:flex-end;align-items:baseline;gap:2px;direction:ltr"><span dir="rtl" style="color:#000">${o.count>0?Math.ceil(r.qty/o.count):'—'} ورق</span><span>·</span><bdi dir="ltr" style="unicode-bidi:isolate"><span style="color:#2563eb">${o.sh}</span><span style="color:#000">×</span><span style="color:var(--danger)">${o.sw}</span></bdi><span style="color:#000">${clsD(o.cls)}</span></div></div>
             <div class="inv-card-meta" style="font-weight:700;margin-top:4px;color:${o.waste<=0.05?'var(--green-d)':'var(--gold)'}">${o.waste<=0.05?'✔ پرت صفر':'پرت '+o.waste+'%'}${o.reuseW>0?` <span style="color:var(--green-d)">♻️ نوار ${o.reuseW}</span>`:''}</div>
           </div>
           ${zp?`<div class="inv-card-stats"><div class="inv-stat" style="display:flex;flex-direction:column;align-items:flex-end;gap:0px">${c2CatLines(r,zp.basePlus,o.sw)}</div></div>`:''}
@@ -5155,7 +5203,7 @@ function rcBadgesHTML(c,p){
   const bs='display:inline-flex;align-items:center;font-size:.8rem;font-weight:800;line-height:1;background:none;border:none;padding:0;';
   return`<span style="${bs}color:#000">${c.layer}</span>`
     +`<span style="${bs}color:#7c3aed">${lbl}</span>`
-    +(p.resCls?`<span style="${bs}color:#000" title="${c.cls?'عرض انتخابی':'تشخیص خودکار از ورق انبار'}">${p.resCls}</span>`:'');
+    +(p.resCls?`<span style="${bs}color:#000" title="${c.cls?'عرض انتخابی':'تشخیص خودکار از ورق انبار'}">${clsD(p.resCls)}</span>`:'');
 }
 function rcCardHTML(c,p,num){
   const open=rcOpen.has(c.id);
@@ -5201,7 +5249,7 @@ function rcCardHTML(c,p,num){
         <div style="display:flex;align-items:baseline;gap:6px;line-height:1"><span class="il" style="color:var(--blue);font-weight:800;font-size:.65rem">سود</span><span class="iv" style="color:var(--red-700);font-weight:700;font-size:.92rem">${p.ok?formatNum(p.profitPerUnit):'—'}</span></div>
       </div>
     </div>
-      ${p.ok?'':`<div style="font-size:.78rem;color:var(--danger);font-weight:700;margin-bottom:10px;line-height:1.7">قیمت ورق ${layerLabel(c.layer)} · دسته ${catLabel(rcCatOf(c),c.layer,p.resCls==='T'?'T':'A')}${p.resCls?' · عرض '+p.resCls:''} ثبت نشده — از تب «ورق» وارد کنید.</div>`}
+      ${p.ok?'':`<div style="font-size:.78rem;color:var(--danger);font-weight:700;margin-bottom:10px;line-height:1.7">قیمت ورق ${layerLabel(c.layer)} · دسته ${catLabel(rcCatOf(c),c.layer,p.resCls==='T'?'T':'A')}${p.resCls?' · عرض '+clsD(p.resCls):''} ثبت نشده — از تب «ورق» وارد کنید.</div>`}
       <div style="display:flex;gap:8px;margin-top:2px">
         <button type="button" class="btn" style="flex:1;padding:9px;font-size:.8rem;background:var(--surface);color:var(--tx);border:1.5px solid var(--border)" onclick="rcToggleForm(${c.id})">✏️ ویرایش</button>
         <button type="button" class="btn" style="flex:1;padding:9px;font-size:.8rem;background:var(--red-50);color:var(--danger);border:1.5px solid var(--red-100)" onclick="rcDelete(${c.id})">🗑 حذف</button>
@@ -5361,7 +5409,7 @@ function rcFormHTML(c){
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:nowrap;margin-bottom:-1px;flex-shrink:0">
           ${tg('rc-layer-toggle2',tb('rcSetLayer','3','3','.78rem','7px')+tb('rcSetLayer','5','5','.78rem','7px'))}
           ${tg('rc-cat-toggle',tb('rcSetCat','2T','Ti','.74rem','7px')+tb('rcSetCat','KT','Ki','.74rem','7px')+tb('rcSetCat','E','kT','.74rem','7px'))}
-          ${tg('rc-cls-toggle',tb('rcSetCls','A','A','.74rem','7px')+tb('rcSetCls','T','T','.74rem','7px'))}
+          ${tg('rc-cls-toggle',tb('rcSetCls','A','A','.74rem','7px')+tb('rcSetCls','T','M','.74rem','7px'))}
           <span style="display:inline-flex;margin-inline-start:4px">${tg('rc-type-toggle',tb('rcSetType','F','F','.74rem','7px').replace('<button ','<button title="درب روی‌هم کامل (FOL)" ')+tb('rcSetType','H','H','.74rem','7px').replace('<button ','<button title="بدون درب بالا (HSC)" '))}</span>
         </div>
       </div>
@@ -5431,7 +5479,7 @@ function rcFormChanged(){
   const p=rcPricing(c);
   box.innerHTML=p.ok
     ?(()=>{ try{ return rcResultHtml(c); }catch(e){ console.error('rc result',e); return ''; } })()
-    :`<div style="border:1.5px dashed var(--red-400);background:var(--red-50);border-radius:var(--r-md);padding:10px 14px;font-size:.78rem;font-weight:700;color:var(--danger);line-height:1.7">قیمت ورق ${layerLabel(c.layer)} · دسته ${catLabel(rcCatOf(c),c.layer,p.resCls==='T'?'T':'A')}${p.resCls?' · عرض '+p.resCls:''} ثبت نشده — از تب «ورق» وارد کنید.</div>`;
+    :`<div style="border:1.5px dashed var(--red-400);background:var(--red-50);border-radius:var(--r-md);padding:10px 14px;font-size:.78rem;font-weight:700;color:var(--danger);line-height:1.7">قیمت ورق ${layerLabel(c.layer)} · دسته ${catLabel(rcCatOf(c),c.layer,p.resCls==='T'?'T':'A')}${p.resCls?' · عرض '+clsD(p.resCls):''} ثبت نشده — از تب «ورق» وارد کنید.</div>`;
 }
 function rcSave(){
   const err=$('rc-err');
@@ -5567,10 +5615,24 @@ function updateDim(id,field,val){
 
 function updateQty(id,val){
   const item=inventory.find(i=>i.id===id);
-  if(item){item.qty=Math.max(0,parseInt(val)||0);saveState();}
+  if(item){item.qty=Math.max(0,parseInt(val)||0);saveState();const b=$('inv-buy-'+id);if(b)b.innerHTML=invBuyPriceHtml(item);}
 }
 
 function renderInventoryTable(){renderInventorySection('3','inv-tbody-3');renderInventorySection('5','inv-tbody-5');renderSheetStatusPanel();updateInventoryContentVisibility('3');updateInventoryContentVisibility('5');}
+
+/* قیمت خرید خودم: قیمت هر متر مربع (محصول+کرایه) × مساحت ورق ؛ و جمع کل برای تعداد ورق‌هایی که با همین ابعاد وارد شده */
+function invBuyPriceHtml(item){
+  const ppm=sheetPricePerM2(item.layer||'3',item.paperType||'2T',item.flute||'C',item.sw);
+  const area=((parseFloat(item.sh)||0)*(parseFloat(item.sw)||0))/10000;
+  const each=area*ppm, qty=parseInt(item.qty)||0, total=each*qty;
+  const box=(v,l,cls)=>`<div class="inv-detail-box ${cls}"><div class="dv">${v}</div><div class="dl">${l}</div></div>`;
+  if(!ppm) return `<div class="inv-detail-grid" style="grid-template-columns:1fr;margin-bottom:6px">${box((Math.round(area*100)/100).toLocaleString('en-US'),'متراژ هر ورق (متر مربع)','')}</div><div style="font-size:.78rem;color:var(--txm)">قیمت خرید این دسته هنوز ثبت نشده است.</div>`;
+  return `<div class="inv-detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
+    ${box((Math.round(area*100)/100).toLocaleString('en-US'),'متراژ هر ورق (متر مربع)','')}
+    ${box(formatNum(each),'قیمت هر ورق (تومان)','stat-yellow')}
+    ${box(formatNum(total),'قیمت کل '+qty+' ورق (تومان)','stat-green')}
+  </div>`;
+}
 
 function renderInventorySection(layer,tbodyId){
   const tbody=$(tbodyId); if(!tbody) return;
@@ -5602,6 +5664,7 @@ function renderInventorySection(layer,tbodyId){
     </tr>
     <tr class="inv-row-detail" id="inv-detail-${item.id}" style="display:none">
       <td colspan="4" style="text-align:center;padding:10px 8px;background:var(--surf-alt)">
+        <div id="inv-buy-${item.id}" style="margin-bottom:10px">${invBuyPriceHtml(item)}</div>
         <button class="btn btn-danger-sm" onclick="removeInventoryRow(${item.id})">🗑 حذف این ورق</button>
       </td>
     </tr>`;
@@ -5844,7 +5907,7 @@ function renderTruckFreightAutoResult(){
       const dimsLabel=g.rows.map(r=>`${r.sh}×${r.sw} (${r.qty} برگ)`).join('، ');
       return`<div class="inv-result-card" style="margin-bottom:10px">
         <div style="padding:12px 14px">
-          <div style="font-weight:700;font-size:.86rem;margin-bottom:4px">${layerLabel(g.layer)} · دسته ${catLabel(g.cat,g.layer,widthClassOf(g.rows[0].sw))} · عرض ${widthClassOf(g.rows[0].sw)}</div>
+          <div style="font-weight:700;font-size:.86rem;margin-bottom:4px">${layerLabel(g.layer)} · دسته ${catLabel(g.cat,g.layer,widthClassOf(g.rows[0].sw))} · عرض ${clsD(widthClassOf(g.rows[0].sw))}</div>
           <div style="font-size:.74rem;color:var(--tx2);margin-bottom:10px">${dimsLabel}</div>
           <div class="inv-detail-grid" style="grid-template-columns:1fr 1fr">
             <div class="inv-detail-box"><div class="dv">${formatNum(oldPrice)}</div><div class="dl">قیمت فعلی هر متر مربع</div></div>
@@ -6090,7 +6153,7 @@ function renderTruckFreightResult(){
       const dimsLabel=g.rows.map(r=>`${r.sh}×${r.sw} (${r.qty} برگ)`).join('، ');
       return`<div class="inv-result-card" style="margin-bottom:10px">
         <div style="padding:12px 14px">
-          <div style="font-weight:700;font-size:.86rem;margin-bottom:4px">${layerLabel(g.layer)} · دسته ${catLabel(g.cat,g.layer,widthClassOf(g.rows[0].sw))} · عرض ${widthClassOf(g.rows[0].sw)}</div>
+          <div style="font-weight:700;font-size:.86rem;margin-bottom:4px">${layerLabel(g.layer)} · دسته ${catLabel(g.cat,g.layer,widthClassOf(g.rows[0].sw))} · عرض ${clsD(widthClassOf(g.rows[0].sw))}</div>
           <div style="font-size:.74rem;color:var(--tx2);margin-bottom:10px">${dimsLabel}</div>
           <div class="inv-detail-grid" style="grid-template-columns:1fr 1fr">
             <div class="inv-detail-box"><div class="dv">${formatNum(oldPrice)}</div><div class="dl">قیمت فعلی هر متر مربع</div></div>
@@ -10670,7 +10733,7 @@ const OCR_DESTS=[
   {label:'Ki', layer:'3',cat:'KT',cls:null,text:'Ki'},
   {label:'kT', layer:'3',cat:'E', cls:null,text:'kT'},
   {label:'Kii',layer:'5',cat:'2T',cls:'A', text:'Kii (عرض A)'},
-  {label:'KiT',layer:'5',cat:'2T',cls:'T', text:'KiT (عرض T)'},
+  {label:'KiT',layer:'5',cat:'2T',cls:'T', text:'KiT (عرض M)'},
   {label:'Sik',layer:'5',cat:'KT',cls:'A', text:'Sik (عرض A)'}
 ];
 /* موردهای پیش‌فرض (طبق اسم‌هایی که در لیست قیمت نوشته شده). دو مورد «کرافت» ساده خاموش‌اند تا در صورت لزوم روشن شوند */
@@ -10728,7 +10791,7 @@ function ocrRender(){
       ${targets.map(t=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(128,128,128,.18)">
         <input type="checkbox" ${t.on?'checked':''} onchange="ocrToggleTarget('${t.id}',this.checked)" style="width:20px;height:20px;flex:none">
         ${pill(t)}
-        <span style="flex:1;font-size:.8rem;line-height:1.6">${ocrEsc(ocrName(t))}${t.layer==='5'||t.cls?`<span style="color:var(--txm,#888);font-size:.7rem"> ${t.cls?'· عرض '+t.cls:''}</span>`:''}</span>
+        <span style="flex:1;font-size:.8rem;line-height:1.6">${ocrEsc(ocrName(t))}${t.layer==='5'||t.cls?`<span style="color:var(--txm,#888);font-size:.7rem"> ${t.cls?'· عرض '+clsD(t.cls):''}</span>`:''}</span>
         ${t.custom?`<button type="button" onclick="ocrDelTarget('${t.id}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#ef4444;padding:4px" aria-label="حذف">✕</button>`:''}
       </label>`).join('')}
       <div style="margin-top:8px;padding-top:12px;border-top:1px dashed rgba(128,128,128,.4)">
@@ -10756,7 +10819,7 @@ function ocrRender(){
       const warn=disc+((has&&!r.priceOk)?'<div style="font-size:.62rem;color:#f59e0b;margin-top:2px;text-align:center">⚠ با عکس مقایسه کنید</div>':'');
       return `<div style="display:grid;grid-template-columns:1.15fr 1.4fr 1fr .85fr;align-items:center;border-top:1px solid rgba(128,128,128,.18);${r.found?'':'opacity:.85;'}">
         <div style="${cell};flex-direction:column;align-items:flex-start;gap:3px">${pill(t)}<div style="font-size:.6rem;color:var(--txm,#888);line-height:1.5">${ocrEsc(ocrName(t))}</div></div>
-        <div style="${cell};flex-direction:column;align-items:stretch"><input type="text" inputmode="numeric" dir="ltr" value="${has?ocrFmt(r.price):''}" placeholder="${r.found?'—':'پیدا نشد'}" style="width:100%;font-size:.92rem;font-weight:700;text-align:center;padding:8px 6px;border-radius:10px;${bad?'border:1.5px solid #ef4444;':''}" onchange="ocrSetPrice('${t.id}',this.value)">${warn}</div>
+        <div style="${cell};flex-direction:column;align-items:stretch"><input type="text" inputmode="numeric" dir="ltr" value="${has?ocrFmt(r.price):''}" placeholder="${r.found?'—':'پیدا نشد'}" style="width:100%;font-size:.92rem;font-weight:700;text-align:center;padding:8px 6px;border-radius:10px;color:#16a34a;${bad?'border:1.5px solid #ef4444;':''}" onchange="ocrSetPrice('${t.id}',this.value)">${warn}</div>
         <div style="${cell};justify-content:center;font-size:.8rem;color:var(--tx2,#888)" dir="ltr">${ocrFmt(old)}</div>
         <div style="${cell};justify-content:center;font-size:.78rem;font-weight:700;color:${pcol}" dir="ltr">${pct==null?'—':(pct>0?'+':'')+pct.toFixed(1)+'%'}</div>
       </div>`;
@@ -10775,9 +10838,9 @@ function ocrRender(){
         </div>
         ${rowsHtml||'<div style="padding:14px;text-align:center;font-size:.8rem;color:var(--txm,#888)">هیچ موردی تیک نخورده است (🔧)</div>'}
       </div>
-      <div style="margin-top:8px;font-size:.74rem;color:var(--txm,#888);line-height:1.8">فقط «قیمت محصول (بدون کرایه)» ثبت می‌شود؛ کرایه دست‌نخورده می‌ماند. Kii و Sik روی عرض A و KiT روی عرض T ثبت می‌شود.<br>لیست A: قیمت چکی است و در حالت «نقد» ۴٪ کم می‌شود؛ در حالت «چک» همان قیمت لیست ثبت می‌شود. لیست T: همان قیمت لیست ثبت می‌شود.</div>
+      <div style="margin-top:8px;font-size:.74rem;color:var(--txm,#888);line-height:1.8">لیست A: قیمت چکی است و در حالت «نقد» ۴٪ کم می‌شود؛ در حالت «چک» همان قیمت لیست ثبت می‌شود. لیست M: همان قیمت لیست ثبت می‌شود.</div>
       ${bl.length?`<div style="font-size:.78rem;color:#ef4444;margin-top:6px">${bl.slice(0,6).map(ocrEsc).join('<br>')}</div>`:''}
-      <button type="button" class="btn btn-primary" id="ocrp-register" style="margin-top:12px" onclick="ocrRegister()">ثبت قیمت‌ها در تب قیمت</button>`;
+      <button type="button" class="btn btn-primary" id="ocrp-register" style="margin-top:12px" onclick="ocrRegister()">ثبت</button>`;
     dbgHtml=dbg;
   }
   /* با اچار فقط بخش اچار (تنظیم موردها + عکس و متن خوانده‌شده) دیده می‌شود؛ بدون اچار فقط جدول قیمت */
