@@ -128,7 +128,7 @@ LAYOUT = '''<?xml version="1.0" encoding="utf-8"?>
     android:id="@+id/card_root" android:layout_width="match_parent" android:layout_height="match_parent"
     android:background="@android:color/transparent">
   <ImageView android:layout_width="match_parent" android:layout_height="match_parent"
-      android:src="@drawable/blu_card" android:scaleType="fitCenter" android:padding="2dp"
+      android:src="@drawable/blu_card" android:scaleType="fitCenter" android:padding="16dp"
       android:contentDescription="کپی"/>
 </FrameLayout>
 '''
