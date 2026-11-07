@@ -1711,6 +1711,7 @@ async function loadState() {
 
 /* ══ مهاجرت یک‌باره‌ی قیمت سه‌لایه (async) — بعد از seedSampleDataIfEmpty اجرا می‌شود ══ */
 async function applyPriceSeed3L(){
+  if(invoiceSettings.priceSeedV2) return;   /* نصب تازه با پیش‌فرض جدید: مهاجرت‌های قیمت قدیمی اجرا نشوند */
   let changed=false;
   /* یک‌بار: قیمت سه‌لایه 2T → 715,000 و KT → 760,000 (قیمت کل؛ کرایه‌ی ثبت‌شده حفظ می‌شود). بعد از آن تغییرات دستی کاربر در تنظیمات دست‌نخورده می‌ماند. */
   try{
@@ -1861,25 +1862,28 @@ function seedSampleDataIfEmpty(){
     changed=true;
   }
   if(!inventory.length&&!invoiceSettings.invSeedV2){
-    /* پیش‌فرض: فقط سه ورق Ki سه‌لایه‌ی مدل A، از هرکدام ۱۰۰ عدد (یک‌بار؛ بعد از آن حذف کاربر حفظ می‌شود) */
-    [127,152,177].forEach(sh=>inventory.push({id:nextId++,sh,sw:180,layer:'3',qty:100,flute:'C',paperType:'KT'}));
+    /* پیش‌فرض: فقط سه ورق kT سه‌لایه‌ی مدل A، از هرکدام ۱۰۰ عدد (یک‌بار؛ بعد از آن حذف کاربر حفظ می‌شود) */
+    [127,152,177].forEach(sh=>inventory.push({id:nextId++,sh,sw:180,layer:'3',qty:100,flute:'E',paperType:'KT'}));
     invoiceSettings.invSeedV2=true;
     changed=true;
   }
-  if(!sheetPrices[sheetPriceKey('3','KT')]){
-    PRICE_CATEGORIES.forEach(cat=>WIDTH_CLASSES.forEach(k=>{
-      const key=sheetPriceKey('3',cat,k);
-      /* قیمت پیش‌فرض سه‌لایه: 2T = 715,000 ، KT = 760,000 (هر دو دسته‌ی A و T) — E = 700,000 */
-      const defPrice=(k==='A')?((cat==='2T')?640000:(cat==='KT'?680000:720000)):((cat==='2T')?715000:(cat==='KT'?760000:780000));
-      sheetPriceBreakdown[key]={product:defPrice,freight:0};
+  if(!invoiceSettings.priceSeedV2&&!sheetPrices[sheetPriceKey('3','KT')]){
+    /* پیش‌فرض: همه‌ی قیمت‌ها صفر، فقط kT مدل A سه‌لایه: قیمت کل ۸۳۵٬۰۰۰ (شامل کرایه ۵٬۰۰۰) (یک‌بار) */
+    ['3','5'].forEach(l=>PRICE_CATEGORIES.forEach(cat=>WIDTH_CLASSES.forEach(k=>{
+      const key=sheetPriceKey(l,cat,k);
+      sheetPriceBreakdown[key]={product:0,freight:0};
       recalcSheetPriceTotal(key);
-    }));
+    })));
+    const kA=sheetPriceKey('3','E','A');
+    sheetPriceBreakdown[kA]={product:830000,freight:5000};   /* قیمت کل 835,000 شامل کرایه 5,000 */
+    recalcSheetPriceTotal(kA);
+    invoiceSettings.priceSeedV2=true;
     changed=true;
   }
   /* قیمت پیش‌فرض پنج‌لایه (فقط وقتی هنوز هیچ قیمتی برای پنج‌لایه ثبت نشده):
      عرض A: Kii = 1,090,000 ، Sik = 1,120,000 — عرض T: KiT = 1,166,000 (Sik در عرض T وجود ندارد) */
   const _has5=PRICE_CATEGORIES.some(cat=>WIDTH_CLASSES.some(k=>sheetPrices[sheetPriceKey('5',cat,k)]));
-  if(!_has5){
+  if(!_has5&&!invoiceSettings.priceSeedV2){
     [['2T','A',1090000],['KT','A',1120000],['2T','T',1166000]].forEach(([cat,k,pr])=>{
       const key=sheetPriceKey('5',cat,k);
       sheetPriceBreakdown[key]={product:pr,freight:0};
@@ -2666,7 +2670,7 @@ function drawSheetCanvas(canvas,sw,sh,bw,bh,grain,layout){
 }
 
 /* ══ TAB — محاسبه کارتن ══ */
-let calc2RowIds=[1,2], calc2NextId=3, calc2LastResults=[];
+let calc2RowIds=[1], calc2NextId=2, calc2LastResults=[];
 let _rcRes=null;   /* نتیجه‌ی کارت فرم «کارتن‌های موجود» */
 function c2FindRes(id){ return calc2LastResults.find(x=>x.id===id)||((_rcRes&&_rcRes.id===id)?_rcRes:undefined); }
 /* ورقی که کاربر با «اعمال ورق» برای یک ردیف انتخاب کرده؛ فقط تا وقتی ابعاد/لایه همان است معتبر می‌ماند */
