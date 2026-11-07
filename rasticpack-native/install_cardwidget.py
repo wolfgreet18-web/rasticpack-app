@@ -35,10 +35,11 @@ public class CardWidgetPlugin extends Plugin {
   @PluginMethod
   public void save(PluginCall call) {
     String t = call.getString("text");
-    if (t != null) {
-      SharedPreferences.Editor e = getContext().getSharedPreferences(CardCopyActivity.PREFS, 0).edit();
-      e.putString("text", t); e.apply();
-    }
+    String af = call.getString("after");
+    SharedPreferences.Editor e = getContext().getSharedPreferences(CardCopyActivity.PREFS, 0).edit();
+    if (t != null) e.putString("text", t);
+    if (af != null) e.putString("after", af);
+    e.apply();
     call.resolve();
   }
 
@@ -86,6 +87,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Toast;
 
@@ -102,6 +104,17 @@ public class CardCopyActivity extends Activity {
       ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
       cm.setPrimaryClip(ClipData.newPlainText("card", t));
       Toast.makeText(this, "✅ کپی شد", Toast.LENGTH_SHORT).show();
+      String af = getSharedPreferences(PREFS, 0).getString("after", "none");
+      Intent go = null;
+      if ("tel".equals(af)) {
+        go = new Intent(Intent.ACTION_DIAL);
+      } else if ("sms".equals(af)) {
+        go = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING);
+      }
+      if (go != null) {
+        go.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { startActivity(go); } catch (Throwable ex) { Toast.makeText(this, "برنامه‌ی مقصد باز نشد", Toast.LENGTH_SHORT).show(); }
+      }
     } catch (Throwable e) {
       Toast.makeText(this, "کپی نشد", Toast.LENGTH_SHORT).show();
     }
@@ -113,10 +126,10 @@ public class CardCopyActivity extends Activity {
 LAYOUT = '''<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/card_root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/bg_card_btn">
-  <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center"
-      android:text="💳" android:textSize="30sp" android:autoSizeTextType="uniform"
-      android:autoSizeMinTextSize="14sp" android:autoSizeMaxTextSize="40sp" android:padding="8dp"/>
+    android:background="@android:color/transparent">
+  <ImageView android:layout_width="match_parent" android:layout_height="match_parent"
+      android:src="@drawable/blu_card" android:scaleType="fitCenter" android:padding="2dp"
+      android:contentDescription="کپی"/>
 </FrameLayout>
 '''
 BG = '''<?xml version="1.0" encoding="utf-8"?>
@@ -133,7 +146,11 @@ w(jdir / 'CardWidget.java', sub(WIDGET))
 w(jdir / 'CardCopyActivity.java', sub(ACTIVITY))
 res = main / 'res'
 w(res / 'layout/widget_card.xml', LAYOUT)
-w(res / 'drawable/bg_card_btn.xml', BG)
+png = root / 'branding/blu_card.png'
+if png.exists():
+    dst = res / 'drawable-nodpi/blu_card.png'; dst.parent.mkdir(parents=True, exist_ok=True); dst.write_bytes(png.read_bytes()); print('نوشته شد:', dst)
+else:
+    sys.exit('branding/blu_card.png پیدا نشد')
 w(res / 'xml/card_widget_info.xml', INFO)
 
 mf = main / 'AndroidManifest.xml'; t = mf.read_text(encoding='utf-8')
