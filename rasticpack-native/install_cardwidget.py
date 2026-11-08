@@ -36,7 +36,8 @@ public class CardWidgetPlugin extends Plugin {
   public void save(PluginCall call) {
     String t = call.getString("text");
     String af = call.getString("after");
-    SharedPreferences.Editor e = getContext().getSharedPreferences(CardCopyActivity.PREFS, 0).edit();
+    String kind = call.getString("kind", "card");
+    SharedPreferences.Editor e = getContext().getSharedPreferences(CardCopyActivity.PREFS + ("addr".equals(kind) ? "_addr" : ""), 0).edit();
     if (t != null) e.putString("text", t);
     if (af != null) e.putString("after", af);
     e.apply();
@@ -49,8 +50,9 @@ public class CardWidgetPlugin extends Plugin {
     boolean ok = false;
     try {
       AppWidgetManager m = AppWidgetManager.getInstance(getContext());
+      Class<?> cls = "addr".equals(call.getString("kind", "card")) ? AddrWidget.class : CardWidget.class;
       ok = Build.VERSION.SDK_INT >= 26 && m.isRequestPinAppWidgetSupported()
-          && m.requestPinAppWidget(new ComponentName(getContext(), CardWidget.class), null, null);
+          && m.requestPinAppWidget(new ComponentName(getContext(), cls), null, null);
     } catch (Exception ex) { ok = false; }
     r.put("requested", ok);
     call.resolve(r);
@@ -81,6 +83,46 @@ public class CardWidget extends AppWidgetProvider {
   }
 }
 '''
+ADDR_WIDGET = '''package @@PKG@@;
+
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.Context;
+import android.content.Intent;
+import android.widget.RemoteViews;
+import @@NS@@.R;
+
+public class AddrWidget extends AppWidgetProvider {
+  @Override
+  public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
+    for (int id : ids) {
+      RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_addr);
+      Intent i = new Intent(c, CardCopyActivity.class);
+      i.putExtra("kind", "addr");
+      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+      int fl = PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
+      v.setOnClickPendingIntent(R.id.addr_root, PendingIntent.getActivity(c, 8, i, fl));
+      m.updateAppWidget(id, v);
+    }
+  }
+}
+'''
+ADDR_LAYOUT = '''<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/addr_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+  <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center"
+      android:text="📍" android:textSize="34sp" android:autoSizeTextType="uniform"
+      android:autoSizeMinTextSize="14sp" android:autoSizeMaxTextSize="44sp" android:padding="16dp"/>
+</FrameLayout>
+'''
+ADDR_INFO = '''<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="56dp" android:minHeight="56dp" android:targetCellWidth="1" android:targetCellHeight="1"
+    android:updatePeriodMillis="0" android:initialLayout="@layout/widget_addr"
+    android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen"/>
+'''
 ACTIVITY = '''package @@PKG@@;
 
 import android.app.Activity;
@@ -94,17 +136,20 @@ import android.widget.Toast;
 /** پنجره‌ی نامرئی: متن را کپی می‌کند، پیام کوتاه نشان می‌دهد و بسته می‌شود. */
 public class CardCopyActivity extends Activity {
   static final String PREFS = "restik_card";
+  static final String DEFAULT_ADDR = "آدرس: پیامبر اعظم 85 خلیلی 10\\n\\nخلیلی ۱۰\\nhttps://nshn.ir/sb1aVzWJBAtj";
   static final String DEFAULT = "شماره کارت:\\n6219861427686307\\nشماره شبا:\\nIR620560611828005375757801\\nعلیرضا پهلولن هاشمی";
 
   @Override
   protected void onCreate(Bundle b) {
     super.onCreate(b);
     try {
-      String t = getSharedPreferences(PREFS, 0).getString("text", DEFAULT);
+      boolean addr = "addr".equals(getIntent().getStringExtra("kind"));
+      String pf = PREFS + (addr ? "_addr" : "");
+      String t = getSharedPreferences(pf, 0).getString("text", addr ? DEFAULT_ADDR : DEFAULT);
       ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
       cm.setPrimaryClip(ClipData.newPlainText("card", t));
       Toast.makeText(this, "✅ کپی شد", Toast.LENGTH_SHORT).show();
-      String af = getSharedPreferences(PREFS, 0).getString("after", "none");
+      String af = getSharedPreferences(pf, 0).getString("after", "none");
       Intent go = null;
       if ("tel".equals(af)) {
         go = new Intent(Intent.ACTION_DIAL);
@@ -144,6 +189,7 @@ INFO = '''<?xml version="1.0" encoding="utf-8"?>
 w(jdir / 'CardWidgetPlugin.java', sub(PLUGIN))
 w(jdir / 'CardWidget.java', sub(WIDGET))
 w(jdir / 'CardCopyActivity.java', sub(ACTIVITY))
+w(jdir / 'AddrWidget.java', sub(ADDR_WIDGET))
 res = main / 'res'
 w(res / 'layout/widget_card.xml', LAYOUT)
 png = root / 'branding/blu_card.png'
@@ -152,8 +198,19 @@ if png.exists():
 else:
     sys.exit('branding/blu_card.png پیدا نشد')
 w(res / 'xml/card_widget_info.xml', INFO)
+w(res / 'layout/widget_addr.xml', ADDR_LAYOUT)
+w(res / 'xml/addr_widget_info.xml', ADDR_INFO)
 
 mf = main / 'AndroidManifest.xml'; t = mf.read_text(encoding='utf-8')
+if '.AddrWidget"' not in t:
+    t = t.replace('</application>', '''
+        <receiver android:name=".AddrWidget" android:exported="true" android:label="آدرس">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/addr_widget_info"/>
+        </receiver>
+    </application>''', 1)
+    mf.write_text(t, encoding='utf-8'); print('Manifest آدرس')
+t = mf.read_text(encoding='utf-8')
 if '.CardWidget"' not in t:
     t = t.replace('</application>', '''
         <receiver android:name=".CardWidget" android:exported="true" android:label="شماره کارت">

@@ -1027,18 +1027,32 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
         <div class="inv-results-header" style="margin-top:26px">ویجت شماره کارت</div>
         <div class="field full" style="margin-bottom:8px">
-          <textarea id="card-text" rows="6" dir="auto" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.9;padding:10px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--tx)" oninput="cardTextChanged(this.value)"></textarea>
+          <textarea id="wg-text-card" rows="6" dir="auto" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.9;padding:10px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--tx)" oninput="wgTextChanged('card',this.value)"></textarea>
         </div>
         <div class="field full" style="margin-bottom:8px">
           <label>بعد از کپی</label>
           <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0">
-            <button type="button" class="subtype-btn" id="card-after-none" onclick="cardSetAfter('none')">فقط کپی</button>
-            <button type="button" class="subtype-btn" id="card-after-tel" onclick="cardSetAfter('tel')">تلفن</button>
-            <button type="button" class="subtype-btn" id="card-after-sms" onclick="cardSetAfter('sms')">پیامک</button>
+            <button type="button" class="subtype-btn" id="wg-after-card-none" onclick="wgSetAfter('card','none')">فقط کپی</button>
+            <button type="button" class="subtype-btn" id="wg-after-card-tel" onclick="wgSetAfter('card','tel')">تلفن</button>
+            <button type="button" class="subtype-btn" id="wg-after-card-sms" onclick="wgSetAfter('card','sms')">پیامک</button>
           </div>
         </div>
-        <button type="button" class="btn btn-primary" style="width:100%" onclick="cardPin()">افزودن به صفحه‌ی هوم</button>
-        <div id="card-note" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
+        <button type="button" class="btn btn-primary" style="width:100%" onclick="wgPin('card')">افزودن به صفحه‌ی هوم</button>
+        <div id="wg-note-card" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
+        <div class="inv-results-header" style="margin-top:26px">ویجت آدرس</div>
+        <div class="field full" style="margin-bottom:8px">
+          <textarea id="wg-text-addr" rows="6" dir="auto" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.9;padding:10px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--tx)" oninput="wgTextChanged('addr',this.value)"></textarea>
+        </div>
+        <div class="field full" style="margin-bottom:8px">
+          <label>بعد از کپی</label>
+          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0">
+            <button type="button" class="subtype-btn" id="wg-after-addr-none" onclick="wgSetAfter('addr','none')">فقط کپی</button>
+            <button type="button" class="subtype-btn" id="wg-after-addr-tel" onclick="wgSetAfter('addr','tel')">تلفن</button>
+            <button type="button" class="subtype-btn" id="wg-after-addr-sms" onclick="wgSetAfter('addr','sms')">پیامک</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" style="width:100%" onclick="wgPin('addr')">افزودن به صفحه‌ی هوم</button>
+        <div id="wg-note-addr" style="display:none;font-size:.75rem;line-height:1.8;color:var(--tx2);background:var(--gold-lt);border:1px solid #fbbf24;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px"></div>
       </div>
 
       <div id="ocrp-panel" style="display:none;margin-top:14px">
@@ -1664,7 +1678,7 @@ async function loadState() {
         smsTemplate=typeof st==='string'?st:'';
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
         if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false,theme:dispS.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(dispS.warmth)||0)),digits:dispS.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(dispS.tone))?50:Math.min(100,Math.max(0,parseInt(dispS.tone))))};
-        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||''),cardText:(typeof wgS.cardText==='string'?wgS.cardText:undefined),cardAfter:String(wgS.cardAfter||'none')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
+        if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||''),cardText:(typeof wgS.cardText==='string'?wgS.cardText:undefined),cardAfter:String(wgS.cardAfter||'none'),addrText:(typeof wgS.addrText==='string'?wgS.addrText:undefined),addrAfter:String(wgS.addrAfter||'none')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
         nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=meta.nextInvoiceId||1; nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         nextReadyId=Math.max(meta.nextReadyId||1,readyCartons.reduce((m,i)=>Math.max(m,i.id),0)+1);
         /* ══ مهاجرت یک‌باره: در نسخه‌ی قبلی، فاکتورها/مشتریان داخل همین کلید (با سقف 5 مگابایت)
@@ -2234,27 +2248,33 @@ function syncWidget(){ const b=widgetBridge(); if(!b) return; try{ b.update(widg
 let _wgSyncT=null;
 function scheduleWidgetSync(){ if(!widgetSettings.enabled||!widgetBridge()) return; clearTimeout(_wgSyncT); _wgSyncT=setTimeout(syncWidget,1500); }
 
-/* ───── ویجت شماره کارت ───── */
-const CARD_DEFAULT='شماره کارت:\n6219861427686307\nشماره شبا:\nIR620560611828005375757801\nعلیرضا پهلولن هاشمی';
+/* ───── ویجت‌های کپی (شماره کارت / آدرس) ───── */
+const WG_DEFAULTS={
+  card:'شماره کارت:\n6219861427686307\nشماره شبا:\nIR620560611828005375757801\nعلیرضا پهلولن هاشمی',
+  addr:'آدرس: پیامبر اعظم 85 خلیلی 10\n\nخلیلی ۱۰\nhttps://nshn.ir/sb1aVzWJBAtj'
+};
+const WG_KINDS=['card','addr'];
 const cardBridge=()=>capPlugin('CardWidget');
-function cardText(){ return (typeof widgetSettings.cardText==='string')?widgetSettings.cardText:CARD_DEFAULT; }
-function cardNote(m){ const n=$('card-note'); if(n){ n.textContent=m||''; n.style.display=m?'block':'none'; } }
-function cardAfter(){ return ['tel','sms'].includes(widgetSettings.cardAfter)?widgetSettings.cardAfter:'none'; }
-function cardSyncNative(){ const b=cardBridge(); if(b){ try{ b.save({text:cardText(),after:cardAfter()}); }catch(_){} } }
-function cardSetAfter(v){ widgetSettings.cardAfter=v; saveState(); cardSyncNative(); cardFillUI(); }
-function cardFillUI(){ const t=$('card-text'); if(t&&document.activeElement!==t) t.value=cardText(); ['none','tel','sms'].forEach(k=>{ const b=$('card-after-'+k); if(b) b.classList.toggle('active',k===cardAfter()); }); }
-function cardTextChanged(v){ widgetSettings.cardText=v; saveState(); cardSyncNative(); }
-async function cardPin(){
+function wgText(k){ const v=widgetSettings[k+'Text']; return (typeof v==='string')?v:WG_DEFAULTS[k]; }
+function wgAfter(k){ const v=widgetSettings[k+'After']; return ['tel','sms'].includes(v)?v:'none'; }
+function wgNote(k,m){ const n=$('wg-note-'+k); if(n){ n.textContent=m||''; n.style.display=m?'block':'none'; } }
+function wgSyncNative(k){ const b=cardBridge(); if(b){ try{ b.save({kind:k,text:wgText(k),after:wgAfter(k)}); }catch(_){} } }
+function cardSyncNative(){ WG_KINDS.forEach(wgSyncNative); }
+function wgFillUI(){ WG_KINDS.forEach(k=>{ const t=$('wg-text-'+k); if(t&&document.activeElement!==t) t.value=wgText(k); ['none','tel','sms'].forEach(a=>{ const b=$('wg-after-'+k+'-'+a); if(b) b.classList.toggle('active',a===wgAfter(k)); }); }); }
+function cardFillUI(){ wgFillUI(); }
+function wgTextChanged(k,v){ widgetSettings[k+'Text']=v; saveState(); wgSyncNative(k); }
+function wgSetAfter(k,v){ widgetSettings[k+'After']=v; saveState(); wgSyncNative(k); wgFillUI(); }
+async function wgPin(k){
   const b=cardBridge(); let msg='';
   if(!b){ msg='در مرورگر ویجت واقعی ساخته نمی‌شود؛ این گزینه فقط در برنامه‌ی نصب‌شده روی گوشی کار می‌کند.'; }
   else{
     try{
-      await b.save({text:cardText(),after:cardAfter()});
-      const r=await b.pin();
-      msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید. اگر پیام «No space left on current screen» آمد، به یک صفحه‌ی خالی‌تر هوم بروید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «شماره کارت».';
+      await b.save({kind:k,text:wgText(k),after:wgAfter(k)});
+      const r=await b.pin({kind:k});
+      msg=r&&r.requested?'پنجره‌ی افزودن ویجت به صفحه‌ی هوم باز شد؛ تأیید کنید. اگر پیام «No space left on current screen» آمد، به یک صفحه‌ی خالی‌تر هوم بروید.':'لانچر گوشی افزودن خودکار را پشتیبانی نمی‌کند: روی صفحه‌ی هوم نگه دارید ← ویجت‌ها ← «'+(k==='addr'?'آدرس':'شماره کارت')+'».';
     }catch(_){ msg='بخش بومی این ویجت در برنامه نصب نیست؛ برنامه را با نسخه‌ی جدید دوباره نصب کنید.'; }
   }
-  cardNote(msg);
+  wgNote(k,msg);
 }
 function applyWidgetUI(){
   try{ cardFillUI(); }catch(_){}
