@@ -1031,10 +1031,11 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
         <div class="field full" style="margin-bottom:8px">
           <label>بعد از کپی</label>
-          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0">
+          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0;flex-wrap:wrap">
             <button type="button" class="subtype-btn" id="wg-after-card-none" onclick="wgSetAfter('card','none')">فقط کپی</button>
             <button type="button" class="subtype-btn" id="wg-after-card-tel" onclick="wgSetAfter('card','tel')">تلفن</button>
             <button type="button" class="subtype-btn" id="wg-after-card-sms" onclick="wgSetAfter('card','sms')">پیامک</button>
+            <button type="button" class="subtype-btn" id="wg-after-card-quick" onclick="wgSetAfter('card','quick')">تماس سریع</button>
           </div>
         </div>
         <button type="button" class="btn btn-primary" style="width:100%" onclick="wgPin('card')">افزودن به صفحه‌ی هوم</button>
@@ -1045,10 +1046,11 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
         <div class="field full" style="margin-bottom:8px">
           <label>بعد از کپی</label>
-          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0">
+          <div class="subtype-toggle" style="display:flex;gap:8px;margin:6px 0;flex-wrap:wrap">
             <button type="button" class="subtype-btn" id="wg-after-addr-none" onclick="wgSetAfter('addr','none')">فقط کپی</button>
             <button type="button" class="subtype-btn" id="wg-after-addr-tel" onclick="wgSetAfter('addr','tel')">تلفن</button>
             <button type="button" class="subtype-btn" id="wg-after-addr-sms" onclick="wgSetAfter('addr','sms')">پیامک</button>
+            <button type="button" class="subtype-btn" id="wg-after-addr-quick" onclick="wgSetAfter('addr','quick')">تماس سریع</button>
           </div>
         </div>
         <button type="button" class="btn btn-primary" style="width:100%" onclick="wgPin('addr')">افزودن به صفحه‌ی هوم</button>
@@ -2256,11 +2258,11 @@ const WG_DEFAULTS={
 const WG_KINDS=['card','addr'];
 const cardBridge=()=>capPlugin('CardWidget');
 function wgText(k){ const v=widgetSettings[k+'Text']; return (typeof v==='string')?v:WG_DEFAULTS[k]; }
-function wgAfter(k){ const v=widgetSettings[k+'After']; return ['tel','sms'].includes(v)?v:'none'; }
+function wgAfter(k){ const v=widgetSettings[k+'After']; return ['tel','sms','quick'].includes(v)?v:'none'; }
 function wgNote(k,m){ const n=$('wg-note-'+k); if(n){ n.textContent=m||''; n.style.display=m?'block':'none'; } }
 function wgSyncNative(k){ const b=cardBridge(); if(b){ try{ b.save({kind:k,text:wgText(k),after:wgAfter(k)}); }catch(_){} } }
 function cardSyncNative(){ WG_KINDS.forEach(wgSyncNative); }
-function wgFillUI(){ WG_KINDS.forEach(k=>{ const t=$('wg-text-'+k); if(t&&document.activeElement!==t) t.value=wgText(k); ['none','tel','sms'].forEach(a=>{ const b=$('wg-after-'+k+'-'+a); if(b) b.classList.toggle('active',a===wgAfter(k)); }); }); }
+function wgFillUI(){ WG_KINDS.forEach(k=>{ const t=$('wg-text-'+k); if(t&&document.activeElement!==t) t.value=wgText(k); ['none','tel','sms','quick'].forEach(a=>{ const b=$('wg-after-'+k+'-'+a); if(b) b.classList.toggle('active',a===wgAfter(k)); }); }); }
 function cardFillUI(){ wgFillUI(); }
 function wgTextChanged(k,v){ widgetSettings[k+'Text']=v; saveState(); wgSyncNative(k); }
 function wgSetAfter(k,v){ widgetSettings[k+'After']=v; saveState(); wgSyncNative(k); wgFillUI(); }

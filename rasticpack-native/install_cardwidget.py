@@ -125,6 +125,119 @@ ADDR_INFO = '''<?xml version="1.0" encoding="utf-8"?>
 '''
 ACTIVITY = '''package @@PKG@@;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.CallLog;
+import android.widget.Toast;
+
+/** پنجره‌ی نامرئی: متن را کپی می‌کند و بسته به گزینه‌ی «بعد از کپی» برنامه‌ی دیگری را باز می‌کند. */
+public class CardCopyActivity extends Activity {
+  static final String PREFS = "restik_card";
+  static final String DEFAULT_ADDR = "آدرس: پیامبر اعظم 85 خلیلی 10\\n\\nخلیلی ۱۰\\nhttps://nshn.ir/sb1aVzWJBAtj";
+  static final String DEFAULT = "شماره کارت:\\n6219861427686307\\nشماره شبا:\\nIR620560611828005375757801\\nعلیرضا پهلولن هاشمی";
+  private String text = "";
+
+  @Override
+  protected void onCreate(Bundle b) {
+    super.onCreate(b);
+    String af = "none";
+    try {
+      boolean addr = "addr".equals(getIntent().getStringExtra("kind"));
+      String pf = PREFS + (addr ? "_addr" : "");
+      text = getSharedPreferences(pf, 0).getString("text", addr ? DEFAULT_ADDR : DEFAULT);
+      ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+      cm.setPrimaryClip(ClipData.newPlainText("card", text));
+      Toast.makeText(this, "✅ کپی شد", Toast.LENGTH_SHORT).show();
+      af = getSharedPreferences(pf, 0).getString("after", "none");
+    } catch (Throwable e) {
+      Toast.makeText(this, "کپی نشد", Toast.LENGTH_SHORT).show();
+    }
+    if ("quick".equals(af)) {
+      if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{Manifest.permission.READ_CALL_LOG}, 11);
+        return;   /* بعد از پاسخ کاربر ادامه می‌دهد */
+      }
+      quickSms();
+      return;
+    }
+    Intent go = null;
+    if ("tel".equals(af)) {
+      go = new Intent(Intent.ACTION_DIAL);
+    } else if ("sms".equals(af)) {
+      go = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING);
+    }
+    launch(go);
+    done();
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+    super.onRequestPermissionsResult(code, perms, res);
+    if (code == 11 && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) {
+      quickSms();
+    } else {
+      Toast.makeText(this, "مجوز سابقه‌ی تماس داده نشد", Toast.LENGTH_LONG).show();
+      done();
+    }
+  }
+
+  /** پیامک با شماره‌ی آخرین تماس و متن آماده (فقط «ارسال» را بزنید). */
+  private void quickSms() {
+    String number = null;
+    try {
+      Cursor c = getContentResolver().query(CallLog.Calls.CONTENT_URI, new String[]{CallLog.Calls.NUMBER}, null, null, CallLog.Calls.DATE + " DESC");
+      if (c != null) {
+        try { while (c.moveToNext()) { String n = c.getString(0); if (n != null && n.trim().length() > 0) { number = n.trim(); break; } } }
+        finally { c.close(); }
+      }
+    } catch (Throwable e) { number = null; }
+    Intent go;
+    if (number != null) {
+      go = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(number)));
+      go.putExtra("sms_body", text);
+    } else {
+      Toast.makeText(this, "شماره‌ای در سابقه‌ی تماس پیدا نشد", Toast.LENGTH_LONG).show();
+      go = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING);
+    }
+    launch(go);
+    done();
+  }
+
+  private void launch(Intent go) {
+    if (go == null) return;
+    go.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    try { startActivity(go); } catch (Throwable ex) { Toast.makeText(this, "برنامه‌ی مقصد باز نشد", Toast.LENGTH_SHORT).show(); }
+  }
+
+  private void done() { finish(); overridePendingTransition(0, 0); }
+}
+'''
+LAYOUT = '''<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/addr_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+  <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center"
+      android:text="📍" android:textSize="34sp" android:autoSizeTextType="uniform"
+      android:autoSizeMinTextSize="14sp" android:autoSizeMaxTextSize="44sp" android:padding="16dp"/>
+</FrameLayout>
+'''
+ADDR_INFO = '''<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="56dp" android:minHeight="56dp" android:targetCellWidth="1" android:targetCellHeight="1"
+    android:updatePeriodMillis="0" android:initialLayout="@layout/widget_addr"
+    android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen"/>
+'''
+ACTIVITY = '''package @@PKG@@;
+
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -210,6 +323,10 @@ if '.AddrWidget"' not in t:
         </receiver>
     </application>''', 1)
     mf.write_text(t, encoding='utf-8'); print('Manifest آدرس')
+t = mf.read_text(encoding='utf-8')
+if 'READ_CALL_LOG' not in t:
+    t = t.replace('<application', '<uses-permission android:name="android.permission.READ_CALL_LOG"/>\n    <application', 1)
+    mf.write_text(t, encoding='utf-8'); print('مجوز سابقه‌ی تماس اضافه شد')
 t = mf.read_text(encoding='utf-8')
 if '.CardWidget"' not in t:
     t = t.replace('</application>', '''
