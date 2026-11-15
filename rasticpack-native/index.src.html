@@ -8572,7 +8572,7 @@ function renderProductionQueue(){
       <div class="inv-card-header" style="cursor:pointer" onclick="applyProductionItem(${p.id})">
         <div class="rank-badge">📦</div>
         <div class="inv-card-main">
-          <div class="inv-card-dims">${p.twoPiece?'✂️ ':''}${escapeHtml(p.name)}</div>
+          <div class="inv-card-dims">${p.twoPiece?'✂️ <span style="font-size:.7rem;font-weight:800;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:1px 6px;margin-left:4px">دوتکه</span> ':''}${escapeHtml(p.name)}</div>
           <div class="inv-card-meta">${dimStr(p.length,p.width,p.height)} سانتیمتر${p.boxType?' · <b style="color:var(--brand)">'+p.boxType+'</b>':''} · ورق ${dimStrX(p.sh,p.sw)} (${layerLabel(p.layer)})${p.customerName?' · '+escapeHtml(p.customerName):''}</div>
         </div>
         <button type="button" title="حذف" onclick="event.stopPropagation();removeProductionItem(${p.id})"
@@ -10249,15 +10249,15 @@ if(!sL||!sW||!L||!W||!H){alert('لطفاً تمام ابعاد را وارد ک�
 resetArrowCache();
 _mid=0;
 _syncTypeTabs(); _syncPieceTabs();
-if(_prodPieces===2){ prodRenderTwoPiece(sL,sW,L,W,H,glue,keepView); return; }
-const girth=2*(L+W);
+const _two=(_prodPieces===2);
+const girth=_two?(L+W):2*(L+W);
 const blankLen=girth+glue;
 const _geo=c2BoxGeom(W,H,_boxType);
 const blankHt=_geo.ht;
 const flapH=_geo.top;   /* عمق درب بالا (در نوع H صفر)؛ درب پایین = blankHt − flapH − H */
 const areaCm2=blankLen*blankHt;
 const areaM2=parseFloat((areaCm2/10000).toFixed(4));
-const v1=L,v2=L+W,v3=2*L+W,v4=girth;
+const v1=L,v2=L+W,v3=_two?(L+W):(2*L+W),v4=girth;
 const trim=0.5;
 const cb1=trim,cb2=trim+flapH,cb3=trim+flapH+H,cb4=trim+blankHt;
 const chakOverflow=cb4>sW;
@@ -10268,8 +10268,8 @@ let html='';
 if(machine==='m'){
 html+=`<div class="card">
 <div class="c-body">
-${prodPiecesToggleHtml()}${!fits?`<div class="alrt">⚠️ از این شیت هیچ کارتنی درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong>${(sL>=(L+W+glue)&&sW>=blankHt)?`<br>💡 به‌صورت <strong>دوتکه</strong> (هر تکه ${(L+W+glue).toFixed(1)} × ${blankHt.toFixed(1)}) از همین ورق قابل تولید است — دکمه‌ی «دوتکه» را بزنید.`:''}</div>`:''}
-${_boxType?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
+${prodPiecesToggleHtml()}${!fits?`<div class="alrt">⚠️ از این شیت هیچ ${_two?'تکه‌ای':'کارتنی'} درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong>${(!_two&&sL>=(L+W+glue)&&sW>=blankHt)?`<br>💡 به‌صورت <strong>دوتکه</strong> (هر تکه ${(L+W+glue).toFixed(1)} × ${blankHt.toFixed(1)}) از همین ورق قابل تولید است — دکمه‌ی «دوتکه» را بزنید.`:''}</div>`:''}
+${(_boxType&&!_two)?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
 <div style="margin-top:14px">
 <div class="btabs">
 <button id="btn-mainsheet" onclick="toggleAcc('mainsheet')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">F</button>
