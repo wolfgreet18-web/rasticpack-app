@@ -10155,7 +10155,7 @@ function prodLineRow(title,color,pos,skipFirst){
   const txt=shown.map(_fmtN).join(' / ');
   return `<div style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;background:var(--surface)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:.78rem;font-weight:800;color:${color}">${title}</span>
-    <button type="button" class="btn btn-flat" style="margin:0;padding:2px 10px;font-size:.72rem" onclick="copyKnifeSeq(this,'${txt}')">📋</button></div>
+    <button type="button" style="all:unset;cursor:pointer;padding:2px 10px;font-size:.9rem;border:1px solid var(--border);border-radius:8px;background:var(--surface)" onclick="copyKnifeSeq(this,'${txt}')">📋</button></div>
     <div dir="ltr" style="font-size:1.05rem;font-weight:800;color:${color};text-align:center;line-height:1.8;word-break:keep-all">${_seqHtmlC(shown,color)}</div>
     ${gaps.length?`<div dir="ltr" style="font-size:.82rem;font-weight:700;color:#16a34a;text-align:center;line-height:1.7;margin-top:2px">${_seqHtmlC(gaps,'#16a34a')}</div>`:''}
   </div>`;
@@ -10174,9 +10174,9 @@ function prodTwoPieceLinesHtml(sL,sW,L,W,H,pieceLen,pieceHt,top,nL,nW){
 ${prodLineRow('خط تا / چاک (درب بالا و پایین)',foldC,wFold,false)}
 ${prodLineRow('خط برش بین ستون‌ها',cutC,wCut,true)}
 <div style="font-size:.8rem;font-weight:800;margin:10px 0 6px">ب) در جهت طول ورق (${_fmtN(sL)} سانت) — ${nL} ردیف تکه</div>
-${prodLineRow('خط تا (طول | عرض | لپ) روی هر تکه',foldC,lFold,false)}
+${prodLineRow('خط تا روی هر تکه (بین L و W و لپ)',foldC,lFold,false)}
 ${prodLineRow('خط برش بین ردیف‌ها',cutC,lCut,true)}
-<div style="font-size:.74rem;line-height:1.9;color:var(--tx2);margin-top:4px">• خط تای ${_fmtN(L)} و ${_fmtN(L+W)} روی هر تکه: بین «طول»، «عرض» و «لپ چسب» (لپ ${_fmtN(pieceLen-L-W)} سانت آخر هر تکه).<br>• بعد از آخرین برش، حاشیه‌ی باقی‌مانده پرت است (طول ${_fmtN(sL-nL*pieceLen)} · عرض ${_fmtN(sW-nW*pieceHt)} سانت).</div>`;
+<div style="font-size:.74rem;line-height:1.9;color:var(--tx2);margin-top:4px">• خط تای ${_fmtN(L)} (پایان L) و ${_fmtN(L+W)} (پایان W) روی هر تکه: بین L (طول)، W (عرض) و لپ چسب (لپ ${_fmtN(pieceLen-L-W)} سانت آخر هر تکه).<br>• بعد از آخرین برش، حاشیه‌ی باقی‌مانده پرت است (طول ${_fmtN(sL-nL*pieceLen)} · عرض ${_fmtN(sW-nW*pieceHt)} سانت).</div>`;
 }
 function prodRenderTwoPiece(sL,sW,L,W,H,glue,keepView){
   const f1=v=>Math.round(v*10)/10;
