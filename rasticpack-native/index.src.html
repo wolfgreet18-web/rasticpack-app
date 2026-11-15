@@ -10283,7 +10283,7 @@ const cb1=trim,cb2=trim+flapH,cb3=trim+flapH+H,cb4=trim+blankHt;
 const chakOverflow=cb4>sW;
 const bestNL=Math.floor(sL/blankLen), bestNW=Math.floor(sW/blankHt);
 const bestCount=bestNL*bestNW;
-const fits=bestCount>0;
+const fits=bestCount>0&&(!_three||_pcs3().every(q=>Math.floor(q.sL/q.bLen)*Math.floor(q.sW/blankHt)>0));
 let html='';
 if(machine==='m'){
 html+=`<div class="card">
