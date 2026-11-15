@@ -4448,13 +4448,14 @@ function sendCalc2CartonToProduction(rowId){
   if(!r) return;
   const sh=r.sheets&&r.sheets[0];
   if(!sh){alert('برای این کارتن ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.');return;}
-  if(r.split){alert('تولید برش سه‌تکه هنوز در تب تولید پشتیبانی نمی‌شود؛ برای ارسال به تولید حالت یک‌تکه یا دوتکه را انتخاب کنید.');return;}
-  const sourceKey=['c2',rowId,sh.sh,sh.sw,r.length,r.width,r.height,r.twoPiece?'tp':'1p',r.type||''].join('-');
+  if(r.split&&!(r.sheets&&r.sheets[1])){alert('برای تکه‌ی دوم ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.');return;}
+  const sourceKey=['c2',rowId,sh.sh,sh.sw,r.length,r.width,r.height,r.split?('s'+r.split+'_'+r.sheets[1].sh+'x'+r.sheets[1].sw):(r.twoPiece?'tp':'1p'),r.type||''].join('-');
   let rec=productionQueue.find(p=>p.sourceKey===sourceKey);
   if(!rec){
     rec={id:nextProdId++,sourceKey,name:r.name||'کارتن',length:r.length,width:r.width,height:r.height,glue:r.glue,
       sh:sh.sh,sw:sh.sw,layer:r.layer,qty:r.qty,customerName:($('c2inv-customer')?.value||'').trim(),sentAt:new Date().toISOString()};
     if(r.twoPiece) rec.twoPiece=true;
+    if(r.split){ rec.split=r.split; rec.sh2=r.sheets[1].sh; rec.sw2=r.sheets[1].sw; }
     if(r.type) rec.boxType=r.type;
     productionQueue.unshift(rec);
     if(productionQueue.length>30) productionQueue.length=30;
@@ -8572,7 +8573,7 @@ function renderProductionQueue(){
       <div class="inv-card-header" style="cursor:pointer" onclick="applyProductionItem(${p.id})">
         <div class="rank-badge">📦</div>
         <div class="inv-card-main">
-          <div class="inv-card-dims">${p.twoPiece?'✂️ <span style="font-size:.7rem;font-weight:800;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:1px 6px;margin-left:4px">دوتکه</span> ':''}${escapeHtml(p.name)}</div>
+          <div class="inv-card-dims">${p.split?'✂️ <span style="font-size:.7rem;font-weight:800;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:1px 6px;margin-left:4px">سه‌تکه</span> ':''}${p.twoPiece?'✂️ <span style="font-size:.7rem;font-weight:800;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:1px 6px;margin-left:4px">دوتکه</span> ':''}${escapeHtml(p.name)}</div>
           <div class="inv-card-meta">${dimStr(p.length,p.width,p.height)} سانتیمتر${p.boxType?' · <b style="color:var(--brand)">'+p.boxType+'</b>':''} · ورق ${dimStrX(p.sh,p.sw)} (${layerLabel(p.layer)})${p.customerName?' · '+escapeHtml(p.customerName):''}</div>
         </div>
         <button type="button" title="حذف" onclick="event.stopPropagation();removeProductionItem(${p.id})"
@@ -8606,7 +8607,8 @@ function applyProductionItem(id){
   if(bH) bH.value=p.height;
   if(glue) glue.value=p.glue;
   const qEl=$('bQty'); if(qEl) qEl.value=p.qty>0?p.qty:'';
-  if(typeof window.__setProdPieces==='function') window.__setProdPieces(p.twoPiece?2:1,true);
+  if(typeof window.__setProdSplit==='function') window.__setProdSplit(p.split||'',p.split?[{sh:p.sh,sw:p.sw},{sh:p.sh2,sw:p.sw2}]:null);
+  if(typeof window.__setProdPieces==='function') window.__setProdPieces(p.split?3:(p.twoPiece?2:1),true);
   if(typeof window.__setBoxType==='function') window.__setBoxType(p.boxType||'');
   if(typeof window.calculate==='function') window.calculate();
   $('prod-dims-tab')?.style.setProperty('display','none');
@@ -8975,15 +8977,24 @@ window.__setBoxType=function(t){
   try{ const ok=['sL','sW','bL','bW','bH'].every(id=>gv(id)>0); const res=document.getElementById('res'); if(ok&&res&&res.innerHTML.trim()) calculate(true); }catch(e){ console.error(e); }
 };
 window.__getBoxType=function(){ return _boxType; };
+let _prodSplit='',_prodSheets=null,_prodSplitIdx=0;   /* سه‌تکه: split='o'|'g'، ورق هر تکه، تکه‌ی انتخاب‌شده */
 let _prodPieces=1;   /* تعداد تکه‌های کارتن در تب تولید: 1 یک‌تکه، 2 دوتکه (دو تکه‌ی مساوی L+W+لپ) */
 function _syncPieceTabs(){ document.querySelectorAll('#prod-pieces-tabs .bttab').forEach(b=>b.classList.toggle('on',Number(b.dataset.pc)===_prodPieces)); }
 window.__setProdPieces=function(n,silent){
-  _prodPieces=(Number(n)===2)?2:1;
+  _prodPieces=(Number(n)===3&&_prodSplit)?3:(Number(n)===2?2:1);
   _syncPieceTabs();
+  if(_prodPieces!==3&&_prodSheets){ _prodSplitIdx=0; const q=_prodSheets[0],e1=document.getElementById('sL'),e2=document.getElementById('sW'); if(e1) e1.value=q.sh; if(e2) e2.value=q.sw; }
   if(silent) return;
   try{ const ok=['sL','sW','bL','bW','bH'].every(id=>gv(id)>0); const res=document.getElementById('res'); if(ok&&res&&res.innerHTML.trim()) calculate(true); }catch(e){ console.error(e); }
 };
 window.__getProdPieces=function(){ return _prodPieces; };
+window.__setProdSplit=function(sp,sheets){ _prodSplit=sp; _prodSheets=sheets; _prodSplitIdx=0; };
+window.__setSplitIdx=function(i){
+  _prodSplitIdx=i?1:0;
+  const sh=_prodSheets&&_prodSheets[_prodSplitIdx];
+  if(sh){ const a=document.getElementById('sL'),b=document.getElementById('sW'); if(a) a.value=sh.sh; if(b) b.value=sh.sw; }
+  calculate(true);
+};
 function uid(){return 'm'+(++_mid);}
 function hatchDefs(arr,size=8,sw=1.2){
 const id=uid();
@@ -10063,7 +10074,7 @@ function toggleBlankRot(){
 
 /* دکمه‌ی انتخاب یک‌تکه/دوتکه داخل کارت نتیجه */
 function prodPiecesToggleHtml(){
-  return `<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodPieces===1?' on':''}" onclick="__setProdPieces(1)" style="font-size:.8rem">یک‌تکه</button><button type="button" class="bttab${_prodPieces===2?' on':''}" onclick="__setProdPieces(2)" style="font-size:.8rem">دوتکه</button></div>`;
+  return `<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodPieces===1?' on':''}" onclick="__setProdPieces(1)" style="font-size:.8rem">یک‌تکه</button><button type="button" class="bttab${_prodPieces===2?' on':''}" onclick="__setProdPieces(2)" style="font-size:.8rem">دوتکه</button>${_prodSplit?`<button type="button" class="bttab${_prodPieces===3?' on':''}" onclick="__setProdPieces(3)" style="font-size:.8rem">سه‌تکه</button>`:''}</div>${_prodPieces===3?`<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodSplitIdx===0?' on':''}" onclick="__setSplitIdx(0)" style="font-size:.8rem">تکه ۱</button><button type="button" class="bttab${_prodSplitIdx===1?' on':''}" onclick="__setSplitIdx(1)" style="font-size:.8rem">تکه ۲</button></div>`:''}`;
 }
 /* ══ کارتن دوتکه در تب تولید ══
    هر کارتن = ۲ تکه‌ی کاملاً یکسان؛ هر تکه: [طول L][عرض W][لپ چسب] به طول L+W+لپ و عرض (ارتفاع باز شدهٔ کارتن).
@@ -10249,15 +10260,20 @@ if(!sL||!sW||!L||!W||!H){alert('لطفاً تمام ابعاد را وارد ک�
 resetArrowCache();
 _mid=0;
 _syncTypeTabs(); _syncPieceTabs();
+const _three=(_prodPieces===3&&_prodSplit);
+if(_three&&_prodSheets){ const q=_prodSheets[_prodSplitIdx]; if(q){ sL=q.sh; sW=q.sw; } }
 const _two=(_prodPieces===2);
-const girth=_two?(L+W):2*(L+W);
+/* سه‌تکه: ترکیب پنل‌های تکه‌ی انتخاب‌شده */
+let _pan=null;
+if(_three){ const o=_prodSplit==='o'; _pan=_prodSplitIdx===0?(o?[W,L,W]:[L,W,L]):[o?L:W]; }
+const girth=_pan?_pan.reduce((a,b)=>a+b,0):(_two?(L+W):2*(L+W));
 const blankLen=girth+glue;
 const _geo=c2BoxGeom(W,H,_boxType);
 const blankHt=_geo.ht;
 const flapH=_geo.top;   /* عمق درب بالا (در نوع H صفر)؛ درب پایین = blankHt − flapH − H */
 const areaCm2=blankLen*blankHt;
 const areaM2=parseFloat((areaCm2/10000).toFixed(4));
-const v1=L,v2=L+W,v3=_two?(L+W):(2*L+W),v4=girth;
+const v1=_pan?_pan[0]:L,v2=_pan?(_pan[0]+(_pan[1]||0)):L+W,v3=_pan?(_pan[0]+(_pan[1]||0)+(_pan[2]||0)):(_two?(L+W):(2*L+W)),v4=girth;
 const trim=0.5;
 const cb1=trim,cb2=trim+flapH,cb3=trim+flapH+H,cb4=trim+blankHt;
 const chakOverflow=cb4>sW;
@@ -10268,8 +10284,8 @@ let html='';
 if(machine==='m'){
 html+=`<div class="card">
 <div class="c-body">
-${prodPiecesToggleHtml()}${!fits?`<div class="alrt">⚠️ از این شیت هیچ ${_two?'تکه‌ای':'کارتنی'} درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong>${(!_two&&sL>=(L+W+glue)&&sW>=blankHt)?`<br>💡 به‌صورت <strong>دوتکه</strong> (هر تکه ${(L+W+glue).toFixed(1)} × ${blankHt.toFixed(1)}) از همین ورق قابل تولید است — دکمه‌ی «دوتکه» را بزنید.`:''}</div>`:''}
-${(_boxType&&!_two)?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
+${prodPiecesToggleHtml()}${!fits?`<div class="alrt">⚠️ از این شیت هیچ ${(_two||_three)?'تکه‌ای':'کارتنی'} درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong>${(!_two&&!_three&&sL>=(L+W+glue)&&sW>=blankHt)?`<br>💡 به‌صورت <strong>دوتکه</strong> (هر تکه ${(L+W+glue).toFixed(1)} × ${blankHt.toFixed(1)}) از همین ورق قابل تولید است — دکمه‌ی «دوتکه» را بزنید.`:''}</div>`:''}
+${(_boxType&&!_two&&!_three)?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
 <div style="margin-top:14px">
 <div class="btabs">
 <button id="btn-mainsheet" onclick="toggleAcc('mainsheet')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">F</button>
