@@ -10074,7 +10074,7 @@ function toggleBlankRot(){
 
 /* دکمه‌ی انتخاب یک‌تکه/دوتکه داخل کارت نتیجه */
 function prodPiecesToggleHtml(){
-  return `<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodPieces===1?' on':''}" onclick="__setProdPieces(1)" style="font-size:.8rem">یک‌تکه</button><button type="button" class="bttab${_prodPieces===2?' on':''}" onclick="__setProdPieces(2)" style="font-size:.8rem">دوتکه</button>${_prodSplit?`<button type="button" class="bttab${_prodPieces===3?' on':''}" onclick="__setProdPieces(3)" style="font-size:.8rem">سه‌تکه</button>`:''}</div>${_prodPieces===3?`<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodSplitIdx===0?' on':''}" onclick="__setSplitIdx(0)" style="font-size:.8rem">تکه ۱</button><button type="button" class="bttab${_prodSplitIdx===1?' on':''}" onclick="__setSplitIdx(1)" style="font-size:.8rem">تکه ۲</button></div>`:''}`;
+  return `<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodPieces===1?' on':''}" onclick="__setProdPieces(1)" style="font-size:.8rem">یک‌تکه</button><button type="button" class="bttab${_prodPieces===2?' on':''}" onclick="__setProdPieces(2)" style="font-size:.8rem">دوتکه</button>${_prodSplit?`<button type="button" class="bttab${_prodPieces===3?' on':''}" onclick="__setProdPieces(3)" style="font-size:.8rem">سه‌تکه</button>`:''}</div>`;
 }
 /* ══ کارتن دوتکه در تب تولید ══
    هر کارتن = ۲ تکه‌ی کاملاً یکسان؛ هر تکه: [طول L][عرض W][لپ چسب] به طول L+W+لپ و عرض (ارتفاع باز شدهٔ کارتن).
@@ -10261,11 +10261,15 @@ resetArrowCache();
 _mid=0;
 _syncTypeTabs(); _syncPieceTabs();
 const _three=(_prodPieces===3&&_prodSplit);
-if(_three&&_prodSheets){ const q=_prodSheets[_prodSplitIdx]; if(q){ sL=q.sh; sW=q.sw; } }
+if(_three&&_prodSheets){ const q=_prodSheets[0]; if(q){ sL=q.sh; sW=q.sw; } }
 const _two=(_prodPieces===2);
+/* سه‌تکه: مشخصات هر دو بلانک (هرکدام روی ورق خودش) */
+const _pcs3=()=>{ if(!(_three&&_prodSheets)) return null; const o=_prodSplit==='o';
+  return [0,1].map(k=>{ const pn=k===0?(o?[W,L,W]:[L,W,L]):[o?L:W]; const g=pn.reduce((a,b)=>a+b,0);
+    const a=pn[0],b=a+(pn[1]||0),c=b+(pn[2]||0); return {sL:_prodSheets[k].sh,sW:_prodSheets[k].sw,bLen:g+glue,v1:a,v2:b,v3:c,v4:g}; }); };
 /* سه‌تکه: ترکیب پنل‌های تکه‌ی انتخاب‌شده */
 let _pan=null;
-if(_three){ const o=_prodSplit==='o'; _pan=_prodSplitIdx===0?(o?[W,L,W]:[L,W,L]):[o?L:W]; }
+if(_three){ const o=_prodSplit==='o'; _pan=o?[W,L,W]:[L,W,L]; }
 const girth=_pan?_pan.reduce((a,b)=>a+b,0):(_two?(L+W):2*(L+W));
 const blankLen=girth+glue;
 const _geo=c2BoxGeom(W,H,_boxType);
@@ -10293,16 +10297,16 @@ ${(_boxType&&!_two&&!_three)?`<div style="margin-top:10px;font-size:.78rem;font-
 <button id="btn-tl" onclick="toggleAcc('tl')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:#2563eb;cursor:pointer">L</button>
 </div>
 <div class="acc-panel" id="panel-mainsheet">
-<div style="max-width:58%;margin:0 auto">${svgSheetCutOnly(sL,sW,blankLen,blankHt,0,0,true,0,0,true)}</div>
+${_three?_pcs3().map(q=>`<div style="max-width:58%;margin:0 auto 14px">${svgSheetCutOnly(q.sL,q.sW,q.bLen,blankHt,0,0,true,0,0,true)}</div>`).join(''):`<div style="max-width:58%;margin:0 auto">${svgSheetCutOnly(sL,sW,blankLen,blankHt,0,0,true,0,0,true)}</div>`}
 </div>
 <div class="acc-panel" id="panel-arzi">
 <div class="shrinkR">${rulerCap('arzi',()=>svgBlankArzi(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,240))}</div>
 </div>
 <div class="acc-panel" id="panel-toli">
-${rulerCap('toli',()=>svgBlankToli(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,395))}
+${_three?_pcs3().map((q,k)=>rulerCap(k?'toli2':'toli',()=>svgBlankToli(q.sL,q.sW,q.bLen,blankHt,0,0,0,0,0,L,W,H,q.v1,q.v2,q.v3,q.v4,glue,flapH,395))).join(''):rulerCap('toli',()=>svgBlankToli(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,395))}
 </div>
 <div class="acc-panel" id="panel-tl">
-<div class="tblk">${rulerCap('tl',()=>svgBlankArzi(sL,blankHt,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,undefined,true))}</div>
+${_three?_pcs3().map((q,k)=>`<div class="tblk">${rulerCap(k?'tl2':'tl',()=>svgBlankArzi(q.sL,blankHt,q.bLen,blankHt,0,0,0,0,0,L,W,H,q.v1,q.v2,q.v3,q.v4,glue,flapH,undefined,true))}</div>`).join(''):`<div class="tblk">${rulerCap('tl',()=>svgBlankArzi(sL,blankHt,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,undefined,true))}</div>`}
 </div>
 <div class="acc-panel" id="panel-combo">
 ${rulerCap('combo',()=>svgBlankCombo(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH))}
