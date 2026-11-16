@@ -3810,7 +3810,7 @@ function c2ReopenSheet(rowId){
   if(sheetSec) sheetSec.style.display='block';
 }
 /* ورق پیش‌فرض یک تکه: بهترین ورق انبار (کمترین قیمت/پرت)، وگرنه بهترین ورق از عرض‌های تنظیمات */
-function c2DefaultSheetFor(r,ht,len,need,minWaste){
+function c2DefaultSheetFor(r,ht,len,need,minWaste,stockOnly){
   const grain='horizontal';
   if(minWaste){
     /* کمترین پرت بین ورق‌های انبار (اول موجودی کافی، بعد کمترین درصد پرت، در تساوی ارزان‌تر) */
@@ -3830,6 +3830,7 @@ function c2DefaultSheetFor(r,ht,len,need,minWaste){
     const m=matchSheets(ht,len,need,grain,r.layer,r.flute,r.paperType,r.cls);
     if(m[0]&&m[0].perSheet>0) return{sheetId:m[0].id,sw:m[0].sw,sh:m[0].sh};
   }
+  if(stockOnly) return null;   /* انتخاب خودکار فقط از ورق‌های انبار؛ ورق پیشنهادیِ خارج از انبار نه */
   let list=computeZeroWasteSheetSuggestions(ht,len,r.layer);
   if(r.cls==='A'||r.cls==='T') list=list.filter(c=>widthClassOf(c.sw)===r.cls);
   const o=list[0];
@@ -3837,13 +3838,13 @@ function c2DefaultSheetFor(r,ht,len,need,minWaste){
 }
 /* دکمه‌های ۲ / ۳ نارنجی / ۳ سبز: انتخاب نوع برش؛ زدن دوباره‌ی همان دکمه به حالت یک‌تکه برمی‌گرداند */
 /* ساخت override برای یک نوع برش ('2' دوتکه، 'o'/'g' سه‌تکه) با کم‌پرت‌ترین ورق‌های انبار؛ null اگر ورق مناسبی نباشد */
-function c2BuildModeOverride(r,mode,sig){
+function c2BuildModeOverride(r,mode,sig,stockOnly){
   if(mode==='2'){
-    const sp=c2DefaultSheetFor(r,r.totalWidth,r.length+r.width+r.glue,r.qty*2,true);
+    const sp=c2DefaultSheetFor(r,r.totalWidth,r.length+r.width+r.glue,r.qty*2,true,stockOnly);
     return sp?{sig,sheetId:sp.sheetId,sw:sp.sw,sh:sp.sh,twoPiece:true}:null;
   }
   const pcs=c2SplitPieces(r,mode);
-  const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty,true), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty,true);
+  const s1=c2DefaultSheetFor(r,pcs[0].ht,pcs[0].len,r.qty,true,stockOnly), s2=c2DefaultSheetFor(r,pcs[1].ht,pcs[1].len,r.qty,true,stockOnly);
   return(s1&&s2)?{sig,split:mode,sheetId:s1.sheetId,sw:s1.sw,sh:s1.sh,s2:{sheetId:s2.sheetId,sw:s2.sw,sh:s2.sh}}:null;
 }
 let calc2AutoOff={};   /* کارت‌هایی که کاربر خودش به حالت یک‌تکه برگردانده (sig) — انتخاب خودکار دیگر دست نمی‌زند */
@@ -3867,7 +3868,7 @@ function calc2ComputeAuto(c,checkPct,grain){
   if((cur&&cur.sig===sig)||calc2AutoOff[c.id]===sig||!inventory.length) return r;
   let bestOv=null,bestR=r,bestS=c2ResultWaste(r);
   ['2','o','g'].forEach(m=>{
-    const ov=c2BuildModeOverride(r,m,sig); if(!ov) return;
+    const ov=c2BuildModeOverride(r,m,sig,true); if(!ov) return;
     ov.auto=true;
     calc2SheetOverride[c.id]=ov;
     const rr=calc2ComputeOne(c,checkPct,grain);
