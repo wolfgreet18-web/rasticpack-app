@@ -8953,13 +8953,17 @@ btn.classList.toggle('on',!isOpen);
 }
 function gv(id){return parseFloat(document.getElementById(id).value)||0;}
 /* اختلاف گونیا: فاصلهٔ مبدأ متر تا گونیا (سانت)؛ به همهٔ اعداد موقعیت برش و خط تا اضافه می‌شود */
-let gonyaVal=2;
-try{ const _sv=localStorage.getItem('gonyaOff'); if(_sv!==null&&_sv!==''&&isFinite(parseFloat(_sv))) gonyaVal=parseFloat(_sv); }catch(_){}
-function gOff(){return isFinite(gonyaVal)?gonyaVal:0;}
+/* دو اختلاف گونیای جدا: گونیا برش (پیش‌فرض 9.5) و گونیا چاک/خط‌تا (پیش‌فرض 0) */
+let gonyaCutVal=9.5, gonyaVal=0;
+try{ const _a=localStorage.getItem('gonyaCut'); if(_a!==null&&_a!==''&&isFinite(parseFloat(_a))) gonyaCutVal=parseFloat(_a);
+     const _b=localStorage.getItem('gonyaChak'); if(_b!==null&&_b!==''&&isFinite(parseFloat(_b))) gonyaVal=parseFloat(_b); }catch(_){}
+function gOff(){return isFinite(gonyaVal)?gonyaVal:0;}      /* چاک / خط‌تا */
+function gCut(){return isFinite(gonyaCutVal)?gonyaCutVal:0;} /* برش */
 function gonyaFieldHtml(){
-  return `<div title="اختلاف گونیا با مبدأ متر (سانتی‌متر)" style="margin-top:10px;display:flex;align-items:center;gap:3px;direction:ltr;width:fit-content">
-<input type="number" id="gonyaOff" step="0.1" value="${gonyaVal}" placeholder="0" oninput="gonyaChanged(this.value)" style="width:36px;min-width:0;height:19px;padding:0 3px;font-size:.66rem;line-height:1;text-align:center;margin:0;border:1px solid #e5e7eb;background:#fafafa;box-shadow:none;border-radius:6px"/>
-<span style="font-size:.85rem;line-height:1">📐</span>
+  const inp=(id,val,fn)=>`<input type="number" id="${id}" step="0.1" value="${val}" placeholder="0" oninput="${fn}(this.value)" style="width:40px;min-width:0;height:19px;padding:0 3px;font-size:.66rem;line-height:1;text-align:center;margin:0;border:1px solid #e5e7eb;background:#fafafa;box-shadow:none;border-radius:6px"/>`;
+  return `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;direction:ltr;width:fit-content">
+<span title="اختلاف گونیا برای برش (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaCut',gonyaCutVal,'gonyaCutChanged')}<span style="font-size:.85rem;line-height:1">✂️</span></span>
+<span title="اختلاف گونیا برای چاک و خط‌تا (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaChak',gonyaVal,'gonyaChanged')}<span style="font-size:.85rem;line-height:1">📐</span></span>
 </div>`;
 }
 const CLR={
@@ -9285,8 +9289,8 @@ for(let r=0;r<=nY;r++){
 const yp=rulerTop+r*bHt*sc;
 if(yp>rulerTop+rulerH+2) continue;
 s.push(`<line x1="${rxC-18}" y1="${yp}" x2="${rxC+18}" y2="${yp}" stroke="${CLR.cut}" stroke-width="2.5"/>`);
-_cp.push(r*bHt+gOff());
-if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(r*bHt+gOff()).toFixed(1)}</text>`);
+_cp.push(r*bHt+gCut());
+if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nY;r++){
 const y1=rulerTop+(r-1)*bHt*sc, y2=rulerTop+r*bHt*sc;
@@ -9413,8 +9417,8 @@ for(let r=0;r<=nL;r++){
 const yp=rulerTop+r*bLen*sc;
 if(yp>rulerTop+rulerH+1) break;
 s.push(`<line x1="${rxC-18}" y1="${yp}" x2="${rxC+18}" y2="${yp}" stroke="${CLR.cut}" stroke-width="2.5"/>`);
-_cp.push(r*bLen+gOff());
-s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.cut}">${(r*bLen+gOff()).toFixed(1)}</text>`);
+_cp.push(r*bLen+gCut());
+s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.cut}">${(r*bLen+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nL;r++){
 const y1=rulerTop+(r-1)*bLen*sc, y2=rulerTop+r*bLen*sc;
@@ -9601,8 +9605,8 @@ for(let r=0;r<=nW;r++){
 const yp=rulerTop+r*bHt*sc;
 if(yp>rulerTop+rulerH+2) continue;
 s.push(`<line x1="${rxC-10}" y1="${yp}" x2="${rxC+10}" y2="${yp}" stroke="${CLR.cut}" stroke-width="1.6"/>`);
-_cp.push(r*bHt+gOff());
-if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(r*bHt+gOff()).toFixed(1)}</text>`);
+_cp.push(r*bHt+gCut());
+if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nW;r++){
 const y1=rulerTop+(r-1)*bHt*sc, y2=rulerTop+r*bHt*sc;
@@ -9766,7 +9770,7 @@ if(!showChakRuler){
 const xp=px(pos);
 const col=i<=3?CLR.fold:'#a16207';
 s.push(`<line x1="${xp}" y1="${oy+pxH}" x2="${xp}" y2="${oy+pxH+10}" stroke="${col}" stroke-width="1.2"/>`);
-s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="7.5" fill="${col}">${(pos+gOff()).toFixed(1)}</text>`);
+s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="7.5" fill="${col}">${(pos+(i===4?gCut():gOff())).toFixed(1)}</text>`);
 });
 [[v1,v2],[v2,v3],[v3,v4]].forEach(([a0,a1])=>s.push(`<text x="${(px(a0)+px(a1))/2}" y="${oy+pxH+22}" text-anchor="middle" font-size="8.5" font-weight="800" fill="#16a34a">${Math.round((a1-a0)*10)/10}</text>`));
 {const _nx=[];[v1,v2,v3,v4,bLen].forEach(q=>_nx.push(px(q)));[[v1,v2],[v2,v3],[v3,v4]].forEach(([a0,a1])=>_nx.push((px(a0)+px(a1))/2));_nx.sort((a,b)=>a-b);
@@ -9820,7 +9824,7 @@ const yb=yp(bl.pos);
 s.push(`<line x1="${ox}" y1="${yb}" x2="${ox+sPxW}" y2="${yb}" stroke="${bl.c}" stroke-width="2.2"/>`);
 s.push(`<polygon points="${ox-6},${yb} ${ox-22},${yb-8} ${ox-22},${yb+8}" fill="${bl.c}"/>`);
 s.push(`<line x1="${ox-22}" y1="${yb}" x2="${ox-42}" y2="${yb}" stroke="${bl.c}" stroke-width="2"/>`);
-s.push(`<text x="${ox-46}" y="${yb+4}" text-anchor="end" font-size="11" font-weight="800" fill="${bl.c}">${(bl.pos+gOff()).toFixed(1)}</text>`);
+s.push(`<text x="${ox-46}" y="${yb+4}" text-anchor="end" font-size="11" font-weight="800" fill="${bl.c}">${(bl.pos+gCut()).toFixed(1)}</text>`);
 s.push(`<text x="${ox+sPxW+10}" y="${yb-3}" font-size="11" font-weight="700" fill="${bl.c}">${bl.n}</text>`);
 s.push(`<text x="${ox+sPxW+10}" y="${yb+11}" font-size="9" fill="#6b7280">${bl.d}</text>`);
 });
@@ -10124,7 +10128,7 @@ function svgPieceBlank(L,W,H,glue,flapH,botH){
   [[v1,CLR.fold],[v2,CLR.fold],[bLen,'#a16207']].forEach(([pos,col])=>{
     const xp=px(pos);
     s.push(`<line x1="${xp}" y1="${oy+pxH}" x2="${xp}" y2="${oy+pxH+10}" stroke="${col}" stroke-width="1.2"/>`);
-    s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="8" fill="${col}">${(Math.round((pos+gOff())*10)/10)}</text>`);
+    s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="8" fill="${col}">${(Math.round((pos+(col==='#a16207'?gCut():gOff()))*10)/10)}</text>`);
   });
   s.push(`<text x="${ox+pxL/2}" y="${oy+pxH+40}" text-anchor="middle" font-size="7.5" fill="#6b7280">موقعیت خط‌تاها از لبه چپ تکه (سانت)${gOff()?` — با اختلاف گونیا ${gOff()>0?'+':''}${gOff()}`:''}</text>`);
   return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
@@ -10173,13 +10177,13 @@ function prodLineRow(title,color,pos,skipFirst){
   </div>`;
 }
 function prodTwoPieceLinesHtml(sL,sW,L,W,H,pieceLen,pieceHt,top,nL,nW){
-  const g=gOff(), cutC=(CLR&&CLR.cut)||'#dc2626', foldC=(CLR&&CLR.fold)||'#2563eb';
+  const g=gOff(), gc=gCut(), cutC=(CLR&&CLR.cut)||'#dc2626', foldC=(CLR&&CLR.fold)||'#2563eb';
   /* محور عرض ورق: چاک افقی هر ستون تکه (top و top+H) و برش بین ستون‌ها */
-  const wCut=[g], wFold=[];
-  for(let c=0;c<nW;c++){ wCut.push(g+(c+1)*pieceHt); const b=c*pieceHt; if(top>0.01) wFold.push(g+b+top); wFold.push(g+b+top+H); }
+  const wCut=[gc], wFold=[];
+  for(let c=0;c<nW;c++){ wCut.push(gc+(c+1)*pieceHt); const b=c*pieceHt; if(top>0.01) wFold.push(g+b+top); wFold.push(g+b+top+H); }
   /* محور طول ورق: خط‌تای عمودی هر تکه (L و L+W) و برش بین ردیف‌ها */
-  const lCut=[g], lFold=[];
-  for(let r=0;r<nL;r++){ lCut.push(g+(r+1)*pieceLen); const b=r*pieceLen; lFold.push(g+b+L); lFold.push(g+b+L+W); }
+  const lCut=[gc], lFold=[];
+  for(let r=0;r<nL;r++){ lCut.push(gc+(r+1)*pieceLen); const b=r*pieceLen; lFold.push(g+b+L); lFold.push(g+b+L+W); }
   return `<div class="sec-lbl">④ نحوه‌ی خط‌ها روی ورق ${_fmtN(sL)} × ${_fmtN(sW)}</div>
 <div style="font-size:.76rem;line-height:1.9;color:var(--tx2);margin-bottom:8px">اعداد از گونیا${g?` (با اختلاف گونیا ${g>0?'+':''}${g})`:''} حساب شده‌اند. ردیف بالای هر کادر موقعیت خط از لبه، و ردیف سبز فاصله‌ی بین خط‌هاست. <b>ترتیب کار:</b> اول همه‌ی خط‌تاها روی ورق کامل، آخر برش‌ها.</div>
 <div style="font-size:.8rem;font-weight:800;margin:6px 0">الف) در جهت عرض ورق (${_fmtN(sW)} سانت) — ${nW} ستون تکه</div>
@@ -10349,19 +10353,19 @@ if(keepView!==true) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
 /* تغییر اختلاف گونیا: ذخیره + بازمحاسبهٔ هم‌زمان (تب بازِ F/w/L/... حفظ می‌شود) */
 let _gTimer;
-function gonyaChanged(val){
-  const v=parseFloat(val);
-  gonyaVal=isFinite(v)?v:0;
-  try{ localStorage.setItem('gonyaOff',String(gonyaVal)); }catch(_){}
+function gonyaCutChanged(val){ const v=parseFloat(val); gonyaCutVal=isFinite(v)?v:0; try{ localStorage.setItem('gonyaCut',String(gonyaCutVal)); }catch(_){} _gRecalc('gonyaCut'); }
+window.gonyaCutChanged=gonyaCutChanged;
+function gonyaChanged(val){ const v=parseFloat(val); gonyaVal=isFinite(v)?v:0; try{ localStorage.setItem('gonyaChak',String(gonyaVal)); }catch(_){} _gRecalc('gonyaChak'); }
+function _gRecalc(fid){
   clearTimeout(_gTimer);
   _gTimer=setTimeout(()=>{
     const res=document.getElementById('res');
     if(!res||!res.classList.contains('show')) return;
-    const hadFocus=document.activeElement&&document.activeElement.id==='gonyaOff';
+    const hadFocus=document.activeElement&&document.activeElement.id===fid;
     const openIds=[...res.querySelectorAll('.acc-panel.open')].map(e=>e.id.replace('panel-',''));
     calculate(true);
     openIds.forEach(id=>{ const pn=document.getElementById('panel-'+id); if(pn&&!pn.classList.contains('open')) toggleAcc(id); });
-    if(hadFocus){ const ni=document.getElementById('gonyaOff'); if(ni) ni.focus(); }
+    if(hadFocus){ const ni=document.getElementById(fid); if(ni) ni.focus(); }
   },400);
 }
 window.gonyaChanged = gonyaChanged;
