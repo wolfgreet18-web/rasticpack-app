@@ -397,7 +397,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <button type="button" aria-label="افزایش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(1)" ontouchstart="" >+</button>
         </div>
 
-        <div style="display:flex;align-items:flex-end;gap:3px;flex:0 0 auto" dir="ltr">
+        <div id="calc2-check-wrap" style="display:flex;align-items:flex-end;gap:3px;flex:0 0 auto" dir="ltr">
           <button type="button" aria-label="کاهش مدت چک" style="background:none;border:1.5px solid #7c3aed;border-radius:var(--r-md);box-shadow:none;width:22px;height:42px;padding:0;font-size:1rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:#7c3aed" onclick="calc2CheckStep(-1)">−</button>
           <div class="field" style="flex:0 0 34px;margin-bottom:0" title="مدت چک (ماه)">
           <input type="number" id="calc2-check" min="0" max="36" step="1" inputmode="numeric" oninput="calc2ProfitChanged()" style="background:#7c3aed;border-color:#7c3aed;color:#fff;-webkit-text-fill-color:#fff;caret-color:#fff;font-weight:700;text-align:center;padding-inline:2px;font-size:.85rem"/>
@@ -824,6 +824,10 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
       </div>
 
       <div id="chk-panel" style="display:none;margin-top:14px">
+        <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;font-weight:700;font-size:.85rem">
+          <input type="checkbox" id="chk-enabled-input" onchange="toggleCheckEnabled(this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+          <span>فعال بودن گزینه چک در تب قیمت</span>
+        </label>
         <div class="field full" style="margin-bottom:0">
           <label for="chk-rate-input">درصد سود چک برای هر 1 ماه <span class="unit">(%)</span></label>
           <input type="number" id="chk-rate-input" min="0" max="100" step="0.1" inputmode="decimal" oninput="updateCheckRate(this.value)"/>
@@ -2114,7 +2118,19 @@ function updateSmsTemplate(val){
 }
 
 /* ══ تنظیمات فاکتور (سربرگ) ══ */
+function checkEnabled(){ return invoiceSettings.checkEnabled!==false; }
+function applyCheckEnabled(){
+  const w=$('calc2-check-wrap'); if(w) w.style.display=checkEnabled()?'flex':'none';
+  const c=$('chk-enabled-input'); if(c) c.checked=checkEnabled();
+}
+function toggleCheckEnabled(on){
+  invoiceSettings.checkEnabled=!!on;
+  saveState();
+  applyCheckEnabled();
+  calc2ProfitChanged();
+}
 function renderCheckRateInput(){
+  applyCheckEnabled();
   renderProfitModeInput();
   const el=$('chk-rate-input'); if(!el) return;
   const v=parseFloat(invoiceSettings.checkProfitPerMonth);
@@ -2223,7 +2239,7 @@ function widgetCalc(I){
   if(!paperType){ const cat=c2CheapestCat(layer,cls); paperType=(cat==='2T')?'2T':'KT'; flute=(cat==='E')?'E':'C'; }
   const glue=parseFloat(I.g)>0?parseFloat(I.g):4;
   if(!(sheetPricePerM2(layer,paperType,flute)>0)) return {st:'noprice'};
-  const pv=parseFloat(I.p)||0, months=Math.max(0,parseFloat(I.c)||0);
+  const pv=parseFloat(I.p)||0, months=checkEnabled()?Math.max(0,parseFloat(I.c)||0):0;
   const rate=parseFloat(invoiceSettings.checkProfitPerMonth), checkPct=months*(isNaN(rate)?4:rate);
   const pm=invoiceSettings.profitMode, meter=pm==='meter', rial=pm==='rial';
   const totalLength=(L+W)*2+glue, totalWidth=W+H, areaM2=totalLength*totalWidth/10000;
@@ -3294,6 +3310,7 @@ document.addEventListener('input',e=>{
 
 /* ══ سود چک: هر ماه چک = N٪ (پیش‌فرض 4%، قابل تغییر در تنظیمات) روی درصد سود اضافه می‌شود ══ */
 function calc2CheckPct(){
+  if(!checkEnabled()) return 0;
   const m=Math.max(0,getNum('calc2-check')||0);
   const rate=parseFloat(invoiceSettings.checkProfitPerMonth);
   return m*(isNaN(rate)?4:rate);
