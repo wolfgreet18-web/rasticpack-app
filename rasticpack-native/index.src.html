@@ -9297,6 +9297,7 @@ s.push(`<path d="${d}" stroke="${color}" stroke-width="${strokeW}" fill="none" o
 }
 }
 }
+function _kS(){ return typeof knifeMode==='function'&&knifeMode()==='simple'; }   /* حالت ساده‌ی عددهای تیغ */
 function svgSheetCutOnly(sL,sW,bLen,bHt,_nL,_nW,_bAL,_wL,_wW,pieceMode,ropt){
 const SVG_W=950,SVG_H=620,ML=60,MR=40,MT=110,MB=50;
 const dW=SVG_W-ML-MR,dH=SVG_H-MT-MB;
@@ -9521,9 +9522,10 @@ const yp=rulerTop+r*bHt*sc;
 if(yp>rulerTop+rulerH+2) continue;
 s.push(`<line x1="${rxC-18}" y1="${yp}" x2="${rxC+18}" y2="${yp}" stroke="${CLR.cut}" stroke-width="2.5"/>`);
 _cp.push(r*bHt+gCut());
-if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
+if(r>0&&(!_kS()||r<=1)) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nY;r++){
+if(_kS()) break;
 const y1=rulerTop+(r-1)*bHt*sc, y2=rulerTop+r*bHt*sc;
 if(y2>rulerTop+rulerH+2) continue;
 s.push(`<text x="${rxC+14}" y="${(y1+y2)/2+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${Math.round(bHt*10)/10}</text>`);
@@ -9538,11 +9540,11 @@ const pos=r*bHt+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-18}" y1="${yp}" x2="${rxF+18}" y2="${yp}" stroke="${CLR.fold}" stroke-width="2.5"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
+if(!_kS()||_fp.length<2) s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
-for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
+for(let _i=0;_i<(_kS()?Math.min(_fp.length,2)-1:_fp.length-1);_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${_d}</text>`);}
 window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
@@ -9649,9 +9651,10 @@ const yp=rulerTop+r*bLen*sc;
 if(yp>rulerTop+rulerH+1) break;
 s.push(`<line x1="${rxC-18}" y1="${yp}" x2="${rxC+18}" y2="${yp}" stroke="${CLR.cut}" stroke-width="2.5"/>`);
 _cp.push(r*bLen+gCut());
-s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.cut}">${(r*bLen+gCut()).toFixed(1)}</text>`);
+if(!_kS()||r===1) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.cut}">${(r*bLen+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nL;r++){
+if(_kS()) break;
 const y1=rulerTop+(r-1)*bLen*sc, y2=rulerTop+r*bLen*sc;
 if(y2>rulerTop+rulerH+1) break;
 s.push(`<text x="${rxC+14}" y="${(y1+y2)/2+4}" text-anchor="start" font-size="10" font-weight="800" fill="#16a34a">${Math.round(bLen*10)/10}</text>`);
@@ -9665,11 +9668,11 @@ const pos=r*bLen+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-18}" y1="${yp}" x2="${rxF+18}" y2="${yp}" stroke="${CLR.fold}" stroke-width="2.5"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
+if(!_kS()||_fp.length<4) s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
-for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
+for(let _i=0;_i<(_kS()?Math.min(_fp.length,4)-1:_fp.length-1);_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="10" font-weight="800" fill="#16a34a">${_d}</text>`);}
 window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 }
@@ -9837,9 +9840,10 @@ const yp=rulerTop+r*bHt*sc;
 if(yp>rulerTop+rulerH+2) continue;
 s.push(`<line x1="${rxC-10}" y1="${yp}" x2="${rxC+10}" y2="${yp}" stroke="${CLR.cut}" stroke-width="1.6"/>`);
 _cp.push(r*bHt+gCut());
-if(r>0) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
+if(r>0&&(!_kS()||r<=1)) s.push(`<text x="${rxC+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(r*bHt+gCut()).toFixed(1)}</text>`);
 }
 for(let r=1;r<=nW;r++){
+if(_kS()) break;
 const y1=rulerTop+(r-1)*bHt*sc, y2=rulerTop+r*bHt*sc;
 if(y2>rulerTop+rulerH+2) continue;
 s.push(`<text x="${rxC+14}" y="${(y1+y2)/2+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${Math.round(bHt*10)/10}</text>`);
@@ -9853,11 +9857,11 @@ const pos=r*bHt+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-10}" y1="${yp}" x2="${rxF+10}" y2="${yp}" stroke="${CLR.fold}" stroke-width="1.6"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
+if(!_kS()||_fp.length<4) s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
-for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
+for(let _i=0;_i<(_kS()?Math.min(_fp.length,4)-1:_fp.length-1);_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${_d}</text>`);}
 window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 const SVG_H=TOP+maxH+BOTTOM;
