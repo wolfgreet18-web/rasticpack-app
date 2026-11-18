@@ -10241,12 +10241,12 @@ function toggleKnifeFull(){
     _knifeFitRows();
   }
 }
-function showKnifeSettings(){
+function showKnifeSettings(forceKey){
   const res=document.getElementById('res');
   const R=window.__rulers||{};
   const open=res?res.querySelector('.acc-panel.open'):null;
-  let key=open?open.id.replace('panel-',''):'';
-  const names={tl:'L',toli:'w',arzi:'L2',combo:'WL'};
+  let key=(typeof forceKey==='string'&&forceKey)?forceKey:(open?open.id.replace('panel-',''):'');
+  const names={tl:'L',toli:'w',arzi:'L2',combo:'WL',chak:'چاک'};
   if(!R[key]){ key=['tl','arzi','toli','combo'].find(k=>R[k])||''; }
   if(!key){ alert('ابتدا محاسبه را انجام دهید.'); return; }
   const d=R[key];
@@ -10273,7 +10273,7 @@ function showKnifeSettings(){
         <button type="button" onclick="document.getElementById('knife-modal').remove()" style="${btnSt}">✕</button>
       </div>
     </div>
-    ${_knifeRow('خط برش',(typeof CLR!=='undefined'&&CLR.cut)||'#dc2626',d.cut,true)}
+    ${key==='chak'?'':_knifeRow('خط برش',(typeof CLR!=='undefined'&&CLR.cut)||'#dc2626',d.cut,true)}
     ${_knifeRow('خط تا',(typeof CLR!=='undefined'&&CLR.fold)||'#2563eb',d.fold)}
   </div>`;
   document.body.appendChild(m);
@@ -10545,11 +10545,13 @@ ${gonyaFieldHtml('cut').replace('margin-top:10px','margin-top:0')}
 </div></div>`;
 }
 if(machine==='c'){
+(window.__rulers=window.__rulers||{}).chak={cut:[],fold:[v1,v2,v3,v4].filter((q,i,a)=>a.indexOf(q)===i).map(q=>q+gOff())};
 html+=`<div class="card">
 <div class="c-body">
 ${prodPiecesToggleHtml()}
 <div class="btabs">
 <button id="btn-single-c" onclick="toggleAcc('single-c')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">1B</button>
+<button type="button" id="btn-knife-c" onclick="showKnifeSettings('chak')" title="تنظیم چاقوی چاک" aria-label="تنظیم چاقوی چاک" style="background:none;border:none;box-shadow:none;padding:8px 12px;font-size:1.05rem;line-height:1;cursor:pointer">🔪</button>
 </div>
 <div class="acc-panel" id="panel-single-c">
 <div style="width:100%;overflow:hidden;display:flex;justify-content:center">
