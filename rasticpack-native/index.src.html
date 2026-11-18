@@ -11,6 +11,8 @@
 .tblk{width:100%;max-width:100%;overflow:hidden;box-sizing:border-box}
 .shrinkR{width:80%;margin-left:auto;margin-right:0}.shrinkR svg{display:block;min-width:0!important;width:100%!important;max-width:100%!important;height:auto!important}
 .tblk svg{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;margin:0 auto}
+.kmode-btn{margin:0;padding:14px 8px;font-family:inherit;font-size:.95rem;font-weight:800;border-radius:var(--r-md);border:1.5px solid var(--border);background:var(--surface,#fff);color:var(--tx2,#666);box-shadow:none;cursor:pointer}
+.kmode-btn.on{background:#b91c1c;border-color:#b91c1c;color:#fff;box-shadow:0 4px 12px rgba(185,28,28,.28)}
 .subtype-btn[data-catoff]{position:relative;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;overflow:visible}
 .subtype-btn[data-catoff].cat-off{filter:grayscale(.6);text-decoration:line-through}
 .subtype-btn[data-catoff].cat-off::after{content:"×";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font-size:.85rem;line-height:1;font-weight:800;color:var(--danger,#dc2626);pointer-events:none}
@@ -855,12 +857,10 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
       </div>
 
       <div id="knife-panel" style="display:none;margin-top:14px">
-        <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">عددهای پنجره‌ی تیغ (🔪) در تب تولید</div>
-        <div class="btabs" id="knife-mode-tabs" style="margin-bottom:10px">
-          <button type="button" class="bttab" data-km="simple" onclick="setKnifeMode('simple')" style="font-size:.8rem">ساده</button>
-          <button type="button" class="bttab" data-km="full" onclick="setKnifeMode('full')" style="font-size:.8rem">کامل</button>
+        <div id="knife-mode-tabs" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button type="button" class="kmode-btn" data-km="simple" onclick="setKnifeMode('simple')">ساده</button>
+          <button type="button" class="kmode-btn" data-km="full" onclick="setKnifeMode('full')">کامل</button>
         </div>
-        <p style="font-size:.74rem;color:var(--tx2);line-height:1.9;margin:0"><b>ساده:</b> در حالت w فقط عدد برش اول و دو خط‌تای اول؛ در حالت L فقط عدد برش اول و چهار خط‌تای اول.<br><b>کامل:</b> همه‌ی عددها نمایش داده شود.</p>
       </div>
 
       <div id="wp-panel" style="display:none;margin-top:14px">
@@ -2168,9 +2168,9 @@ function updateSmsTemplate(val){
 }
 
 /* ══ تنظیمات فاکتور (سربرگ) ══ */
-function knifeMode(){ return invoiceSettings.knifeMode==='simple'?'simple':'full'; }
-function applyKnifeModeUI(){ document.querySelectorAll('#knife-mode-tabs .bttab').forEach(b=>b.classList.toggle('on',b.dataset.km===knifeMode())); }
-function setKnifeMode(m){ invoiceSettings.knifeMode=(m==='simple')?'simple':'full'; saveState(); applyKnifeModeUI(); }
+function knifeMode(){ return invoiceSettings.knifeMode==='full'?'full':'simple'; }   /* پیش‌فرض: ساده */
+function applyKnifeModeUI(){ document.querySelectorAll('#knife-mode-tabs .kmode-btn').forEach(b=>b.classList.toggle('on',b.dataset.km===knifeMode())); }
+function setKnifeMode(m){ invoiceSettings.knifeMode=(m==='full')?'full':'simple'; saveState(); applyKnifeModeUI(); }
 window.setKnifeMode=setKnifeMode; window.knifeMode=knifeMode;
 function checkEnabled(){ return invoiceSettings.checkEnabled===true; }   /* پیش‌فرض: غیرفعال */
 function applyCheckEnabled(){
