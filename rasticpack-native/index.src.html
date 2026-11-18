@@ -2156,7 +2156,7 @@ function updateSmsTemplate(val){
 }
 
 /* ══ تنظیمات فاکتور (سربرگ) ══ */
-function checkEnabled(){ return invoiceSettings.checkEnabled!==false; }
+function checkEnabled(){ return invoiceSettings.checkEnabled===true; }   /* پیش‌فرض: غیرفعال */
 function applyCheckEnabled(){
   try{ applyRialTierUI(); }catch(_){}
   const w=$('calc2-check-wrap'); if(w) w.style.display=checkEnabled()?'flex':'none';
