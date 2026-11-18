@@ -11,6 +11,10 @@
 .tblk{width:100%;max-width:100%;overflow:hidden;box-sizing:border-box}
 .shrinkR{width:80%;margin-left:auto;margin-right:0}.shrinkR svg{display:block;min-width:0!important;width:100%!important;max-width:100%!important;height:auto!important}
 .tblk svg{display:block;width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;margin:0 auto}
+.subtype-btn[data-catoff]{position:relative;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;overflow:visible}
+.subtype-btn[data-catoff].cat-off{filter:grayscale(.6);text-decoration:line-through}
+.subtype-btn[data-catoff].cat-off::after{content:"×";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font-size:.85rem;line-height:1;font-weight:800;color:var(--danger,#dc2626);pointer-events:none}
+#inv-filter-toggle-3,#inv-filter-toggle-5{overflow:visible}
 .subtype-btn[data-cls]{position:relative;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
 body.cls-off-A .subtype-btn[data-cls="A"]::after,body.cls-off-T .subtype-btn[data-cls="T"]::after{content:"×";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font-size:.85rem;line-height:1;font-weight:800;color:var(--danger,#dc2626);pointer-events:none}
 #inv-class-toggle{overflow:visible}
@@ -404,6 +408,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
           <button type="button" aria-label="افزایش مدت چک" style="background:none;border:1.5px solid #7c3aed;border-radius:var(--r-md);box-shadow:none;width:22px;height:42px;padding:0;font-size:1rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:#7c3aed" onclick="calc2CheckStep(1)">+</button>
         </div>
+        <button type="button" id="calc2-tier-btn" aria-pressed="false" title="سود پله‌ای ریالی (بر اساس تعداد)" onclick="toggleRialTier()" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:var(--r-md);box-shadow:none;width:46px;height:42px;padding:0 2px;font-family:inherit;font-size:.62rem;font-weight:800;line-height:1.25;cursor:pointer;flex:0 0 auto;color:#7c3aed">سود<br>پله‌ای</button>
       </div>
       <div id="calc2-profit-pct" style="display:none;margin-top:8px;font-size:.82rem;font-weight:800;color:var(--danger)"></div>
       <div class="alert alert-danger" id="calc2-alert"><span class="alert-icon">⚠️</span><div id="calc2-alert-msg"></div></div>
@@ -594,9 +599,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
       <div id="inv-layer-block-3">
       <div class="subtype-toggle" id="inv-filter-toggle-3" style="margin-bottom:14px">
-        <button type="button" class="subtype-btn" onclick="setInventoryFilter('3','2T',this)">Ti</button>
-        <button type="button" class="subtype-btn" onclick="setInventoryFilter('3','KT',this)">Ki</button>
-        <button type="button" class="subtype-btn" onclick="setInventoryFilter('3','E',this)">kT</button>
+        <button type="button" class="subtype-btn" data-catoff="3-2T" onclick="setInventoryFilter('3','2T',this)">Ti</button>
+        <button type="button" class="subtype-btn" data-catoff="3-KT" onclick="setInventoryFilter('3','KT',this)">Ki</button>
+        <button type="button" class="subtype-btn" data-catoff="3-E" onclick="setInventoryFilter('3','E',this)">kT</button>
       </div>
       <div class="empty-state" id="inv-noselect-3"></div>
       <div id="inv-content-3" style="display:none">
@@ -618,8 +623,8 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
       <div id="inv-layer-block-5" style="display:none">
       <div class="subtype-toggle" id="inv-filter-toggle-5" style="margin-bottom:14px">
-        <button type="button" id="inv-filter-btn-5-2T" class="subtype-btn" onclick="setInventoryFilter('5','2T',this)">Kii</button>
-        <button type="button" id="inv-filter-btn-5-KT" class="subtype-btn" onclick="setInventoryFilter('5','KT',this)">Sik</button>
+        <button type="button" id="inv-filter-btn-5-2T" class="subtype-btn" data-catoff="5-2T" onclick="setInventoryFilter('5','2T',this)">Kii</button>
+        <button type="button" id="inv-filter-btn-5-KT" class="subtype-btn" data-catoff="5-KT" onclick="setInventoryFilter('5','KT',this)">Sik</button>
       </div>
       <div class="empty-state" id="inv-noselect-5"></div>
       <div id="inv-content-5" style="display:none">
@@ -684,11 +689,6 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 <button type="button" class="bttab" data-pt="" onclick="__setBoxType('');" style="font-size:.8rem">معمولی</button>
 <button type="button" class="bttab" data-pt="F" onclick="__setBoxType('F');" style="font-size:.8rem" title="درب روی‌هم کامل (FOL)">F</button>
 <button type="button" class="bttab" data-pt="H" onclick="__setBoxType('H');" style="font-size:.8rem" title="بدون درب بالا (HSC)">H</button>
-</div>
-<div class="sec-lbl">تعداد تکه‌های کارتن</div>
-<div class="btabs" id="prod-pieces-tabs" style="margin-bottom:12px">
-<button type="button" class="bttab on" data-pc="1" onclick="__setProdPieces(1);" style="font-size:.8rem">یک‌تکه</button>
-<button type="button" class="bttab" data-pc="2" onclick="__setProdPieces(2);" style="font-size:.8rem" title="هر کارتن از دو تکه‌ی مساوی ساخته می‌شود">دوتکه</button>
 </div>
 <div class="sec-lbl">لپ چسب (سانتی‌متر)</div>
 <div class="ig2" style="margin-bottom:4px">
@@ -820,6 +820,22 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
             </div>
             <button type="button" aria-label="افزایش پیش‌فرض" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="profitDefHoldStart(event,1)" onpointerup="profitDefHoldStop()" onpointerleave="profitDefHoldStop()" onpointercancel="profitDefHoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)profitDefStep(1)">+</button>
           </div>
+        </div>
+      </div>
+
+      <div id="rial-tier-box" style="display:none;margin-top:14px;padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
+        <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-weight:700;font-size:.85rem">
+          <input type="checkbox" id="rial-tier-enabled" onchange="setRialTierEnabled(this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+          <span>فعال بودن دکمه سود پله‌ای (کنار چک در تب قیمت)</span>
+        </label>
+        <div style="font-size:.74rem;color:var(--tx2);line-height:1.8;margin-bottom:10px">وقتی دکمه در تب قیمت پررنگ باشد، سود کل هر ردیف بر اساس تعداد کارتن آن ردیف تعیین می‌شود (ریال).</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field" style="margin-bottom:0"><label>از تعداد (پله بالا)</label><input type="number" id="rt-th1" inputmode="numeric" min="0" oninput="updateRialTier('th1',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>سود پله بالا (ریال)</label><input type="text" id="rt-a1" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a1',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>از تعداد (پله وسط)</label><input type="number" id="rt-th2" inputmode="numeric" min="0" oninput="updateRialTier('th2',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>سود پله وسط (ریال)</label><input type="text" id="rt-a2" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a2',this.value)"/></div>
+          <div class="field" style="margin-bottom:0;grid-column:1"><label>کمتر از پله وسط</label><input type="text" disabled id="rt-lowinfo" style="opacity:.6"/></div>
+          <div class="field" style="margin-bottom:0"><label>سود پله پایین (ریال)</label><input type="text" id="rt-a3" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a3',this.value)"/></div>
         </div>
       </div>
 
@@ -1389,7 +1405,7 @@ function loadSheetWidthSettings(w,m){
 let inventoryLayerView='3';
 let inventoryFilter={'3':null,'5':null};
 let smsTemplate='';
-let invoiceSettings={customerPriceMode:'discount',sheetPickMode:'price',companyName:'رستیک پک',phone:'09302162676',address:'',footer:'با تشکر از خرید شما',cardNumber:'',shaba:'',accountHolderName:''};
+let invoiceSettings={customerPriceMode:'sale',sheetPickMode:'price',companyName:'رستیک پک',phone:'09302162676',address:'',footer:'با تشکر از خرید شما',cardNumber:'',shaba:'',accountHolderName:''};
 let displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50};
 let widgetSettings={enabled:false,last:''};   /* ویجت صفحه‌ی هوم — بخش «ویجت و قیمت‌دهی سریع» */
 
@@ -1893,7 +1909,7 @@ function seedSampleDataIfEmpty(){
   }
   if(!inventory.length&&!invoiceSettings.invSeedV2){
     /* پیش‌فرض: فقط سه ورق kT سه‌لایه‌ی مدل A، از هرکدام ۱۰۰ عدد (یک‌بار؛ بعد از آن حذف کاربر حفظ می‌شود) */
-    [127,152,177].forEach(sh=>inventory.push({id:nextId++,sh,sw:180,layer:'3',qty:100,flute:'E',paperType:'KT'}));
+    [[127,100],[152,100],[177,300],[204,300]].forEach(([sh,qty])=>inventory.push({id:nextId++,sh,sw:180,layer:'3',qty,flute:'E',paperType:'KT'}));
     invoiceSettings.invSeedV2=true;
     changed=true;
   }
@@ -1905,9 +1921,30 @@ function seedSampleDataIfEmpty(){
       recalcSheetPriceTotal(key);
     })));
     const kA=sheetPriceKey('3','E','A');
-    sheetPriceBreakdown[kA]={product:830000,freight:5000};   /* قیمت کل 835,000 شامل کرایه 5,000 */
+    sheetPriceBreakdown[kA]={product:845000,freight:5000};   /* قیمت کل 850,000 شامل کرایه 5,000 */
     recalcSheetPriceTotal(kA);
     invoiceSettings.priceSeedV2=true;
+    changed=true;
+  }
+  /* یک‌بار برای داده‌ی موجود: ورق 204×180 اضافه شود، موجودی ورق 177 (اگر هنوز همان 100 پیش‌فرض است) 300 شود،
+     و قیمت kT (مدل A سه‌لایه) اگر هنوز همان پیش‌فرض قبلی 835,000 است 850,000 شود (کرایه 5,000 ثابت) */
+  /* یک‌بار: قیمت مشتری روی «قیمت فروش» (پیش‌فرض جدید)؛ بعد از آن انتخاب دستی کاربر حفظ می‌شود */
+  if(!invoiceSettings.custPriceSaleSeedV1){
+    invoiceSettings.custPriceSaleSeedV1=true;
+    invoiceSettings.customerPriceMode='sale';
+    changed=true;
+  }
+  if(!invoiceSettings.invSeedV3){
+    invoiceSettings.invSeedV3=true;
+    const _same=(x,sh)=>x.layer==='3'&&x.paperType==='KT'&&x.flute==='E'&&+x.sw===180&&+x.sh===sh;
+    const i177=inventory.find(x=>_same(x,177));
+    if(i177&&+i177.qty===100) i177.qty=300;
+    if(inventory.length&&!inventory.some(x=>_same(x,204))) inventory.push({id:nextId++,sh:204,sw:180,layer:'3',qty:300,flute:'E',paperType:'KT'});
+    const kA2=sheetPriceKey('3','E','A');
+    if(sheetPrices[kA2]===835000){
+      sheetPriceBreakdown[kA2]={product:845000,freight:5000};
+      recalcSheetPriceTotal(kA2);
+    }
     changed=true;
   }
   /* قیمت پیش‌فرض پنج‌لایه (فقط وقتی هنوز هیچ قیمتی برای پنج‌لایه ثبت نشده):
@@ -1975,6 +2012,7 @@ function seedSampleDataIfEmpty(){
     profitEl.value=getProfitDefault(getProfitMode());
   }
   c2ApplyClsOff();
+  c2ApplyCatOff();
   applyProfitModeUI(); renderProfitModeInput();
   if(profitEl&&getProfitMode()==='meter') setProfitFieldValue(parseFloat((profitEl.value||'').replace(/,/g,''))||0);
 }
@@ -2120,6 +2158,7 @@ function updateSmsTemplate(val){
 /* ══ تنظیمات فاکتور (سربرگ) ══ */
 function checkEnabled(){ return invoiceSettings.checkEnabled!==false; }
 function applyCheckEnabled(){
+  try{ applyRialTierUI(); }catch(_){}
   const w=$('calc2-check-wrap'); if(w) w.style.display=checkEnabled()?'flex':'none';
   const c=$('chk-enabled-input'); if(c) c.checked=checkEnabled();
 }
@@ -2256,14 +2295,14 @@ function widgetCalc(I){
     sheet:best?{cls:widthClassOf(best.sw),sh:best.sh,sw:best.sw,waste:best.waste,per:best.perSheet,need:best.sheetsNeed===Infinity?null:best.sheetsNeed,ok:!!best.canFulfill,qty:best.qty,cat:catLabel(priceCategoryOf(paperType,flute),layer,widthClassOf(best.sw))}:null};
 }
 function widgetEngineSource(){
-  const fns=[catsForLayer,priceCategoryOf,widthClassOf,sheetPriceKey,sheetPricePerM2,getSheetPickMode,calcLayout,c2ReuseStrip,evalSheet,c2ClsOff,matchSheets,c2CheapestCat,catLabel,widgetCalc].map(f=>String(f)).join('\n');
+  const fns=[catsForLayer,priceCategoryOf,widthClassOf,sheetPriceKey,sheetPricePerM2,getSheetPickMode,calcLayout,c2ReuseStrip,evalSheet,c2ClsOff,matchSheets,c2CatOff,c2SheetOff,c2CheapestCat,catLabel,widgetCalc].map(f=>String(f)).join('\n');
   return 'function(S,I){var inventory=S.inventory,sheetPrices=S.sheetPrices,invoiceSettings=S.invoiceSettings,sheetWeights=S.sheetWeights,wastePrice=S.wastePrice,PRICE_CATEGORIES=["2T","KT","E"],CAT_LABELS='+JSON.stringify(CAT_LABELS)+',isGrainCorrect='+String(isGrainCorrect)+';\n'+fns+'\nreturn JSON.stringify(widgetCalc(I));}';
 }
 function buildWidgetSnapshot(){
   return JSON.stringify({v:1,
     inventory:inventory.map(x=>({id:x.id,sw:x.sw,sh:x.sh,qty:x.qty,layer:x.layer,flute:x.flute,paperType:x.paperType})),
     sheetPrices,
-    invoiceSettings:{excludedCls:invoiceSettings.excludedCls||{},reuseStrips:invoiceSettings.reuseStrips||null,sheetPickMode:invoiceSettings.sheetPickMode,profitMode:invoiceSettings.profitMode,checkProfitPerMonth:invoiceSettings.checkProfitPerMonth},
+    invoiceSettings:{excludedCls:invoiceSettings.excludedCls||{},excludedCat:invoiceSettings.excludedCat||{},reuseStrips:invoiceSettings.reuseStrips||null,sheetPickMode:invoiceSettings.sheetPickMode,profitMode:invoiceSettings.profitMode,checkProfitPerMonth:invoiceSettings.checkProfitPerMonth},
     sheetWeights,wastePrice,
     profit:getProfitAmt(),check:getNum('calc2-check')||0,meter:getProfitMode()==='meter',rial:getProfitMode()==='rial'});
 }
@@ -2651,8 +2690,12 @@ function evalSheet(s,bw,bh,need,grain){
 
 /* نوع‌های ورق (عرض A/T) که کاربر با نگه‌داشتن ۲ ثانیه‌ای از تب قیمت کنار گذاشته (علامت ×) */
 function c2ClsOff(k){ try{ const e=(typeof invoiceSettings!=='undefined')&&invoiceSettings.excludedCls; if(e&&typeof e[k]==='boolean') return e[k]; return k==='T'; }catch(_){ return k==='T'; } }   /* پیش‌فرض: عرض M (=T) غیرفعال */
+/* نوع کاغذ (Ti / Ki / kT و Kii / Sik) که کاربر با نگه‌داشتن ۲ ثانیه‌ای در تب ورق غیرفعال کرده؛ کلید = لایه-دسته مثل '3-E' */
+function c2CatOff(layer,cat){ const k=layer+'-'+cat, d=(k==='3-2T'||k==='3-KT'); /* پیش‌فرض: Ti و Ki سه‌لایه غیرفعال */
+  try{ const e=(typeof invoiceSettings!=='undefined')&&invoiceSettings.excludedCat; if(e&&typeof e[k]==='boolean') return e[k]; return d; }catch(_){ return d; } }
+function c2SheetOff(s){ return c2ClsOff(widthClassOf(s.sw))||c2CatOff(s.layer||'3',priceCategoryOf(s.paperType,s.flute)); }
 function matchSheets(bw,bh,need,grain,layerFilter,fluteFilter,paperFilter,clsFilter){
-  let usable=inventory.filter(s=>s.sw>=bw&&s.sh>=bh&&s.qty>0&&!c2ClsOff(widthClassOf(s.sw)));
+  let usable=inventory.filter(s=>s.sw>=bw&&s.sh>=bh&&s.qty>0&&!c2SheetOff(s));
   if(clsFilter==='A'||clsFilter==='T') usable=usable.filter(s=>widthClassOf(s.sw)===clsFilter);
   if(layerFilter) usable=usable.filter(s=>(s.layer||'3')===layerFilter);
   if(fluteFilter) usable=usable.filter(s=>(s.flute||'C')===fluteFilter);
@@ -2847,6 +2890,7 @@ function c2SyncPaperButtons(id,layer){
   const cls=$('c2-cls-'+id)?.value||'';
   const is5=layer==='5', onlyKiT=is5&&cls==='T';
   const b2=$('c2p-2T-'+id), bk=$('c2p-KT-'+id), be=$('c2p-E-'+id);
+  if(b2) b2.style.display='';
   if(b2) b2.textContent=catLabel('2T',layer,cls);
   if(bk) bk.textContent=catLabel('KT',layer,cls);
   if(bk) bk.style.display=onlyKiT?'none':'';
@@ -2863,6 +2907,12 @@ function c2SyncPaperButtons(id,layer){
     [b2,bk,be].forEach(b=>b&&b.classList.remove('active'));
     if(bk) bk.classList.add('active');
   }
+  /* نوع کاغذ غیرفعال‌شده در تب ورق (نگه‌داشتن ۲ ثانیه‌ای) از ردیف‌ها حذف می‌شود */
+  [['2T',b2],['KT',bk],['E',be]].forEach(([c,b])=>{
+    if(!b||!c2CatOff(layer,c)) return;
+    b.style.display='none';
+    if(b.classList.contains('active')){ b.classList.remove('active'); if(pp) pp.value=''; if(fl) fl.value='C'; }
+  });
 }
 function setCartonLayer(id,val,btn){
   const inp=$('c2-layer-'+id); if(inp) inp.value=val;
@@ -2913,6 +2963,31 @@ function c2ToggleClsOff(k){
   document.addEventListener('click',e=>{ if(fired&&e.target.closest&&e.target.closest('.subtype-btn[data-cls]')){ e.stopImmediatePropagation(); e.preventDefault(); fired=false; } },true);
   document.addEventListener('contextmenu',e=>{ if(e.target.closest&&e.target.closest('.subtype-btn[data-cls]')) e.preventDefault(); },true);
 })();
+function c2ApplyCatOff(){
+  document.querySelectorAll('.subtype-btn[data-catoff]').forEach(b=>b.classList.toggle('cat-off',c2CatOff(...b.dataset.catoff.split('-'))));
+  try{ calc2RowIds.forEach(id=>c2SyncPaperButtons(id)); }catch(_){}
+}
+function c2ToggleCatOff(key){
+  const e=invoiceSettings.excludedCat=Object.assign({},invoiceSettings.excludedCat||{});
+  e[key]=!c2CatOff(...key.split('-'));
+  saveState(); c2ApplyCatOff();
+  if(navigator.vibrate) try{navigator.vibrate(40);}catch(_){}
+  calc2LiveRecalc();
+}
+/* نگه‌داشتن ۲ ثانیه‌ای روی Ti / Ki / kT (و Kii / Sik) در تب ورق: کنار گذاشتن/برگرداندن آن نوع کاغذ (مثل A و M) */
+(function(){
+  let t=null,fired=false,sx=0,sy=0;
+  const stop=()=>{ clearTimeout(t); t=null; };
+  document.addEventListener('pointerdown',e=>{
+    const b=e.target.closest&&e.target.closest('.subtype-btn[data-catoff]'); if(!b) return;
+    fired=false; sx=e.clientX; sy=e.clientY; stop();
+    t=setTimeout(()=>{ t=null; fired=true; c2ToggleCatOff(b.dataset.catoff); },2000);
+  },true);
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>document.addEventListener(ev,stop,true));
+  document.addEventListener('pointermove',e=>{ if(t&&(Math.abs(e.clientX-sx)>12||Math.abs(e.clientY-sy)>12)) stop(); },true);
+  document.addEventListener('click',e=>{ if(fired&&e.target.closest&&e.target.closest('.subtype-btn[data-catoff]')){ e.stopImmediatePropagation(); e.preventDefault(); fired=false; } },true);
+  document.addEventListener('contextmenu',e=>{ if(e.target.closest&&e.target.closest('.subtype-btn[data-catoff]')) e.preventDefault(); },true);
+})();
 function setCartonType(id,val,btn){
   const inp=$('c2-type-'+id); if(!inp) return;
   const was=btn.classList.contains('active');
@@ -2934,6 +3009,7 @@ function setCartonCls(id,val,btn){
 function c2CheapestCat(layer,cls){
   let best=null,bestP=Infinity;
   catsForLayer(layer).forEach(c=>{
+    if(c2CatOff(layer,c)) return;   /* نوع کاغذ غیرفعال‌شده در تب ورق */
     const classes=cls==='A'||cls==='T'?[cls]:['A','T'];
     classes.forEach(k=>{
       if(c2ClsOff(k)) return;
@@ -2988,6 +3064,7 @@ function updateCalc2RowNumbers(){
 function renderCartonRows2(){
   const wrap=$('calc2-carton-list'); if(!wrap) return;
   wrap.innerHTML=calc2RowIds.map(calc2RowTemplate).join('');
+  try{ calc2RowIds.forEach(id=>c2SyncPaperButtons(id)); }catch(_){}
   updateCalc2DeleteBtns();
   updateCalc2RowNumbers();
   updateCalc2AddButtonPlacement();
@@ -3009,6 +3086,7 @@ function addCartonRow2(){
   const id=calc2NextId++;
   calc2RowIds.push(id);
   $('calc2-carton-list').insertAdjacentHTML('beforeend',calc2RowTemplate(id));
+  try{ c2SyncPaperButtons(id); }catch(_){}
   updateCalc2DeleteBtns();
   updateCalc2RowNumbers();
   updateCalc2AddButtonPlacement();
@@ -3104,11 +3182,64 @@ function calc2HoldStart(e,d){
 }
 /* ══ حالت سود: «درصدی» (پیش‌فرض) یا «متری» (مبلغ سود به‌ازای هر متر مربع کارتن) ══ */
 /* مقدار سود مؤثر: در حالت ریالی مبلغ تنظیمات؛ در بقیه عدد کادر سود */
+/* ══ سود پله‌ای ریالی: بر اساس تعداد کارتن هر ردیف (پیش‌فرض: ≥80 → 10,000,000 ؛ 30 تا 79 → 5,000,000 ؛ زیر 30 → 3,000,000) ══ */
+const RIAL_TIER_DEF={th1:80,th2:30,a1:10000000,a2:5000000,a3:3000000};
+function getRialTier(){
+  const t={};
+  Object.keys(RIAL_TIER_DEF).forEach(k=>{ const v=parseFloat(invoiceSettings['rialTier_'+k]); t[k]=(!isNaN(v)&&v>=0)?v:RIAL_TIER_DEF[k]; });
+  return t;
+}
+function rialTierEnabled(){ return invoiceSettings.rialTierEnabled!==false; }
+function rialTierActive(){ return getProfitMode()==='rial'&&rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
+function rialTierAmt(qty){
+  const t=getRialTier(), q=+qty||0;
+  return q>=t.th1?t.a1:q>=t.th2?t.a2:t.a3;
+}
+function applyRialTierUI(){
+  const b=$('calc2-tier-btn');
+  if(b){
+    const show=rialTierEnabled(), on=rialTierActive();   /* دکمه همیشه دیده می‌شود (اگر در تنظیمات فعال باشد)؛ پررنگ فقط وقتی حالت ریالی و پله‌ای روشن است */
+    b.style.display=show?'':'none';
+    b.style.background=on?'#7c3aed':'none';
+    b.style.color=on?'#fff':'#7c3aed';
+    b.style.boxShadow=on?'0 2px 6px rgba(124,58,237,.35)':'none';
+    b.setAttribute('aria-pressed',on?'true':'false');
+  }
+  const box=$('rial-tier-box');
+  if(box){
+    box.style.display=getProfitMode()==='rial'?'block':'none';
+    const t=getRialTier(), set=(id,v)=>{ const e=$(id); if(e&&document.activeElement!==e) e.value=v; };
+    const c=$('rial-tier-enabled'); if(c) c.checked=rialTierEnabled();
+    set('rt-th1',t.th1); set('rt-th2',t.th2);
+    set('rt-a1',formatNum(t.a1)); set('rt-a2',formatNum(t.a2)); set('rt-a3',formatNum(t.a3));
+    set('rt-lowinfo','کمتر از '+t.th2+' عدد');
+  }
+}
+function toggleRialTier(){
+  if(getProfitMode()!=='rial'){   /* سود پله‌ای ریالی است: زدن دکمه در حالت دیگر، حالت سود را ریالی و پله‌ای را روشن می‌کند */
+    invoiceSettings.rialTierOn=true;
+    updateProfitMode('rial');
+    saveState(); applyRialTierUI();
+    return;
+  }
+  invoiceSettings.rialTierOn=!invoiceSettings.rialTierOn;
+  saveState(); applyRialTierUI(); calc2ProfitRerun();
+}
+function setRialTierEnabled(on){
+  invoiceSettings.rialTierEnabled=!!on;
+  saveState(); applyRialTierUI(); calc2ProfitRerun();
+}
+function updateRialTier(k,val){
+  const n=parseFloat(String(val).replace(/,/g,''));
+  if(isNaN(n)||n<0) delete invoiceSettings['rialTier_'+k]; else invoiceSettings['rialTier_'+k]=n;
+  saveState();
+  if(rialTierActive()) calc2ProfitChanged();
+}
 function getProfitAmt(){ return getProfitMode()==='rial'?getProfitDefault('rial'):(getNum('calc2-profit')||0); }
 function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='meter'||m==='rial'?m:'percent'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
 function calc2CashPrice(base,areaM2,qty,pv){
-  const v=(pv!=null&&!isNaN(pv))?pv:getProfitAmt(), m=getProfitMode();   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
+  const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?rialTierAmt(qty):getProfitAmt()), m=getProfitMode();   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
   if(m==='rial') return base+v/Math.max(1,qty||1);   /* ریالی: کل سود این ردیف = مبلغ واردشده؛ سهم هر کارتن = مبلغ ÷ تعداد */
   return m==='meter'?base+v*areaM2:base*(1+v/100);
 }
@@ -3142,6 +3273,7 @@ function getProfitDefault(mode){
 }
 function renderProfitModeInput(){
   const mode=getProfitMode();
+  applyRialTierUI();
   [['percent','profit-mode-btn-percent'],['meter','profit-mode-btn-meter'],['rial','profit-mode-btn-rial']].forEach(([m,id])=>{
     const b=$(id); if(!b) return;
     const on=m===mode;   /* گزینه‌ی فعال قرمز می‌شود */
@@ -3770,7 +3902,7 @@ function c2SheetCandidates(sw0,bw,bh){
 /* ورق‌های واقعی انبار (همان فیلترهای انتخاب ورق کارت: لایه/فلوت/نوع ورق/دسته) برای بلانک bw×bh؛
    برای هر «تعداد در ورق» بهترین ورق (اول موجودی کافی، بعد کمترین قیمت ورق به‌ازای هر بلانک) نگه داشته می‌شود */
 function c2InvCandidates(r,bw,bh,need){
-  let usable=inventory.filter(x=>x.qty>0&&x.sw>=bw&&x.sh>=bh&&!c2ClsOff(widthClassOf(x.sw)));
+  let usable=inventory.filter(x=>x.qty>0&&x.sw>=bw&&x.sh>=bh&&!c2SheetOff(x));
   if(r.cls==='A'||r.cls==='T') usable=usable.filter(x=>widthClassOf(x.sw)===r.cls);
   if(r.layer) usable=usable.filter(x=>(x.layer||'3')===r.layer);
   if(r.flute) usable=usable.filter(x=>(x.flute||'C')===r.flute);
@@ -3831,7 +3963,7 @@ function c2DefaultSheetFor(r,ht,len,need,minWaste,stockOnly){
   const grain='horizontal';
   if(minWaste){
     /* کمترین پرت بین ورق‌های انبار (اول موجودی کافی، بعد کمترین درصد پرت، در تساوی ارزان‌تر) */
-    let usable=inventory.filter(x=>x.qty>0&&x.sw>=ht&&x.sh>=len&&!c2ClsOff(widthClassOf(x.sw)));
+    let usable=inventory.filter(x=>x.qty>0&&x.sw>=ht&&x.sh>=len&&!c2SheetOff(x));
     if(r.cls==='A'||r.cls==='T') usable=usable.filter(x=>widthClassOf(x.sw)===r.cls);
     if(r.layer) usable=usable.filter(x=>(x.layer||'3')===r.layer);
     if(r.flute) usable=usable.filter(x=>(x.flute||'C')===r.flute);
@@ -3900,7 +4032,7 @@ function calc2ComputeAuto(c,checkPct,grain){
   const cur=calc2SheetOverride[c.id];
   if((cur&&cur.sig===sig)||calc2AutoOff[c.id]===sig||!inventory.length) return r;
   let bestOv=null,bestR=r,bestS=c2ResultWaste(r);
-  ['2','o','g'].forEach(m=>{
+  ['2'].forEach(m=>{   /* انتخاب خودکار فقط دوتکه را بررسی می‌کند؛ سه‌تکه (۳ نارنجی/سبز) فقط دستی با دکمه */
     const ov=c2BuildModeOverride(r,m,sig,true); if(!ov) return;
     ov.auto=true;
     calc2SheetOverride[c.id]=ov;
@@ -4042,7 +4174,7 @@ function computeZeroWasteSheetSuggestions(bw,bh,layer){
 
 /* بهترین گزینه‌ها از بین شیت‌های موجود در انبار (همان لایه) — کمترین درصد پرت */
 function findClosestExistingSheets(bw,bh,layer,limit=3){
-  const items=inventory.filter(s=>(s.layer||'3')===layer&&!c2ClsOff(widthClassOf(s.sw)));
+  const items=inventory.filter(s=>(s.layer||'3')===layer&&!c2SheetOff(s));
   const scored=items.map(s=>{
     const layout=calcLayout(s.sw,s.sh,bw,bh,'horizontal');
     return{...s,...layout};
@@ -4070,7 +4202,7 @@ function suggestCartonDimsFromInventory(origL,origW,origH,glue,layer,flute,paper
     (s.flute||'C')===(flute||'C') &&
     (s.paperType||'2T')===(paperType||'KT') &&
     s.qty>0 &&
-    !c2ClsOff(widthClassOf(s.sw)) &&
+    !c2SheetOff(s) &&
     ((s.sw<=MAX_W&&s.sh<=MAX_H)||(s.sw<=MAX_H&&s.sh<=MAX_W))
   );
   if(!sheets.length) return[];
@@ -5673,6 +5805,51 @@ function updateDim(id,field,val){
   item[field]=num;renderInventoryTable();saveState();
 }
 
+/* ══ ویرایش تعداد و ابعاد ورق در یک پنجره‌ی کوچک (کادرهای جدول فقط نمایشی‌اند) ══ */
+/* رنگ کادر تعداد مثل جدول ورق‌ها: 0 قرمز، کمتر از 50 زرد، بقیه سبز */
+function invEditQtyColor(){
+  const q=$('inv-edit-qty'); if(!q) return;
+  const n=parseInt(q.value)||0;
+  const c=n===0?['var(--red-100)','var(--red-600)','var(--red-800)']:n<50?['var(--gold-lt)','var(--gold)','#78350f']:['#dcfce7','var(--green)','var(--green-d)'];
+  q.style.background=c[0]; q.style.borderColor=c[1]; q.style.color=c[2]; q.style.webkitTextFillColor=c[2]; q.style.caretColor=c[2];
+}
+function closeInvEditModal(){ const m=$('inv-edit-modal'); if(m) m.remove(); }
+function openInvEditModal(id){
+  const item=inventory.find(i=>i.id===id); if(!item) return;
+  closeInvEditModal();
+  const m=document.createElement('div');
+  m.id='inv-edit-modal';
+  m.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  m.onclick=e=>{ if(e.target===m) closeInvEditModal(); };
+  const fs='font-family:inherit;width:100%;padding:18px 6px;border:1.5px solid var(--border);border-radius:12px;font-weight:700;text-align:center;font-size:1.5rem;color:#fff;-webkit-text-fill-color:#fff;caret-color:#fff;opacity:1;';
+  m.innerHTML=`<div style="background:var(--surface,#fff);color:var(--tx);border-radius:20px;padding:26px 22px;width:100%;max-width:440px;box-shadow:0 10px 40px rgba(0,0,0,.35)" dir="rtl">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:.9rem;font-weight:700;color:var(--txm);text-align:center">طول</label><input type="number" id="inv-edit-sh" min="1" step="any" inputmode="decimal" value="${item.sh}" style="${fs}background:#2563eb;border-color:#1d4ed8"/></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:.9rem;font-weight:700;color:var(--txm);text-align:center">عرض</label><input type="number" id="inv-edit-sw" min="1" step="any" inputmode="decimal" value="${item.sw}" style="${fs}background:#dc2626;border-color:#b91c1c"/></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:.9rem;font-weight:700;color:var(--txm);text-align:center">تعداد</label><input type="number" id="inv-edit-qty" min="0" step="1" inputmode="numeric" value="${item.qty}" oninput="invEditQtyColor()" style="${fs}"/></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;padding:16px 8px;font-size:1.05rem" onclick="saveInvEdit(${id})">ذخیره</button>
+      <button type="button" class="btn btn-flat" style="margin-top:0;flex:1;padding:16px 8px;font-size:1.05rem" onclick="closeInvEditModal()">انصراف</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  invEditQtyColor();
+  setTimeout(()=>{ const q=$('inv-edit-qty'); if(q){ q.focus(); } },50);
+}
+function saveInvEdit(id){
+  const item=inventory.find(i=>i.id===id); if(!item){ closeInvEditModal(); return; }
+  const sh=parseFloat($('inv-edit-sh').value), sw=parseFloat($('inv-edit-sw').value), qty=Math.max(0,parseInt($('inv-edit-qty').value)||0);
+  if(!(sh>0)||!(sw>0)){ alert('طول و عرض باید بزرگ‌تر از صفر باشد.'); return; }
+  if(inventory.find(i=>i.id!==id&&i.sw===sw&&i.sh===sh&&i.layer===item.layer&&(i.flute||'C')===(item.flute||'C')&&(i.paperType||'2T')===(item.paperType||'2T'))){
+    alert('ورقی با همین ابعاد در همین بخش وجود دارد.'); return;
+  }
+  item.sh=sh; item.sw=sw; item.qty=qty;
+  saveState(); closeInvEditModal();
+  renderInventoryTable();
+  try{ renderSheetPrices(); }catch(_){}
+  try{ calc2LiveRecalc(); }catch(_){}
+}
 function updateQty(id,val){
   const item=inventory.find(i=>i.id===id);
   if(item){item.qty=Math.max(0,parseInt(val)||0);saveState();const b=$('inv-buy-'+id);if(b)b.innerHTML=invBuyPriceHtml(item);}
@@ -5685,12 +5862,14 @@ function invBuyPriceHtml(item){
   const ppm=sheetPricePerM2(item.layer||'3',item.paperType||'2T',item.flute||'C',item.sw);
   const area=((parseFloat(item.sh)||0)*(parseFloat(item.sw)||0))/10000;
   const each=area*ppm, qty=parseInt(item.qty)||0, total=each*qty;
-  const box=(v,l,cls)=>`<div class="inv-detail-box ${cls}"><div class="dv">${v}</div><div class="dl">${l}</div></div>`;
-  if(!ppm) return `<div class="inv-detail-grid" style="grid-template-columns:1fr;margin-bottom:6px">${box((Math.round(area*100)/100).toLocaleString('en-US'),'متراژ هر ورق (متر مربع)','')}</div><div style="font-size:.78rem;color:var(--txm)">قیمت خرید این دسته هنوز ثبت نشده است.</div>`;
+  const editBtn=`<button type="button" aria-label="ویرایش تعداد و ابعاد" title="ویرایش تعداد و ابعاد" onclick="event.stopPropagation();openInvEditModal(${item.id})" style="margin:0 6px;width:auto;min-width:0;padding:2px 6px;border:none!important;border-radius:0;background:none!important;box-shadow:none!important;font-size:1.1rem;line-height:1.4;cursor:pointer;vertical-align:middle">✏️</button>`;
+  const editBtn2=editBtn.replace('margin:0 6px;width:auto;min-width:0;padding:2px 9px;','margin:0;width:auto;min-width:0;flex:0 0 auto;padding:0 10px;align-self:stretch;').replace('✏️','✏️');
+  const box=(v,l,cls,extra)=>`<div class="inv-detail-box ${cls}"><div class="dv">${v}</div><div class="dl">${l}${extra||''}</div></div>`;
+  if(!ppm) return `<div style="margin-bottom:6px">${editBtn}</div><div class="inv-detail-grid" style="grid-template-columns:1fr;margin-bottom:6px">${box((Math.round(area*100)/100).toLocaleString('en-US'),'متراژ هر ورق (متر مربع)','')}</div><div style="font-size:.78rem;color:var(--txm)">قیمت خرید این دسته هنوز ثبت نشده است.</div>`;
   return `<div class="inv-detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
     ${box((Math.round(area*100)/100).toLocaleString('en-US'),'متراژ هر ورق (متر مربع)','')}
     ${box(formatNum(each),'قیمت هر ورق (تومان)','stat-yellow')}
-    ${box(formatNum(total),'قیمت کل '+qty+' ورق (تومان)','stat-green')}
+    <div style="display:flex;align-items:stretch;gap:6px"><div class="inv-detail-box stat-green" style="flex:1;min-width:0"><div class="dv">${formatNum(total)}</div><div class="dl">قیمت کل ${qty} ورق (تومان)</div></div>${editBtn2}</div>
   </div>`;
 }
 
@@ -5717,9 +5896,9 @@ function renderInventorySection(layer,tbodyId){
       ?'background:var(--gold-lt);border-color:var(--gold);color:#78350f;font-weight:700'
       :'background:#dcfce7;border-color:var(--green);color:var(--green-d);font-weight:700';
     return`<tr onclick="toggleInventoryRowDetail(event,${item.id})" style="cursor:pointer">
-      <td><input type="number" value="${item.sh}" min="1" style="background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700" onclick="event.stopPropagation()" onchange="updateDim(${item.id},'sh',this.value)"/></td>
-      <td><input type="number" value="${item.sw}" min="1" style="background:#dc2626;border-color:#b91c1c;color:#fff;font-weight:700" onclick="event.stopPropagation()" onchange="updateDim(${item.id},'sw',this.value)"/></td>
-      <td><input type="number" value="${item.qty}" min="0" style="${qtyStyle}" onclick="event.stopPropagation()" onchange="updateQty(${item.id},this.value)"/></td>
+      <td><input type="number" value="${item.sh}" min="1" readonly tabindex="-1" style="background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700;pointer-events:none"/></td>
+      <td><input type="number" value="${item.sw}" min="1" readonly tabindex="-1" style="background:#dc2626;border-color:#b91c1c;color:#fff;font-weight:700;pointer-events:none"/></td>
+      <td><input type="number" value="${item.qty}" min="0" readonly tabindex="-1" style="${qtyStyle};pointer-events:none"/></td>
       <td style="text-align:center;padding:0 6px"><span id="inv-toggle-${item.id}" style="color:var(--tx2);font-size:.9rem">▾</span></td>
     </tr>
     <tr class="inv-row-detail" id="inv-detail-${item.id}" style="display:none">
@@ -8986,17 +9165,20 @@ btn.classList.toggle('on',!isOpen);
 }
 function gv(id){return parseFloat(document.getElementById(id).value)||0;}
 /* اختلاف گونیا: فاصلهٔ مبدأ متر تا گونیا (سانت)؛ به همهٔ اعداد موقعیت برش و خط تا اضافه می‌شود */
-/* دو اختلاف گونیای جدا: گونیا برش (پیش‌فرض 9.5) و گونیا چاک/خط‌تا (پیش‌فرض 0) */
+/* دو اختلاف گونیای جدا: گونیا برش و خط‌تا (پیش‌فرض 9.5) و گونیا چاک (پیش‌فرض 0) */
 let gonyaCutVal=9.5, gonyaVal=0;
 try{ const _a=localStorage.getItem('gonyaCut'); if(_a!==null&&_a!==''&&isFinite(parseFloat(_a))) gonyaCutVal=parseFloat(_a);
      const _b=localStorage.getItem('gonyaChak'); if(_b!==null&&_b!==''&&isFinite(parseFloat(_b))) gonyaVal=parseFloat(_b); }catch(_){}
-function gOff(){return isFinite(gonyaVal)?gonyaVal:0;}      /* چاک / خط‌تا */
-function gCut(){return isFinite(gonyaCutVal)?gonyaCutVal:0;} /* برش */
-function gonyaFieldHtml(){
+function gOff(){return isFinite(gonyaVal)?gonyaVal:0;}      /* فقط چاک */
+function gCut(){return isFinite(gonyaCutVal)?gonyaCutVal:0;} /* برش و خط‌تا */
+function gonyaFieldHtml(kind){
+  /* kind: 'cut' فقط گونیا برش و خط‌تا (ماشین برش) · 'chak' فقط گونیا چاک (ماشین چاک) · بدون آرگومان: هر دو (بخش دوتکه) */
   const inp=(id,val,fn)=>`<input type="number" id="${id}" step="0.1" value="${val}" placeholder="0" oninput="${fn}(this.value)" style="width:40px;min-width:0;height:19px;padding:0 3px;font-size:.66rem;line-height:1;text-align:center;margin:0;border:1px solid #e5e7eb;background:#fafafa;box-shadow:none;border-radius:6px"/>`;
+  const cut=`<span title="اختلاف گونیا برای برش و خط‌تا (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaCut',gonyaCutVal,'gonyaCutChanged')}<span style="font-size:.85rem;line-height:1">📐</span></span>`;
+  const chak=`<span title="اختلاف گونیا برای چاک (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaChak',gonyaVal,'gonyaChanged')}<span style="font-size:.85rem;line-height:1">📐</span></span>`;
   return `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;direction:ltr;width:fit-content">
-<span title="اختلاف گونیا برای برش (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaCut',gonyaCutVal,'gonyaCutChanged')}<span style="font-size:.85rem;line-height:1">✂️</span></span>
-<span title="اختلاف گونیا برای چاک و خط‌تا (سانتی‌متر)" style="display:flex;align-items:center;gap:3px">${inp('gonyaChak',gonyaVal,'gonyaChanged')}<span style="font-size:.85rem;line-height:1">📐</span></span>
+${kind==='chak'?'':cut}
+${kind==='cut'?'':chak}
 </div>`;
 }
 const CLR={
@@ -9340,13 +9522,13 @@ const pos=r*bHt+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-18}" y1="${yp}" x2="${rxF+18}" y2="${yp}" stroke="${CLR.fold}" stroke-width="2.5"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(pos+gOff()).toFixed(1)}</text>`);
+s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
 for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${_d}</text>`);}
-window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gOff())};
+window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
 }
 function svgBlankArzi(sL,sW,bLen,bHt,nL,nW,_bAL,wasteL,wasteW,L,W,H,v1,v2,v3,v4,glue,flapH,shiftX,withArrows){
@@ -9467,13 +9649,13 @@ const pos=r*bLen+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-18}" y1="${yp}" x2="${rxF+18}" y2="${yp}" stroke="${CLR.fold}" stroke-width="2.5"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.fold}">${(pos+gOff()).toFixed(1)}</text>`);
+s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="10" font-weight="700" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
 for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="10" font-weight="800" fill="#16a34a">${_d}</text>`);}
-window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gOff())};
+window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 }
 return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
 }
@@ -9655,13 +9837,13 @@ const pos=r*bHt+p;
 const yp=rulerTop+pos*sc;
 if(yp>rulerTop+rulerH+1) return;
 s.push(`<line x1="${rxF-10}" y1="${yp}" x2="${rxF+10}" y2="${yp}" stroke="${CLR.fold}" stroke-width="1.6"/>`);
-s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(pos+gOff()).toFixed(1)}</text>`);
+s.push(`<text x="${rxF+22}" y="${yp+4}" font-size="6" font-weight="400" fill="${CLR.fold}">${(pos+gCut()).toFixed(1)}</text>`);
 _fp.push([pos,yp]);
 });
 }
 for(let _i=0;_i<_fp.length-1;_i++){const _d=Math.round((_fp[_i+1][0]-_fp[_i][0])*10)/10;const _ym=(_fp[_i][1]+_fp[_i+1][1])/2;
 s.push(`<text x="${rxF+14}" y="${_ym+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${_d}</text>`);}
-window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gOff())};
+window.__rl={cut:_cp,fold:_fp.map(a=>a[0]+gCut())};
 const SVG_H=TOP+maxH+BOTTOM;
 return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
 }
@@ -9803,12 +9985,12 @@ if(!showChakRuler){
 const xp=px(pos);
 const col=i<=3?CLR.fold:'#a16207';
 s.push(`<line x1="${xp}" y1="${oy+pxH}" x2="${xp}" y2="${oy+pxH+10}" stroke="${col}" stroke-width="1.2"/>`);
-s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="7.5" fill="${col}">${(pos+(i===4?gCut():gOff())).toFixed(1)}</text>`);
+s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="7.5" fill="${col}">${(pos+gCut()).toFixed(1)}</text>`);
 });
 [[v1,v2],[v2,v3],[v3,v4]].forEach(([a0,a1])=>s.push(`<text x="${(px(a0)+px(a1))/2}" y="${oy+pxH+22}" text-anchor="middle" font-size="8.5" font-weight="800" fill="#16a34a">${Math.round((a1-a0)*10)/10}</text>`));
 {const _nx=[];[v1,v2,v3,v4,bLen].forEach(q=>_nx.push(px(q)));[[v1,v2],[v2,v3],[v3,v4]].forEach(([a0,a1])=>_nx.push((px(a0)+px(a1))/2));_nx.sort((a,b)=>a-b);
 for(let k=0;k<_nx.length-1;k++)s.push(`<circle cx="${(_nx[k]+_nx[k+1])/2}" cy="${oy+pxH+19.5}" r="0.45" fill="#f97316"/>`);}
-s.push(`<text x="${ox+pxL/2}" y="${oy+pxH+36}" text-anchor="middle" font-size="7.5" fill="#6b7280">موقعیت تیغ‌ها از لبه چپ (سانت)${gOff()?` — با اختلاف گونیا ${gOff()>0?'+':''}${gOff()}`:''}</text>`);
+s.push(`<text x="${ox+pxL/2}" y="${oy+pxH+36}" text-anchor="middle" font-size="7.5" fill="#6b7280">موقعیت تیغ‌ها از لبه چپ (سانت)${gCut()?` — با اختلاف گونیا ${gCut()>0?'+':''}${gCut()}`:''}</text>`);
 }
 if(showChakRuler){
 const by1=oy+pxH+18;
@@ -9901,7 +10083,7 @@ s.push(`<line x1="${rx}" y1="${oy}" x2="${rx}" y2="${oy+pxF}" stroke="#111" stro
 lines.forEach(l=>{
  const y=py(l.p);
  s.push(`<line x1="${rx-14}" y1="${y}" x2="${rx+14}" y2="${y}" stroke="${l.c}" stroke-width="2.5"/>`);
- s.push(`<text x="${rx+22}" y="${y+4}" font-size="10" font-weight="700" fill="${l.c}">${(l.p+gOff()).toFixed(1)}</text>`);
+ s.push(`<text x="${rx+22}" y="${y+4}" font-size="10" font-weight="700" fill="${l.c}">${(l.p+gCut()).toFixed(1)}</text>`);
 });
 for(let i=0;i<lines.length-1;i++){
  const d=Math.round((lines[i+1].p-lines[i].p)*10)/10, ym=(py(lines[i].p)+py(lines[i+1].p))/2;
@@ -10112,7 +10294,7 @@ function toggleBlankRot(){
 
 /* دکمه‌ی انتخاب یک‌تکه/دوتکه داخل کارت نتیجه */
 function prodPiecesToggleHtml(){
-  return `<div class="btabs" style="margin-bottom:12px"><button type="button" class="bttab${_prodPieces===1?' on':''}" onclick="__setProdPieces(1)" style="font-size:.8rem">یک‌تکه</button><button type="button" class="bttab${_prodPieces===2?' on':''}" onclick="__setProdPieces(2)" style="font-size:.8rem">دوتکه</button>${_prodSplit?`<button type="button" class="bttab${_prodPieces===3?' on':''}" onclick="__setProdPieces(3)" style="font-size:.8rem">سه‌تکه</button>`:''}</div>`;
+  return '';   /* دکمه‌های یک‌تکه/دوتکه/سه‌تکه از تب تولید برداشته شد؛ حالت تکه فقط از کارتنِ ارسالی از تب قیمت تعیین می‌شود */
 }
 /* ══ کارتن دوتکه در تب تولید ══
    هر کارتن = ۲ تکه‌ی کاملاً یکسان؛ هر تکه: [طول L][عرض W][لپ چسب] به طول L+W+لپ و عرض (ارتفاع باز شدهٔ کارتن).
@@ -10161,9 +10343,9 @@ function svgPieceBlank(L,W,H,glue,flapH,botH){
   [[v1,CLR.fold],[v2,CLR.fold],[bLen,'#a16207']].forEach(([pos,col])=>{
     const xp=px(pos);
     s.push(`<line x1="${xp}" y1="${oy+pxH}" x2="${xp}" y2="${oy+pxH+10}" stroke="${col}" stroke-width="1.2"/>`);
-    s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="8" fill="${col}">${(Math.round((pos+(col==='#a16207'?gCut():gOff()))*10)/10)}</text>`);
+    s.push(`<text x="${xp}" y="${oy+pxH+22}" text-anchor="middle" font-size="8" fill="${col}">${(Math.round((pos+gCut())*10)/10)}</text>`);
   });
-  s.push(`<text x="${ox+pxL/2}" y="${oy+pxH+40}" text-anchor="middle" font-size="7.5" fill="#6b7280">موقعیت خط‌تاها از لبه چپ تکه (سانت)${gOff()?` — با اختلاف گونیا ${gOff()>0?'+':''}${gOff()}`:''}</text>`);
+  s.push(`<text x="${ox+pxL/2}" y="${oy+pxH+40}" text-anchor="middle" font-size="7.5" fill="#6b7280">موقعیت خط‌تاها از لبه چپ تکه (سانت)${gCut()?` — با اختلاف گونیا ${gCut()>0?'+':''}${gCut()}`:''}</text>`);
   return `<svg class="d" viewBox="0 0 ${SVG_W} ${SVG_H}">${s.join('')}</svg>`;
 }
 /* نمای از بالا: چطور دو تکه دور هم چسبانده می‌شوند (لپ ① و ②) */
@@ -10216,9 +10398,9 @@ function prodTwoPieceLinesHtml(sL,sW,L,W,H,pieceLen,pieceHt,top,nL,nW){
   for(let c=0;c<nW;c++){ wCut.push(gc+(c+1)*pieceHt); const b=c*pieceHt; if(top>0.01) wFold.push(g+b+top); wFold.push(g+b+top+H); }
   /* محور طول ورق: خط‌تای عمودی هر تکه (L و L+W) و برش بین ردیف‌ها */
   const lCut=[gc], lFold=[];
-  for(let r=0;r<nL;r++){ lCut.push(gc+(r+1)*pieceLen); const b=r*pieceLen; lFold.push(g+b+L); lFold.push(g+b+L+W); }
+  for(let r=0;r<nL;r++){ lCut.push(gc+(r+1)*pieceLen); const b=r*pieceLen; lFold.push(gc+b+L); lFold.push(gc+b+L+W); }
   return `<div class="sec-lbl">④ نحوه‌ی خط‌ها روی ورق ${_fmtN(sL)} × ${_fmtN(sW)}</div>
-<div style="font-size:.76rem;line-height:1.9;color:var(--tx2);margin-bottom:8px">اعداد از گونیا${g?` (با اختلاف گونیا ${g>0?'+':''}${g})`:''} حساب شده‌اند. ردیف بالای هر کادر موقعیت خط از لبه، و ردیف سبز فاصله‌ی بین خط‌هاست. <b>ترتیب کار:</b> اول همه‌ی خط‌تاها روی ورق کامل، آخر برش‌ها.</div>
+<div style="font-size:.76rem;line-height:1.9;color:var(--tx2);margin-bottom:8px">اعداد از گونیا${(g||gc)?` (اختلاف گونیا: برش و خط‌تا ${gc>0?'+':''}${gc} · چاک ${g>0?'+':''}${g})`:''} حساب شده‌اند. ردیف بالای هر کادر موقعیت خط از لبه، و ردیف سبز فاصله‌ی بین خط‌هاست. <b>ترتیب کار:</b> اول همه‌ی خط‌تاها روی ورق کامل، آخر برش‌ها.</div>
 <div style="font-size:.8rem;font-weight:800;margin:6px 0">الف) در جهت عرض ورق (${_fmtN(sW)} سانت) — ${nW} ستون تکه</div>
 ${prodLineRow('خط تا / چاک (درب بالا و پایین)',foldC,wFold,false)}
 ${prodLineRow('خط برش بین ستون‌ها',cutC,wCut,true)}
@@ -10272,7 +10454,7 @@ function prodRenderTwoPiece(sL,sW,L,W,H,glue,keepView){
   h+=`<div class="sec-lbl">② خط‌تا و چاک روی هر تکه</div>
 <div style="max-width:100%">${svgPieceBlank(L,W,H,glue,geo.top,geo.bot)}</div>
 <div style="font-size:.78rem;line-height:2;margin:6px 0 12px">
-<b>خط‌تای عمودی (آبی):</b> ${f1(L)} و ${f1(L+W)} سانت از لبه‌ی تکه${gOff()?` — روی متر دستگاه با اختلاف گونیا (${gOff()>0?'+':''}${gOff()}): ${f1(L+gOff())} و ${f1(L+W+gOff())}`:''} · لپ چسب ${glue} سانت بعد از آخرین خط‌تا<br>
+<b>خط‌تای عمودی (آبی):</b> ${f1(L)} و ${f1(L+W)} سانت از لبه‌ی تکه${gCut()?` — روی متر دستگاه با اختلاف گونیا (${gCut()>0?'+':''}${gCut()}): ${f1(L+gCut())} و ${f1(L+W+gCut())}`:''} · لپ چسب ${glue} سانت بعد از آخرین خط‌تا<br>
 <b>چاک افقی (قرمز):</b> ${geo.top>0.01?`${f1(geo.top)} و `:''}${f1(geo.top+H)} سانت از لبه‌ی بالای تکه${geo.top>0.01?'':' (بدون درب بالا)'}
 </div>`;
   if(fits) h+=prodTwoPieceLinesHtml(sL,sW,L,W,H,pieceLen,pieceHt,geo.top,nL,nW);
@@ -10353,7 +10535,7 @@ ${rulerCap('combo',()=>svgBlankCombo(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v
 <div class="shrinkR">${svgBlank(L,W,H,v1,v2,v3,v4,glue,flapH,blankLen,blankHt)}</div>
 </div>
 <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:26px">
-${gonyaFieldHtml().replace('margin-top:10px','margin-top:0')}
+${gonyaFieldHtml('cut').replace('margin-top:10px','margin-top:0')}
 <div class="btabs">
 <button id="btn-single" onclick="toggleAcc('single')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">1B</button>
 <button type="button" id="btn-knife" onclick="showKnifeSettings()" title="تنظیم تیغ‌ها" aria-label="تنظیم تیغ‌ها" style="background:none;border:none;box-shadow:none;padding:8px 12px;font-size:1.05rem;line-height:1;cursor:pointer">🔪</button>
@@ -10376,7 +10558,7 @@ ${svgBlank(L,W,H,v1,v2,v3,v4,glue,flapH,blankLen,blankHt,true)}
 </div>
 </div>
 </div>
-${gonyaFieldHtml()}
+${gonyaFieldHtml('chak')}
 </div></div>`;
 }
 const el=document.getElementById('res');
