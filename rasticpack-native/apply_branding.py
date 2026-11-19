@@ -19,13 +19,11 @@ print("branding applied")
 
 # صفحه‌ی شروع (splash) اندروید: حذف لوگو؛ فقط رنگ پس‌زمینه‌ی خود برنامه تا بدون پرش وارد برنامه شود
 open(os.path.join(RES, "values/rastic_splash.xml"), "w").write('''<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <color name="rastic_splash_bg">#f2efe8</color>
-  <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
-    <item name="android:background">@color/rastic_splash_bg</item>
-    <item name="android:windowBackground">@color/rastic_splash_bg</item>
-  </style>
-</resources>''')
+<resources><color name="rastic_splash_bg">#f2efe8</color></resources>''')
+stp = os.path.join(RES, "values/styles.xml"); st = open(stp, encoding="utf-8").read()
+st = re.sub(r'<style name="AppTheme\.NoActionBarLaunch"[^>]*>.*?</style>',
+  '<style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">\n        <item name="android:background">@color/rastic_splash_bg</item>\n        <item name="android:windowBackground">@color/rastic_splash_bg</item>\n    </style>', st, flags=re.S)
+open(stp, "w", encoding="utf-8").write(st)
 v31 = os.path.join(RES, "values-v31"); os.makedirs(v31, exist_ok=True)
 open(os.path.join(v31, "rastic_splash.xml"), "w").write('''<?xml version="1.0" encoding="utf-8"?>
 <resources>
