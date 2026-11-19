@@ -833,14 +833,13 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <input type="checkbox" id="rial-tier-enabled" onchange="setRialTierEnabled(this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
           <span>فعال بودن دکمه سود پله‌ای (کنار چک در تب قیمت)</span>
         </label>
-        <div style="font-size:.74rem;color:var(--tx2);line-height:1.8;margin-bottom:10px">وقتی دکمه در تب قیمت پررنگ باشد، سود کل هر ردیف بر اساس تعداد کارتن آن ردیف تعیین می‌شود (ریال).</div>
+        <div style="font-size:.74rem;color:var(--tx2);line-height:1.8;margin-bottom:10px">وقتی دکمه در تب قیمت پررنگ باشد، سود کل هر ردیف بر اساس تعداد کارتن آن ردیف پله‌ای تعیین می‌شود.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="field" style="margin-bottom:0"><label>از تعداد (پله بالا)</label><input type="number" id="rt-th1" inputmode="numeric" min="0" oninput="updateRialTier('th1',this.value)"/></div>
-          <div class="field" style="margin-bottom:0"><label>سود پله بالا (ریال)</label><input type="text" id="rt-a1" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a1',this.value)"/></div>
-          <div class="field" style="margin-bottom:0"><label>از تعداد (پله وسط)</label><input type="number" id="rt-th2" inputmode="numeric" min="0" oninput="updateRialTier('th2',this.value)"/></div>
-          <div class="field" style="margin-bottom:0"><label>سود پله وسط (ریال)</label><input type="text" id="rt-a2" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a2',this.value)"/></div>
-          <div class="field" style="margin-bottom:0;grid-column:1"><label>کمتر از پله وسط</label><input type="text" disabled id="rt-lowinfo" style="opacity:.6"/></div>
-          <div class="field" style="margin-bottom:0"><label>سود پله پایین (ریال)</label><input type="text" id="rt-a3" inputmode="numeric" oninput="formatThousands(this);updateRialTier('a3',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>تعداد بالاترین پله</label><input type="number" id="rt-top" inputmode="numeric" min="0" oninput="updateRialTier('top',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>سود بالاترین پله (ریال)</label><input type="text" id="rt-topamt" inputmode="numeric" oninput="formatThousands(this);updateRialTier('topAmt',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>هر چند عدد کمتر</label><input type="number" id="rt-step" inputmode="numeric" min="1" oninput="updateRialTier('step',this.value)"/></div>
+          <div class="field" style="margin-bottom:0"><label>کاهش سود هر پله (ریال)</label><input type="text" id="rt-dec" inputmode="numeric" oninput="formatThousands(this);updateRialTier('dec',this.value)"/></div>
+          <div class="field" style="margin-bottom:0;grid-column:1/-1"><label>حداقل سود (ریال)</label><input type="text" id="rt-min" inputmode="numeric" oninput="formatThousands(this);updateRialTier('min',this.value)"/></div>
         </div>
       </div>
 
@@ -3214,17 +3213,22 @@ function calc2HoldStart(e,d){
 /* ══ حالت سود: «درصدی» (پیش‌فرض) یا «متری» (مبلغ سود به‌ازای هر متر مربع کارتن) ══ */
 /* مقدار سود مؤثر: در حالت ریالی مبلغ تنظیمات؛ در بقیه عدد کادر سود */
 /* ══ سود پله‌ای ریالی: بر اساس تعداد کارتن هر ردیف (پیش‌فرض: ≥80 → 10,000,000 ؛ 30 تا 79 → 5,000,000 ؛ زیر 30 → 3,000,000) ══ */
-const RIAL_TIER_DEF={th1:80,th2:30,a1:10000000,a2:5000000,a3:3000000};
+const RIAL_TIER_DEF={top:100,topAmt:10000000,step:10,dec:1000000,min:3000000};
+/* سود پله‌ای: از «تعداد بالا» با «سود بالا»؛ به ازای هر «گام» تعداد کمتر، «کاهش» از سود کم می‌شود؛ هرگز کمتر از «حداقل» نمی‌شود
+   پیش‌فرض: ۱۰۰ عدد = ۱ میلیون تومان ، ۹۰ = ۹۰۰ هزار ، ... ، ۳۰ و کمتر = ۳۰۰ هزار تومان (مبالغ به ریال) */
 function getRialTier(){
   const t={};
-  Object.keys(RIAL_TIER_DEF).forEach(k=>{ const v=parseFloat(invoiceSettings['rialTier_'+k]); t[k]=(!isNaN(v)&&v>=0)?v:RIAL_TIER_DEF[k]; });
+  Object.keys(RIAL_TIER_DEF).forEach(k=>{ const v=parseFloat(invoiceSettings['rialTier2_'+k]); t[k]=(!isNaN(v)&&v>=0)?v:RIAL_TIER_DEF[k]; });
+  if(!(t.step>0)) t.step=RIAL_TIER_DEF.step;
   return t;
 }
 function rialTierEnabled(){ return invoiceSettings.rialTierEnabled!==false; }
 function rialTierActive(){ return getProfitMode()==='rial'&&rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
 function rialTierAmt(qty){
   const t=getRialTier(), q=+qty||0;
-  return q>=t.th1?t.a1:q>=t.th2?t.a2:t.a3;
+  if(q>=t.top) return Math.max(t.min,t.topAmt);
+  const levels=Math.ceil((t.top-q)/t.step-1e-9);
+  return Math.max(t.min,t.topAmt-levels*t.dec);
 }
 function applyRialTierUI(){
   const b=$('calc2-tier-btn');
@@ -3241,9 +3245,8 @@ function applyRialTierUI(){
     box.style.display=getProfitMode()==='rial'?'block':'none';
     const t=getRialTier(), set=(id,v)=>{ const e=$(id); if(e&&document.activeElement!==e) e.value=v; };
     const c=$('rial-tier-enabled'); if(c) c.checked=rialTierEnabled();
-    set('rt-th1',t.th1); set('rt-th2',t.th2);
-    set('rt-a1',formatNum(t.a1)); set('rt-a2',formatNum(t.a2)); set('rt-a3',formatNum(t.a3));
-    set('rt-lowinfo','کمتر از '+t.th2+' عدد');
+    set('rt-top',t.top); set('rt-step',t.step);
+    set('rt-topamt',formatNum(t.topAmt)); set('rt-dec',formatNum(t.dec)); set('rt-min',formatNum(t.min));
   }
 }
 function toggleRialTier(){
@@ -3262,7 +3265,7 @@ function setRialTierEnabled(on){
 }
 function updateRialTier(k,val){
   const n=parseFloat(String(val).replace(/,/g,''));
-  if(isNaN(n)||n<0) delete invoiceSettings['rialTier_'+k]; else invoiceSettings['rialTier_'+k]=n;
+  if(isNaN(n)||n<0) delete invoiceSettings['rialTier2_'+k]; else invoiceSettings['rialTier2_'+k]=n;
   saveState();
   if(rialTierActive()) calc2ProfitChanged();
 }
