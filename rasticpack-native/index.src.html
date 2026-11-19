@@ -1959,6 +1959,21 @@ function seedSampleDataIfEmpty(){
     }
     changed=true;
   }
+  /* یک‌بار: قیمت kT (سه‌لایه، مدل A) → قیمت کل 850,000 (کرایه‌ی ثبت‌شده حفظ می‌شود)،
+     و ورق‌های 204×180 و 177×180 هرکدام 300 عدد به موجودی اضافه شود (اگر هست و کمتر از 300 است، 300 شود). */
+  if(!invoiceSettings.kTSeedV4){
+    invoiceSettings.kTSeedV4=true;
+    const kA4=sheetPriceKey('3','E','A');
+    const fr4=parseFloat(sheetPriceBreakdown[kA4]?.freight)||0;
+    sheetPriceBreakdown[kA4]={product:Math.max(0,850000-fr4),freight:fr4};
+    recalcSheetPriceTotal(kA4);
+    [204,177].forEach(sh=>{
+      const ex=inventory.find(x=>x.layer==='3'&&x.paperType==='KT'&&x.flute==='E'&&+x.sw===180&&+x.sh===sh);
+      if(ex){ if((+ex.qty||0)<300) ex.qty=300; }
+      else inventory.push({id:nextId++,sh,sw:180,layer:'3',qty:300,flute:'E',paperType:'KT'});
+    });
+    changed=true;
+  }
   /* قیمت پیش‌فرض پنج‌لایه (فقط وقتی هنوز هیچ قیمتی برای پنج‌لایه ثبت نشده):
      عرض A: Kii = 1,090,000 ، Sik = 1,120,000 — عرض T: KiT = 1,166,000 (Sik در عرض T وجود ندارد) */
   const _has5=PRICE_CATEGORIES.some(cat=>WIDTH_CLASSES.some(k=>sheetPrices[sheetPriceKey('5',cat,k)]));
@@ -9178,6 +9193,21 @@ if(exclusiveGroup.includes(id)){
 }
 panel.classList.toggle('open',!isOpen);
 btn.classList.toggle('on',!isOpen);
+if(!isOpen) tightenRot(panel);
+}
+/* برش فضای خالی دور نقشه‌های چرخیده: viewBox دقیقاً به اندازهٔ محتوا */
+function tightenRot(root){
+  (root||document).querySelectorAll('svg.d').forEach(svg=>{
+    if(svg.dataset.tight) return;
+    const p=(svg.getAttribute('viewBox')||'').trim().split(/\s+/).map(Number);
+    if(p.length!==4||!(p[0]===-120||(root&&root.id==='panel-mainsheet'))||!svg.clientWidth) return;
+    let bb; try{ bb=svg.getBBox(); }catch(_){ return; }
+    if(!bb||!bb.width||!bb.height) return;
+    const pad=8, x0=bb.x-pad, y0=Math.max(p[1],bb.y-pad);
+    const x1=bb.x+bb.width+pad, y1=Math.min(p[1]+p[3],bb.y+bb.height+pad);
+    svg.setAttribute('viewBox',x0+' '+y0+' '+(x1-x0)+' '+(y1-y0));
+    svg.dataset.tight='1';
+  });
 }
 function gv(id){return parseFloat(document.getElementById(id).value)||0;}
 /* اختلاف گونیا: فاصلهٔ مبدأ متر تا گونیا (سانت)؛ به همهٔ اعداد موقعیت برش و خط تا اضافه می‌شود */
@@ -9514,7 +9544,7 @@ if(AR&&nX>0&&nY>0) addBlankArrows(s,{k:1.5,fs:14,ox,oy,pxA:pxL,pxB:pxW,
 const rulerTop=oy;
 const rulerH=pxW;
 var _cp=[];
-const rxC=ox+pxL+55+160;
+const rxC=ox+pxL+40+75;
 s.push(`<text x="${rxC}" y="${rulerTop-16}" text-anchor="middle" font-size="10" font-weight="800" fill="#111">خط برش</text>`);
 s.push(`<line x1="${rxC}" y1="${rulerTop}" x2="${rxC}" y2="${rulerTop+rulerH}" stroke="#111" stroke-width="3.5"/>`);
 for(let r=0;r<=nY;r++){
@@ -9531,7 +9561,7 @@ const y1=rulerTop+(r-1)*bHt*sc, y2=rulerTop+r*bHt*sc;
 if(y2>rulerTop+rulerH+2) continue;
 s.push(`<text x="${rxC+14}" y="${(y1+y2)/2+4}" text-anchor="start" font-size="7" font-weight="800" fill="#16a34a">${Math.round(bHt*10)/10}</text>`);
 }
-const rxF=ox+pxL+55;
+const rxF=ox+pxL+40;
 s.push(`<text x="${rxF}" y="${rulerTop-16}" text-anchor="middle" font-size="10" font-weight="800" fill="#111">خط تا</text>`);
 s.push(`<line x1="${rxF}" y1="${rulerTop}" x2="${rxF}" y2="${rulerTop+rulerH}" stroke="#111" stroke-width="3.5"/>`);
 var _fp=[];
@@ -9642,8 +9672,8 @@ if(withArrows&&nL>0&&nW>0) addBlankArrows(s,{k:2,fs:20,ox,oy,pxA:pxW,pxB:pxL,
  wVval:wasteL,wVy1:oy+nL*bLen*sc,wVy2:oy+pxL,
  wHval:wasteW,wHx1:ox+nW*bHt*sc,wHx2:ox+pxW});
 if(nL>0&&nW>0){
-const rxC=ox+pxW+200+90;
-const rxF=ox+pxW+200;
+const rxC=ox+pxW+55+80;
+const rxF=ox+pxW+55;
 const rulerTop=oy, rulerH=pxL;
 var _cp=[];
 s.push(`<text x="${rxC}" y="${rulerTop-16}" text-anchor="middle" font-size="10" font-weight="800" fill="#111">خط برش</text>`);
@@ -10538,17 +10568,24 @@ const fits=bestCount>0&&(!_three||_pcs3().every(q=>Math.floor(q.sL/q.bLen)*Math.
 let html='';
 if(machine==='m'){
 html+=`<div class="card">
-<div class="c-body">
+<div class="c-body" style="padding:10px 8px 8px">
 ${prodPiecesToggleHtml()}${!fits?`<div class="alrt">⚠️ از این شیت هیچ ${(_two||_three)?'تکه‌ای':'کارتنی'} درنمی‌آد. حداقل نیاز: <strong>${blankLen.toFixed(1)} × ${blankHt.toFixed(1)} سانت</strong>${(!_two&&!_three&&sL>=(L+W+glue)&&sW>=blankHt)?`<br>💡 به‌صورت <strong>دوتکه</strong> (هر تکه ${(L+W+glue).toFixed(1)} × ${blankHt.toFixed(1)}) از همین ورق قابل تولید است — دکمه‌ی «دوتکه» را بزنید.`:''}</div>`:''}
 ${(_boxType&&!_two&&!_three)?`<div style="margin-top:10px;font-size:.78rem;font-weight:800;color:var(--brand)">📦 نوع کارتن: ${_boxType==='F'?'درب روی‌هم کامل (F) — درب بالا و پایین هرکدام W':'بدون درب بالا (H) — فقط درب پایین W/2'} · بلانک ${blankLen.toFixed(1)} × ${blankHt.toFixed(1)}</div>`:''}
-<div style="margin-top:14px">
-<div class="btabs">
-<button id="btn-mainsheet" onclick="toggleAcc('mainsheet')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">F</button>
-<button id="btn-toli" onclick="toggleAcc('toli')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:#dc2626;cursor:pointer">w</button>
-<button id="btn-tl" onclick="toggleAcc('tl')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:#2563eb;cursor:pointer">L</button>
+<div style="margin-top:2px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;direction:ltr">
+<div style="display:flex;align-items:center;gap:0;direction:ltr;flex:0 0 auto">
+<button id="btn-single" onclick="toggleAcc('single')" style="background:none;border:none;box-shadow:none;padding:6px 7px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer;line-height:1">1B</button>
+<button type="button" id="btn-knife" onclick="showKnifeSettings()" title="تنظیم تیغ‌ها" aria-label="تنظیم تیغ‌ها" style="background:none;border:none;box-shadow:none;padding:6px 7px;font-size:1.05rem;line-height:1;cursor:pointer">🔪</button>
+${gonyaFieldHtml('cut').replace('margin-top:10px','margin-top:0')}
+</div>
+<div class="btabs" style="direction:rtl;flex-wrap:nowrap">
+<button id="btn-mainsheet" onclick="toggleAcc('mainsheet')" style="background:none;border:none;box-shadow:none;padding:8px 11px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">F</button>
+<button id="btn-toli" onclick="toggleAcc('toli')" style="background:none;border:none;box-shadow:none;padding:8px 11px;font-family:inherit;font-size:.8rem;font-weight:700;color:#dc2626;cursor:pointer">w</button>
+<button id="btn-tl" onclick="toggleAcc('tl')" style="background:none;border:none;box-shadow:none;padding:8px 11px;font-family:inherit;font-size:.8rem;font-weight:700;color:#2563eb;cursor:pointer">L</button>
+</div>
 </div>
 <div class="acc-panel" id="panel-mainsheet">
-${_three?_pcs3().map(q=>`<div style="max-width:58%;margin:0 auto 14px">${svgSheetCutOnly(q.sL,q.sW,q.bLen,blankHt,0,0,true,0,0,true)}</div>`).join(''):`<div style="max-width:58%;margin:0 auto">${svgSheetCutOnly(sL,sW,blankLen,blankHt,0,0,true,0,0,true)}</div>`}
+${_three?_pcs3().map(q=>`<div class="tblk" style="margin:0 auto 6px">${svgSheetCutOnly(q.sL,q.sW,q.bLen,blankHt,0,0,true,0,0,true)}</div>`).join(''):`<div class="tblk" style="margin:0 auto">${svgSheetCutOnly(sL,sW,blankLen,blankHt,0,0,true,0,0,true)}</div>`}
 </div>
 <div class="acc-panel" id="panel-arzi">
 <div class="shrinkR">${rulerCap('arzi',()=>svgBlankArzi(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v2,v3,v4,glue,flapH,240))}</div>
@@ -10565,13 +10602,7 @@ ${rulerCap('combo',()=>svgBlankCombo(sL,sW,blankLen,blankHt,0,0,0,0,0,L,W,H,v1,v
 <div class="acc-panel" id="panel-single">
 <div class="shrinkR">${svgBlank(L,W,H,v1,v2,v3,v4,glue,flapH,blankLen,blankHt)}</div>
 </div>
-<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:26px">
-${gonyaFieldHtml('cut').replace('margin-top:10px','margin-top:0')}
-<div class="btabs">
-<button id="btn-single" onclick="toggleAcc('single')" style="background:none;border:none;box-shadow:none;padding:8px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--gray4);cursor:pointer">1B</button>
-<button type="button" id="btn-knife" onclick="showKnifeSettings()" title="تنظیم تیغ‌ها" aria-label="تنظیم تیغ‌ها" style="background:none;border:none;box-shadow:none;padding:8px 12px;font-size:1.05rem;line-height:1;cursor:pointer">🔪</button>
-<button type="button" id="btn-rotblank" onclick="toggleBlankRot()" title="چرخش 90 درجه به چپ" aria-label="چرخش 90 درجه به چپ" style="background:none;border:none;box-shadow:none;padding:8px 12px;font-size:1.05rem;line-height:1;cursor:pointer">↺</button>
-</div>
+
 </div>
 </div></div>`;
 }
