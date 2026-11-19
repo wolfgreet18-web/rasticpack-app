@@ -16,3 +16,25 @@ s = re.sub(r'(<string name="app_name">)[^<]*(</string>)', r'\1​\2', s)
 s = re.sub(r'(<string name="title_activity_main">)[^<]*(</string>)', r'\1​\2', s)
 open(sp, "w", encoding="utf-8").write(s)
 print("branding applied")
+
+# صفحه‌ی شروع (splash) اندروید: حذف لوگو؛ فقط رنگ پس‌زمینه‌ی خود برنامه تا بدون پرش وارد برنامه شود
+open(os.path.join(RES, "values/rastic_splash.xml"), "w").write('''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="rastic_splash_bg">#f2efe8</color>
+  <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+    <item name="android:background">@color/rastic_splash_bg</item>
+    <item name="android:windowBackground">@color/rastic_splash_bg</item>
+  </style>
+</resources>''')
+v31 = os.path.join(RES, "values-v31"); os.makedirs(v31, exist_ok=True)
+open(os.path.join(v31, "rastic_splash.xml"), "w").write('''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+    <item name="android:background">@color/rastic_splash_bg</item>
+    <item name="android:windowBackground">@color/rastic_splash_bg</item>
+    <item name="android:windowSplashScreenBackground">@color/rastic_splash_bg</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    <item name="android:windowSplashScreenIconBackgroundColor">@color/rastic_splash_bg</item>
+  </style>
+</resources>''')
+print("splash removed")
