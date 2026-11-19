@@ -90,10 +90,12 @@ const RpOcr=(function(){
 
   /* ───── بارگذاری دارایی‌های تعبیه‌شده ───── */
   let _assets=null, _urls=null, _tessLoaded=null, _worker=null;
-  function readAssets(){
+  async function readAssets(){
     if(_assets) return _assets;
     const el=document.getElementById('ocr-assets');
     let o=null; try{ o=JSON.parse(el?el.textContent:'{}'); }catch(_){ o=null; }
+    /* APK: دارایی‌ها فایل جدا هستند (HTML سبک می‌ماند و برنامه سریع‌تر باز می‌شود)؛ فقط هنگام اولین استفاده‌ی OCR خوانده می‌شوند */
+    if(!o||!o.worker){ try{ const r=await fetch('ocr-assets.json'); if(r.ok) o=await r.json(); }catch(_){ } }
     if(!o||!o.worker||!o.tess||!o.core||!o.fas) throw new Error('بسته‌ی OCR آفلاین داخل این نسخه تعبیه نشده است.');
     _assets=o; return o;
   }
@@ -108,7 +110,7 @@ const RpOcr=(function(){
   }
   async function prepare(onStatus){
     if(_urls&&_tessLoaded) return;
-    const a=readAssets();
+    const a=await readAssets();
     onStatus&&onStatus('بارگذاری موتور OCR…');
     const tessJs=await gunzip(b64ToBytes(a.tess));
     const workerJs=await gunzip(b64ToBytes(a.worker));
@@ -141,7 +143,7 @@ const RpOcr=(function(){
   }
   let _pw=null;
   async function getPriceWorker(onStatus){
-    const a=readAssets(); if(!a.eng) return getWorker(onStatus);
+    const a=await readAssets(); if(!a.eng) return getWorker(onStatus);
     if(_pw) return _pw;
     await prepare(onStatus);
     onStatus&&onStatus('آماده‌سازی خواندن ارقام…');

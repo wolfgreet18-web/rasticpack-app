@@ -27,7 +27,8 @@ let html = fs.readFileSync('index.src.html', 'utf8');
 if (fs.existsSync('../ocr-assets/fas.traineddata.gz')) {
   const { execFileSync } = await import('node:child_process');
   const j = execFileSync('python3', ['make_ocr_assets.py', '--eng'], { maxBuffer: 1 << 30 }).toString();
-  html = html.replace('<script id="ocr-assets" type="application/json">{}</script>', () => '<script id="ocr-assets" type="application/json">' + j + '</script>');
+  /* فایل جدا (نه داخل HTML): HTML ۹ مگابایتی هر بار باز شدن را کند می‌کرد؛ فایل فقط هنگام اولین استفاده‌ی OCR خوانده می‌شود */
+  fs.writeFileSync('www/ocr-assets.json', j);
 }
 
 // ۱) سند چاپ فاکتور (داخل رشته‌ی JS): لینک گوگل‌فونت → استایل محلی
