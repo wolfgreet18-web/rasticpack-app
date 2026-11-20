@@ -10317,11 +10317,12 @@ function showCalc2Details(rowId){
   if(!P.length){ alert('ابتدا محاسبه را انجام دهید.'); return; }
   const cutC=(typeof CLR!=='undefined'&&CLR.cut)||'#dc2626', foldC=(typeof CLR!=='undefined'&&CLR.fold)||'#2563eb';
   const f=_fmtN, pc=P.length>1;
-  const sect=(title)=>`<div style="font-weight:800;font-size:1.05rem;color:#111;margin:14px 0 6px;padding-top:10px;border-top:1.5px solid #d1d5db">${title}</div>`;
+  const sect=(title,first)=>`<div style="font-weight:800;font-size:1.05rem;color:#111;margin:${first?'2px':'14px'} 0 6px;${first?'':'padding-top:10px;border-top:1.5px solid #d1d5db'}">${title}</div>`;
   const CL='#2563eb', CW='#dc2626', CH='#16a34a';
-  const seqRow=(pos,color)=>{
+  const _g=c2BoxGeom(r.width,r.height,r.type||''), _flap=Math.max(_g.top,_g.bot);
+  const seqRow=(pos,color,extra)=>{
     if(!pos||!pos.length) return '';
-    const parts=pos.map((v,i)=>`<span style="white-space:nowrap">${f(v)}${i<pos.length-1?`<span style="color:#16a34a;font-size:.45em;font-weight:700;margin:0 .5em;vertical-align:middle">${f(pos[i+1]-v)}</span>`:''}</span> `).join('');
+    const parts=pos.map((v,i)=>`<span style="white-space:nowrap">${f(v)}${i<pos.length-1?`<span style="color:#16a34a;font-size:.45em;font-weight:700;margin:0 .5em;vertical-align:middle">${f(pos[i+1]-v)}</span>`:(extra!=null?`<span style="color:#7c3aed;margin-inline-start:.55em">${f(extra)}</span>`:'')}</span> `).join('');
     return `<div class="kn-w" dir="ltr" style="padding:2px 0;margin-bottom:10px;font-size:44px;font-weight:800;line-height:1.5;text-align:center;text-wrap:balance;color:${color}">${parts}</div>`;
   };
   const foldRow=(pos)=>seqRow(pos,foldC);
@@ -10338,9 +10339,9 @@ function showCalc2Details(rowId){
     const t=pc?`<div style="font-weight:800;font-size:1.1rem;color:#fff;background:#16a34a;border-radius:10px;padding:6px 12px;margin:16px 0 4px;text-align:center">تکه ${k+1}</div>`:'';
     const w=R['toli'+sfx], l=R['tl'+sfx];
     body+=t
-      +sect('کریز')+(w?cutRow(w.cut)+foldRow(w.fold):'')
+      +sect('کریز',k===0&&!pc)+(w?cutRow(w.cut)+foldRow(w.fold):'')
       +sect('۴ خط')+(l?cutRow(l.cut)+foldRow(l.fold):'')
-      +sect('چاک')+foldRow(chak);
+      +sect('چاک')+seqRow(chak,foldC,_flap);
   });
   const dm=(a,b,c)=>`<span dir="ltr" style="display:inline-block;unicode-bidi:isolate;white-space:nowrap"><span style="color:${CL}">${f(a)}</span><span style="color:#6b7280"> × </span><span style="color:${CW}">${f(b)}</span>${c==null?'':`<span style="color:#6b7280"> × </span><span style="color:${CH}">${f(c)}</span>`}</span>`;
   const sheetTxt=P.map(q=>dm(q.sL,q.sW)).join('<span style="color:#6b7280"> ، </span>');
