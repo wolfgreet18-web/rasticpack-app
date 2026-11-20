@@ -10352,13 +10352,14 @@ function showCalc2Details(rowId){
   const m=document.createElement('div');
   m.id='knife-modal'; m.__d={cut:[],fold:[]};
   m.style.cssText='position:fixed;inset:0;z-index:99999;background:#f3f4f6;display:flex;flex-direction:column;padding:0;overscroll-behavior:contain';
-  m.innerHTML=`<div class="kn-box" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;background:#f3f4f6;width:100%;max-width:none;border-radius:0;padding:calc(12px + env(safe-area-inset-top,0px)) 10px calc(24px + env(safe-area-inset-bottom,0px));direction:rtl;font-family:inherit">
+  m.innerHTML=`<div class="kn-box" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;background:#f3f4f6;width:100%;max-width:none;border-radius:0;padding:calc(12px + env(safe-area-inset-top,0px)) 10px calc(80px + env(safe-area-inset-bottom,0px));direction:rtl;font-family:inherit">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
       ${hdr}
-      <button type="button" onclick="document.getElementById('knife-modal').remove()" style="margin:0;width:auto;min-width:0;padding:6px 16px;font-size:1.2rem;border-radius:10px;border:none;background:#e5e7eb;color:#111;box-shadow:none;cursor:pointer">✕</button>
+      
     </div>
     ${body}
   </div>`;
+  m.insertAdjacentHTML('beforeend',`<button type="button" onclick="document.getElementById('knife-modal').remove()" style="position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.8rem;line-height:1;border:none;background:transparent;color:#111;box-shadow:none;cursor:pointer">✕</button>`);
   document.body.appendChild(m);
   const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
   if(_z&&_z!==1) m.style.zoom=String(1/_z);
