@@ -10319,14 +10319,17 @@ function showCalc2Details(rowId){
   const f=_fmtN, pc=P.length>1;
   const sect=(title)=>`<div style="font-weight:800;font-size:1.05rem;color:#111;margin:14px 0 6px;padding-top:10px;border-top:1.5px solid #d1d5db">${title}</div>`;
   const CL='#2563eb', CW='#dc2626', CH='#16a34a';
-  const foldRow=(pos)=>{
+  const seqRow=(pos,color)=>{
     if(!pos||!pos.length) return '';
-    const parts=pos.map((v,i)=>`<span style="white-space:nowrap">${f(v)}${i<pos.length-1?`<span style="color:#16a34a;font-size:.45em;font-weight:700;margin:0 .6em;vertical-align:middle">${f(pos[i+1]-v)}</span>`:''}</span>`).join('');
-    return `<div class="kn-big" dir="ltr" style="padding:4px 0;margin-bottom:14px;font-size:1.55rem;font-weight:800;line-height:1.7;text-align:center;white-space:nowrap;color:${foldC}">${parts}</div>`;
+    const parts=pos.map((v,i)=>`<span style="white-space:nowrap">${f(v)}${i<pos.length-1?`<span style="color:#16a34a;font-size:.45em;font-weight:700;margin:0 .5em;vertical-align:middle">${f(pos[i+1]-v)}</span>`:''}</span> `).join('');
+    return `<div class="kn-w" dir="ltr" style="padding:2px 0;margin-bottom:10px;font-size:44px;font-weight:800;line-height:1.5;text-align:center;text-wrap:balance;color:${color}">${parts}</div>`;
   };
+  const foldRow=(pos)=>seqRow(pos,foldC);
   const cutRow=(pos)=>{
-    if(!pos||pos.length<2) return '';
-    return `<div class="kn-big" dir="ltr" style="padding:4px 0;margin-bottom:14px;font-size:1.55rem;font-weight:800;line-height:1.7;text-align:center;color:${cutC}">${f(pos[pos.length-1])}</div>`;
+    if(!pos||!pos.length) return '';
+    if(!_kS()) return seqRow(pos,cutC);   /* حالت کامل: همه‌ی عددها و فاصله‌ها */
+    if(pos.length<2) return '';
+    return `<div class="kn-w1" dir="ltr" style="padding:2px 0;margin-bottom:10px;font-size:44px;font-weight:800;line-height:1.5;text-align:center;color:${cutC}">${f(pos[pos.length-1])}</div>`;
   };
   let body='';
   P.forEach((q,k)=>{
@@ -10343,24 +10346,25 @@ function showCalc2Details(rowId){
   const sheetTxt=P.map(q=>dm(q.sL,q.sW)).join('<span style="color:#6b7280"> ، </span>');
   const blankTxt=P.map(q=>dm(q.bLen,bh)).join('<span style="color:#6b7280"> ، </span>');
   const grp=(t,inner)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:.7em;font-weight:700;color:#6b7280;direction:rtl">${t}</span><div style="white-space:nowrap">${inner}</div></div>`;
-  const hdr=`<div id="kn-hdr" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:8px 8px;margin-bottom:6px;display:flex;gap:14px;justify-content:center;align-items:flex-end;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${grp('کارتن',dm(r.length,r.width,r.height))}<span style="color:#d1d5db">|</span>${grp('ورق',sheetTxt)}<span style="color:#d1d5db">|</span>${grp('شیت',blankTxt)}</div>`;
+  const hdr=`<div id="kn-hdr" style="flex:1;min-width:0;display:flex;gap:12px;justify-content:center;align-items:flex-end;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${grp('کارتن',dm(r.length,r.width,r.height))}<span style="color:#d1d5db">|</span>${grp('ورق',sheetTxt)}<span style="color:#d1d5db">|</span>${grp('شیت',blankTxt)}</div>`;
   const old=document.getElementById('knife-modal'); if(old) old.remove();
   const m=document.createElement('div');
   m.id='knife-modal'; m.__d={cut:[],fold:[]};
   m.style.cssText='position:fixed;inset:0;z-index:99999;background:#f3f4f6;display:flex;flex-direction:column;padding:0;overscroll-behavior:contain';
   m.innerHTML=`<div class="kn-box" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;background:#f3f4f6;width:100%;max-width:none;border-radius:0;padding:calc(12px + env(safe-area-inset-top,0px)) 10px calc(24px + env(safe-area-inset-bottom,0px));direction:rtl;font-family:inherit">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
-      <div></div>
+      ${hdr}
       <button type="button" onclick="document.getElementById('knife-modal').remove()" style="margin:0;width:auto;min-width:0;padding:6px 16px;font-size:1.2rem;border-radius:10px;border:none;background:#e5e7eb;color:#111;box-shadow:none;cursor:pointer">✕</button>
     </div>
-    ${hdr}${body}
+    ${body}
   </div>`;
   document.body.appendChild(m);
   const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
   if(_z&&_z!==1) m.style.zoom=String(1/_z);
+  const _fw=()=>{m.querySelectorAll('.kn-w').forEach(el=>{let fs=44;el.style.fontSize=fs+'px';while(el.getBoundingClientRect().height>fs*1.5*2+8&&fs>8){fs-=1;el.style.fontSize=fs+'px';}});};
   const _fh=()=>{const h=m.querySelector('#kn-hdr'); if(!h) return; let fs=16; h.style.fontSize=fs+'px'; while(h.scrollWidth>h.clientWidth+1&&fs>6){fs-=.5;h.style.fontSize=fs+'px';}};
-  _knifeFitRows(); _fh();
-  setTimeout(()=>{_knifeFitRows();_fh();},120);
+  _knifeFitRows(); _fh(); _fw();
+  setTimeout(()=>{_knifeFitRows();_fh();_fw();},120);
 }
 window.showCalc2Details=showCalc2Details;
 function showKnifeSettings(forceKey){
