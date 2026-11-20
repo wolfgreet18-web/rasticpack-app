@@ -10342,7 +10342,8 @@ function showCalc2Details(rowId){
   const dm=(a,b,c)=>`<span dir="ltr" style="display:inline-block;unicode-bidi:isolate;white-space:nowrap"><span style="color:${CL}">${f(a)}</span><span style="color:#6b7280"> × </span><span style="color:${CW}">${f(b)}</span>${c==null?'':`<span style="color:#6b7280"> × </span><span style="color:${CH}">${f(c)}</span>`}</span>`;
   const sheetTxt=P.map(q=>dm(q.sL,q.sW)).join('<span style="color:#6b7280"> ، </span>');
   const blankTxt=P.map(q=>dm(q.bLen,bh)).join('<span style="color:#6b7280"> ، </span>');
-  const hdr=`<div id="kn-hdr" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:10px 8px;margin-bottom:6px;display:flex;gap:14px;justify-content:center;align-items:center;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${dm(r.length,r.width,r.height)}<span style="color:#d1d5db">|</span>${sheetTxt}<span style="color:#d1d5db">|</span>${blankTxt}</div>`;
+  const grp=(t,inner)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:.7em;font-weight:700;color:#6b7280;direction:rtl">${t}</span><div style="white-space:nowrap">${inner}</div></div>`;
+  const hdr=`<div id="kn-hdr" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:8px 8px;margin-bottom:6px;display:flex;gap:14px;justify-content:center;align-items:flex-end;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${grp('کارتن',dm(r.length,r.width,r.height))}<span style="color:#d1d5db">|</span>${grp('ورق',sheetTxt)}<span style="color:#d1d5db">|</span>${grp('شیت',blankTxt)}</div>`;
   const old=document.getElementById('knife-modal'); if(old) old.remove();
   const m=document.createElement('div');
   m.id='knife-modal'; m.__d={cut:[],fold:[]};
