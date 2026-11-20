@@ -47,6 +47,9 @@ jobs:
       - name: Install card-number widget (native Android code)
         run: python3 install_cardwidget.py
 
+      - name: Keep screen on
+        run: python3 keep_awake.py
+
       - name: Sync Capacitor
         run: npx cap sync android
 
