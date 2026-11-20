@@ -10364,7 +10364,7 @@ function showCalc2Details(rowId){
   const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
   if(_z&&_z!==1) m.style.zoom=String(1/_z);
   const _fw=()=>{m.querySelectorAll('.kn-w').forEach(el=>{let fs=44;el.style.fontSize=fs+'px';while(el.getBoundingClientRect().height>fs*1.5*2+8&&fs>8){fs-=1;el.style.fontSize=fs+'px';}});};
-  const _fh=()=>{const h=m.querySelector('#kn-hdr'); if(!h) return; let fs=16; h.style.fontSize=fs+'px'; while(h.scrollWidth>h.clientWidth+1&&fs>6){fs-=.5;h.style.fontSize=fs+'px';}};
+  const _fh=()=>{const h=m.querySelector('#kn-hdr'); if(!h) return; let fs=36; h.style.fontSize=fs+'px'; while(h.scrollWidth>h.clientWidth+1&&fs>6){fs-=.5;h.style.fontSize=fs+'px';}};
   _knifeFitRows(); _fh(); _fw();
   setTimeout(()=>{_knifeFitRows();_fh();_fw();},120);
 }
