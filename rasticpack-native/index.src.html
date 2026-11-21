@@ -1442,7 +1442,8 @@ let invoiceSettings={customerPriceMode:'sale',sheetPickMode:'price',companyName:
 let displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50};
 let widgetSettings={enabled:false,last:''};   /* ویجت صفحه‌ی هوم — بخش «ویجت و قیمت‌دهی سریع» */
 
-let nextId=1, nextCustId=1, nextInvoiceId=1, nextProdId=1, nextDriverId=1;
+const INVOICE_START=2365;
+let nextId=1, nextCustId=1, nextInvoiceId=INVOICE_START, nextProdId=1, nextDriverId=1;
 let editingInvoiceId=null;
 let invoiceStatusFilter=null;
 /* ══ وضعیت فاکتور: پیش‌فاکتور (هنوز پرداختی انجام نشده) ▸ نیمه تسویه (بخشی پرداخت شده) ▸ تسویه‌شده (کامل پرداخت شده) ══
@@ -1744,7 +1745,7 @@ async function loadState() {
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
         if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false,theme:dispS.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(dispS.warmth)||0)),digits:dispS.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(dispS.tone))?50:Math.min(100,Math.max(0,parseInt(dispS.tone))))};
         if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||''),cardText:(typeof wgS.cardText==='string'?wgS.cardText:undefined),cardAfter:String(wgS.cardAfter||'none'),addrText:(typeof wgS.addrText==='string'?wgS.addrText:undefined),addrAfter:String(wgS.addrAfter||'none')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
-        nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=meta.nextInvoiceId||1; nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
+        nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=Math.max(INVOICE_START,meta.nextInvoiceId||1); nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         nextReadyId=Math.max(meta.nextReadyId||1,readyCartons.reduce((m,i)=>Math.max(m,i.id),0)+1);
         /* ══ مهاجرت یک‌باره: در نسخه‌ی قبلی، فاکتورها/مشتریان داخل همین کلید (با سقف 5 مگابایت)
            ذخیره می‌شدند. اگر چنین داده‌ای پیدا شود، به IndexedDB منتقل می‌شود تا از این پس
@@ -3932,6 +3933,7 @@ function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteC
       <button type="button" id="c2-sms-opt-sheet" title="ارسال طبق موجودی انبار" aria-label="ارسال طبق موجودی انبار" onclick="sendAllCartonsToSms('inventory')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
       <button type="button" id="c2-sms-opt-suggest" title="ارسال قیمت مدل‌های ورق (پیشنهاد ورق)" aria-label="ارسال قیمت مدل‌های ورق (پیشنهاد ورق)" onclick="sendAllCartonsToSms('models')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
       <button type="button" id="c2-sms-opt-pick" title="انتخاب قیمت‌ها برای کپی" aria-label="انتخاب قیمت‌ها برای کپی" onclick="toggleC2SmsPick()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">☑️</button>
+      <button type="button" id="c2-sms-opt-invoice" title="نمایش پیش‌فاکتور (بدون ثبت)" aria-label="نمایش پیش‌فاکتور (بدون ثبت)" onclick="previewCalc2Invoice()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">🧾</button>
     </div>
     <div id="c2-sms-pick" style="display:none;margin:0 0 12px;padding:12px;border:1.5px solid var(--border);border-radius:16px;background:var(--surface)">
       <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -5214,6 +5216,25 @@ async function sendCartonToSms(rowId){
 }
 /* دکمه‌ی 📤 کنار «ثبت فاکتور» — ارسال خلاصه‌ی همه‌ی کارتن‌های محاسبه‌شده با هم */
 /* 🗨️ → باز/بسته شدن دو گزینه: «شیت» (طبق موجودی انبار) و «پیشنهاد ورق» (قیمت مدل‌های ورق) */
+/* 🧾 پیش‌فاکتور (بدون ثبت): از نتیجه‌ی محاسبه‌ی فعلی یک پیش‌فاکتور با همان طرح فاکتور می‌سازد؛ نه موجودی کم می‌شود نه چیزی ذخیره */
+function previewCalc2Invoice(){
+  const name=($('c2inv-customer')?.value||'').trim();
+  const cust=name?findCustomerByName(name):null;
+  const items=(calc2LastResults||[]).flatMap(r=>{
+    const best=r.sheets&&r.sheets[0]; if(!best) return [];
+    const sheet=best.id!=null?inventory.find(s=>s.id===best.id):null;
+    const unit=c2DiscountUnit(r);
+    return [{sheetId:sheet?sheet.id:null,layer:(sheet&&sheet.layer)||r.layer,paperType:(sheet&&sheet.paperType)||'',flute:(sheet&&sheet.flute)||'',
+      cartonName:r.name,cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,cartonQty:r.qty,qty:r.qty,cartonType:r.type||'',unitPrice:unit,lineTotal:unit*r.qty}];
+  });
+  if(!items.length){ alert('اول قیمت را محاسبه کنید.'); return; }
+  const inv={id:nextInvoiceId,customerId:cust?cust.id:null,customerName:cust?cust.name:(name||'—'),date:new Date().toISOString(),type:'final',status:'draft',items,totalSheets:0};
+  const html=buildInvoicePrintHtml(inv,cust);
+  const w=window.open('','_blank');
+  if(!w){ alert('اجازه باز شدن پنجره جدید داده نشد.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+window.previewCalc2Invoice=previewCalc2Invoice;
 function toggleC2SmsOptions(){
   const box=$('c2-sms-opts'); if(!box) return;
   if(box.style.display==='none'){
@@ -5411,13 +5432,14 @@ function submitCalc2Invoice(){
     const sheet=inventory.find(s=>s.id===best.id); if(!sheet) return[];
     const out=[{sheetId:sheet.id,sw:sheet.sw,sh:sheet.sh,layer:sheet.layer,qty,stockAfter:null,
       cartonName:r.name,cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,glue:r.glue,
+      paperType:sheet.paperType||'',flute:sheet.flute||'',
       cartonQty:r.qty,cartonType:r.type||'',unitPrice:c2DiscountUnit(r),lineTotal:c2DiscountUnit(r)*r.qty,
       itemProfit:r.totalProfit-(r.finalPrice-c2DiscountUnit(r))*r.qty}];
     /* برش سه‌تکه: ورق دوم (تکه‌ی دوم) هم از انبار کم می‌شود؛ قیمت فقط یک‌بار روی ردیف اول ثبت می‌شود */
     const b2=r.split?r.sheets[1]:null;
     const sh2=b2?inventory.find(s=>s.id===b2.id):null;
     if(sh2&&(b2.sheetsNeed||0)>0) out.push({sheetId:sh2.id,sw:sh2.sw,sh:sh2.sh,layer:sh2.layer,qty:b2.sheetsNeed,stockAfter:null,
-      cartonName:r.name+' (تکه دوم)',cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,glue:r.glue,
+      cartonName:r.name+' (تکه دوم)',cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,glue:r.glue,paperType:sh2.paperType||'',flute:sh2.flute||'',
       cartonQty:r.qty,cartonType:r.type||'',unitPrice:null,lineTotal:null,itemProfit:0});
     return out;
   });
@@ -8656,6 +8678,14 @@ function _invQrSvg(text){
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n+2*q} ${n+2*q}" shape-rendering="crispEdges" style="width:100%;height:100%;display:block"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   }catch(e){ return ''; }
 }
+/* جنس ورق به‌ترتیب لایه‌ها: KT = رویه کرافت و بقیه تست؛ 2T = همه تست */
+function invPaperText(paperType,layer){
+  const face=paperType==='KT'?'کرافت':(paperType==='2T'?'تست':'');
+  if(!face) return '';
+  const n=parseInt(layer)||3;
+  const seq=[face,'فلوت','تست']; if(n>=5) seq.push('فلوت','تست');
+  return seq.join(' _ ');
+}
 function buildInvoicePrintHtml(inv,cust){
   const co=invoiceSettings||{};
   const A=_invAssets();
@@ -8679,7 +8709,9 @@ function buildInvoicePrintHtml(inv,cust){
   const rows=shown.map((it,idx)=>{
     const qty=it.cartonQty!=null?it.cartonQty:it.qty;
     const sh=(typeof inventory!=='undefined')?inventory.find(s=>s.id===it.sheetId):null;
-    const paper=sh&&paperWord[sh.paperType]?`<div>جنس ورق: ${paperWord[sh.paperType]}</div>`:'';
+    const ptype=it.paperType||(sh&&sh.paperType)||'';
+    const ptxt=invPaperText(ptype,it.layer||(sh&&sh.layer));
+    const paper=ptxt?`<div>جنس ورق: ${ptxt}</div>`:'';
     const dims=it.cartonLength?`<div>ابعاد</div><div>طول:${_faD(it.cartonLength)}</div><div>عرض:${_faD(it.cartonWidth)}</div><div>ارتفاع:${_faD(it.cartonHeight)}</div>`:'';
     const lw=layerWord[String(it.layer)]||_faD(it.layer||'');
     return `<tr>
@@ -9169,7 +9201,7 @@ function doRestore(input){
       const m=data.meta||{};
       nextId       =m.nextId        ||(inventory.reduce((x,i)=>Math.max(x,i.id),0)+1);
       nextCustId   =m.nextCustId    ||(customers.reduce((x,i)=>Math.max(x,i.id),0)+1);
-      nextInvoiceId=m.nextInvoiceId ||(invoices.reduce((x,i)=>Math.max(x,i.id),0)+1);
+      nextInvoiceId=Math.max(INVOICE_START,m.nextInvoiceId ||(invoices.reduce((x,i)=>Math.max(x,i.id),0)+1));
       nextProdId   =m.nextProdId    ||(productionQueue.reduce((x,i)=>Math.max(x,i.id),0)+1);
       nextDriverId =m.nextDriverId  ||(vanDrivers.reduce((x,i)=>Math.max(x,i.id),0)+1);
       nextReadyId  =Math.max(m.nextReadyId||1,readyCartons.reduce((x,i)=>Math.max(x,i.id),0)+1);
@@ -9191,7 +9223,7 @@ async function clearAllData(){
   if(!confirm('تمام اطلاعات (موجودی، مشتریان و فاکتورها) پاک می\u200cشود. مطمئن هستید؟')) return;
   if(!confirm('این عمل قابل بازگشت نیست. تأیید نهایی؟')) return;
   inventory=[];readyCartons=[];customers=[];invoices=[];productionQueue=[];vanDrivers=[];sheetPrices=migrateSheetPrices(null);sheetPriceBreakdown=migrateSheetPriceBreakdown(null,sheetPrices);wastePrice=0;sheetWeights={'3':0,'5':0};sheetThresholds={};loadSheetWidthSettings(null,null);
-  nextId=nextCustId=nextInvoiceId=nextProdId=nextDriverId=nextReadyId=1;editingInvoiceId=null;editingDriverId=null;
+  nextId=nextCustId=nextProdId=nextDriverId=nextReadyId=1;nextInvoiceId=INVOICE_START;editingInvoiceId=null;editingDriverId=null;
   invRenderLimit=PAGE_SIZE; custRenderLimit=PAGE_SIZE; custInvModalRenderLimit=PAGE_SIZE;
   await idbClear('invoices'); await idbClear('customers');
   saveState();renderAll();alert('تمام اطلاعات پاک شد.');
