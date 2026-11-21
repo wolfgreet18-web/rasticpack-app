@@ -2021,7 +2021,8 @@ function seedSampleDataIfEmpty(){
   }
   if(changed) saveState();
   /* یک‌بار: حالت پیش‌فرض اپ روی «درصدی» برگردد (بعد از آن، انتخاب کاربر حفظ می‌شود) */
-  if(!invoiceSettings.profitModeResetV1){ invoiceSettings.profitMode='percent'; invoiceSettings.profitModeResetV1=true; changed=true; saveState(); }
+  if(!invoiceSettings.profitModeResetV1){ invoiceSettings.profitMode='meter'; invoiceSettings.profitModeResetV1=true; invoiceSettings.profitModeResetV3=true; changed=true; saveState(); }
+  if(!invoiceSettings.profitModeResetV3){ invoiceSettings.profitMode='meter'; invoiceSettings.profitModeResetV3=true; changed=true; saveState(); }   /* یک‌بار: پیش‌فرض اپ «متری» */
   if(!invoiceSettings.profitDefaultResetV2){ invoiceSettings.profitDefault_percent=20; invoiceSettings.profitDefaultResetV2=true; saveState(); }
   /* یک‌بار: کارتن پیش‌فرض 60×40×40 (۱۰ عدد، سه‌لایه) به تب کارتن آماده اضافه می‌شود؛ بعد از آن حذف/ویرایش کاربر حفظ می‌شود */
   if(!invoiceSettings.rcDefaultSeedV1){
@@ -3221,7 +3222,10 @@ function getRialTier(){
   return t;
 }
 function rialTierEnabled(){ return invoiceSettings.rialTierEnabled!==false; }
-function rialTierActive(){ return getProfitMode()==='rial'&&rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
+/* سود پله‌ای حالا یک «ضریب» روی حالت فعلی است (متری/درصدی همان می‌ماند): سود = مقدار کادر × ضریبِ پله‌ی تعداد
+   (۱۰۰ عدد و بالاتر = ۱۰۰٪ ، ۹۰ = ۹۰٪ ، ... تا حداقل). در حالت ریالی همان مبلغ پله‌ای قبلی. */
+function rialTierActive(){ return rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
+function rialTierFactor(qty){ const t=getRialTier(); return t.topAmt>0?rialTierAmt(qty)/t.topAmt:1; }
 function rialTierAmt(qty){
   const t=getRialTier(), q=+qty||0;
   if(q>=t.top) return Math.max(t.min,t.topAmt);
@@ -3248,12 +3252,6 @@ function applyRialTierUI(){
   }
 }
 function toggleRialTier(){
-  if(getProfitMode()!=='rial'){   /* سود پله‌ای ریالی است: زدن دکمه در حالت دیگر، حالت سود را ریالی و پله‌ای را روشن می‌کند */
-    invoiceSettings.rialTierOn=true;
-    updateProfitMode('rial');
-    saveState(); applyRialTierUI();
-    return;
-  }
   invoiceSettings.rialTierOn=!invoiceSettings.rialTierOn;
   saveState(); applyRialTierUI(); calc2ProfitRerun();
 }
@@ -3268,16 +3266,16 @@ function updateRialTier(k,val){
   if(rialTierActive()) calc2ProfitChanged();
 }
 function getProfitAmt(){ return getProfitMode()==='rial'?getProfitDefault('rial'):(getNum('calc2-profit')||0); }
-function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='meter'||m==='rial'?m:'percent'; }
+function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='percent'||m==='rial'?m:'meter'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
 function calc2CashPrice(base,areaM2,qty,pv){
-  const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?rialTierAmt(qty):getProfitAmt()), m=getProfitMode();   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
+  const m=getProfitMode(); const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?getProfitAmt()*rialTierFactor(qty):getProfitAmt());   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
   if(m==='rial') return base+v/Math.max(1,qty||1);   /* ریالی: کل سود این ردیف = مبلغ واردشده؛ سهم هر کارتن = مبلغ ÷ تعداد */
   return m==='meter'?base+v*areaM2:base*(1+v/100);
 }
 function calc2SalePrice(base,areaM2,qty,pv){
   if(getProfitMode()!=='percent') return calc2CashPrice(base,areaM2,qty,pv)+base*calc2CheckPct()/100;   /* سود چک همچنان درصدی از قیمت پایه است */
-  return base*(1+(((pv!=null&&!isNaN(pv))?pv:getProfitAmt())+calc2CheckPct())/100);
+  return base*(1+(((pv!=null&&!isNaN(pv))?pv:(rialTierActive()?getProfitAmt()*rialTierFactor(qty):getProfitAmt()))+calc2CheckPct())/100);
 }
 function setProfitFieldValue(v){
   const el=$('calc2-profit'); if(!el) return;
