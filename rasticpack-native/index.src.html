@@ -3269,7 +3269,7 @@ function getProfitAmt(){ return getProfitMode()==='rial'?getProfitDefault('rial'
 function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='percent'||m==='rial'?m:'meter'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
 function calc2CashPrice(base,areaM2,qty,pv){
-  const m=getProfitMode(); const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?getProfitAmt()*rialTierFactor(qty):getProfitAmt());   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
+  const m=getProfitMode(); const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?(m==='rial'?rialTierAmt(qty):getProfitAmt()*rialTierFactor(qty)):getProfitAmt());   /* ریالی+پله‌ای: مبلغ پله‌ی تعداد؛ متری/درصدی+پله‌ای: مقدار کادر × ضریب پله */   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
   if(m==='rial') return base+v/Math.max(1,qty||1);   /* ریالی: کل سود این ردیف = مبلغ واردشده؛ سهم هر کارتن = مبلغ ÷ تعداد */
   return m==='meter'?base+v*areaM2:base*(1+v/100);
 }
@@ -3370,6 +3370,10 @@ function updateProfitMode(mode){
 function calc2ProfitStep(d){
   const el=$('calc2-profit'); if(!el) return;
   const meter=getProfitMode()!=='percent', rial=getProfitMode()==='rial';
+  if(rial&&rialTierActive()){   /* ریالی + پله‌ای: + و − «سود بالا»ی پله‌ها را (±۱ میلیون ریال) تغییر می‌دهند تا همه‌ی پله‌ها بالا/پایین بروند */
+    const t=getRialTier(); invoiceSettings.rialTier2_topAmt=Math.max(t.min,t.topAmt+d*1000000);
+    saveState(); applyRialTierUI(); calc2ProfitRerun(); return;
+  }
   if(rial){ updateProfitDefault('rial',Math.max(0,getProfitDefault('rial')+d*1000000)); const pi=$('profit-default-input'); if(pi&&getProfitMode()==='rial') pi.value=formatNum(getProfitDefault('rial')); calc2ProfitRerun(); return; }
   const cur=parseFloat((el.value||'').replace(/,/g,''))||0;
   const v=meter?Math.max(0,Math.round(cur+d*(rial?100000:10000)))   /* متری: هر قدم 10,000 ریال؛ ریالی: 100,000 */
