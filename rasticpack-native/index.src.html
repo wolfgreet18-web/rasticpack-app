@@ -408,6 +408,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <button type="button" aria-label="افزایش مدت چک" style="background:none;border:1.5px solid #7c3aed;border-radius:var(--r-md);box-shadow:none;width:22px;height:42px;padding:0;font-size:1rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:#7c3aed" onclick="calc2CheckStep(1)">+</button>
         </div>
         <button type="button" id="calc2-tier-btn" aria-pressed="false" title="سود پله‌ای ریالی (بر اساس تعداد)" onclick="toggleRialTier()" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:var(--r-md);box-shadow:none;width:46px;height:42px;padding:0 2px;font-family:inherit;font-size:.62rem;font-weight:800;line-height:1.25;cursor:pointer;flex:0 0 auto;color:#7c3aed">سود<br>پله‌ای</button>
+        <button type="button" id="calc2-bestqty-btn" title="تعداد کارتنی که کمترین پرت ورق را می‌دهد، در N قرار بگیرد" onclick="applyBestQty()" style="background:none;border:1.5px solid #1c1917;border-radius:var(--r-md);box-shadow:none;width:46px;height:42px;padding:0 2px;font-family:inherit;font-size:.62rem;font-weight:800;line-height:1.25;cursor:pointer;flex:0 0 auto;color:#1c1917">N<br>کم‌پرت</button>
       </div>
       <div id="calc2-profit-pct" style="display:none;margin-top:8px;font-size:.82rem;font-weight:800;color:var(--danger)"></div>
       <div class="alert alert-danger" id="calc2-alert"><span class="alert-icon">⚠️</span><div id="calc2-alert-msg"></div></div>
@@ -4041,6 +4042,22 @@ function c2ResultWaste(r){
 /* هنگام محاسبه: بین یک‌تکه، دوتکه و دو حالت سه‌تکه، حالتی که کمترین پرت را دارد خودکار انتخاب و اول نمایش داده می‌شود
    (اگر کاربر خودش حالتی/ورقی انتخاب کرده یا به یک‌تکه برگردانده، دست نمی‌زند) */
 /* تعداد پیشنهادی: نزدیک‌ترین تعدادی که ورق(ها) را کامل و بدون پرتِ ورق آخر پر می‌کند (در تساوی، تعداد بیشتر) */
+/* دکمه‌ی «N کم‌پرت»: تعداد پیشنهادی (کمترین پرت ورق) هر ردیف را در N همان ردیف می‌گذارد و دوباره محاسبه می‌کند */
+function applyBestQty(){
+  try{
+    if(!calc2LastResults||!calc2LastResults.length) runCalc2();
+    for(let it=0;it<3;it++){
+      let changed=false;
+      (calc2LastResults||[]).forEach(r=>{
+        const q=c2SuggestQty(r), el=document.getElementById('c2-qty-'+r.id);
+        if(q>0&&el&&Number(el.value)!==q){ el.value=q; changed=true; }
+      });
+      if(!changed) break;
+      runCalc2();
+    }
+  }catch(e){ console.error(e); }
+}
+window.applyBestQty=applyBestQty;
 function c2SuggestQty(r){
   try{
     if(!r||!r.sheets||!r.sheets[0]) return 0;
