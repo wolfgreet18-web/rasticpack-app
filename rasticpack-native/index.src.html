@@ -3698,7 +3698,7 @@ function openC2PriceEdit(id){
     if(!(v>0)){ m.querySelector('#c2-price-inp').style.borderColor='#dc2626'; return; }
     calc2PriceOv[id]={sig:c2SigOfRes(r),price:v}; close(); runCalc2({live:true});
   };
-  setTimeout(()=>{ const i=m.querySelector('#c2-price-inp'); i.focus(); i.select(); },50);
+  setTimeout(()=>{ const i=m.querySelector('#c2-price-inp'); i.focus(); try{ const n=i.value.length; i.setSelectionRange(n,n); }catch(_){} },50);
 }
 function c2SigOfRes(r){ return calc2OverrideSig(r); }
 window.openC2PriceEdit=openC2PriceEdit;
