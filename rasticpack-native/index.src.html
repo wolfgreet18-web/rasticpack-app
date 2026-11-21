@@ -860,16 +860,18 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md);margin-bottom:10px">
           <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-weight:700;font-size:.85rem">
             <input type="checkbox" id="round-unit-on" onchange="setRoundOn('unit',this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
-            <span>رند کردن قیمت تکی کارتن (به بالا)</span>
+            <span>رند کردن قیمت تکی کارتن</span>
           </label>
+          <div style="display:flex;gap:8px;margin-bottom:10px"><button type="button" id="round-unit-up" onclick="setRoundDir('unit','up')" style="flex:1;margin:0;padding:10px;font-size:.88rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">رند به بالا ⬆️</button><button type="button" id="round-unit-down" onclick="setRoundDir('unit','down')" style="flex:1;margin:0;padding:10px;font-size:.88rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">رند به پایین ⬇️</button></div>
           <div class="field full" style="margin-bottom:0"><label>رند به مضرب (ریال)</label><input type="text" id="round-unit-step" inputmode="numeric" oninput="formatThousands(this);setRoundStep('unit',this.value,true)"/></div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" onclick="setRoundStep('unit',1000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000</button><button type="button" onclick="setRoundStep('unit',10000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">10,000</button><button type="button" onclick="setRoundStep('unit',100000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">100,000</button><button type="button" onclick="setRoundStep('unit',1000000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000,000</button></div>
         </div>
         <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
           <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-weight:700;font-size:.85rem">
             <input type="checkbox" id="round-total-on" onchange="setRoundOn('total',this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
-            <span>رند کردن مبلغ کل (به بالا)</span>
+            <span>رند کردن مبلغ کل</span>
           </label>
+          <div style="display:flex;gap:8px;margin-bottom:10px"><button type="button" id="round-total-up" onclick="setRoundDir('total','up')" style="flex:1;margin:0;padding:10px;font-size:.88rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">رند به بالا ⬆️</button><button type="button" id="round-total-down" onclick="setRoundDir('total','down')" style="flex:1;margin:0;padding:10px;font-size:.88rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">رند به پایین ⬇️</button></div>
           <div class="field full" style="margin-bottom:0"><label>رند به مضرب (ریال)</label><input type="text" id="round-total-step" inputmode="numeric" oninput="formatThousands(this);setRoundStep('total',this.value,true)"/></div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" onclick="setRoundStep('total',1000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000</button><button type="button" onclick="setRoundStep('total',10000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">10,000</button><button type="button" onclick="setRoundStep('total',100000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">100,000</button><button type="button" onclick="setRoundStep('total',1000000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000,000</button></div>
         </div>
@@ -3623,13 +3625,16 @@ function calc2ComputeOne(c,checkPct,grain){
 }
 /* ✏️ ویرایش دستی قیمت فروش (هر کارتن): تا وقتی ابعاد/لایه همان است می‌ماند؛ با تغییر تعداد هم همان قیمت واحد می‌ماند */
 /* ══ رند کردن به بالا: قیمت تکی هر کارتن و/یا مبلغ کل (هرکدام جدا فعال/غیرفعال و با مضرب دلخواه) ══ */
-const ROUND_DEF={unit:10000,total:100000};
-function roundOn(k){ return !!invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'On']; }
+const ROUND_DEF={unit:1000,total:100000};
+function roundOn(k){ const v=invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'On']; return v===undefined?(k==='unit'):!!v; }   /* پیش‌فرض: رند تکی روشن، رند کل خاموش */
+function roundDir(k){ return invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'Dir']==='down'?'down':'up'; }
+function setRoundDir(k,d){ invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'Dir']=(d==='down'?'down':'up'); saveState(); renderRoundBox(); calc2ProfitRerun(); }
 function roundStep(k){ const v=parseFloat(invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'Step']); return v>0?v:ROUND_DEF[k]; }
-function roundUp(v,step){ return step>0?Math.ceil(v/step-1e-9)*step:v; }
+function roundTo(v,step,dir){ return step>0?(dir==='down'?Math.floor(v/step+1e-9):Math.ceil(v/step-1e-9))*step:v; }
 function renderRoundBox(){
   ['unit','total'].forEach(k=>{
     const c=$('round-'+k+'-on'); if(c) c.checked=roundOn(k);
+    ['up','down'].forEach(d=>{ const b=$('round-'+k+'-'+d); if(!b) return; const on=roundDir(k)===d; b.style.background=on?'var(--brand)':'var(--surface)'; b.style.color=on?'#fff':'var(--tx)'; b.style.border='1.5px solid '+(on?'var(--brand)':'var(--border)'); });
     const e=$('round-'+k+'-step'); if(e&&document.activeElement!==e) e.value=formatNum(roundStep(k));
   });
 }
@@ -3646,8 +3651,9 @@ function c2ApplyRoundUnit(c,rr){
   try{
     if(!roundOn('unit')||rr.priceEdited) return rr;
     const st=roundStep('unit');
-    rr.finalPrice=roundUp(rr.finalPrice,st);
-    rr.cashPrice=roundUp(rr.cashPrice,st);
+    const dr=roundDir('unit');
+    rr.finalPrice=roundTo(rr.finalPrice,st,dr);
+    rr.cashPrice=roundTo(rr.cashPrice,st,dr);
     rr.profitPerUnit=rr.finalPrice-rr.basePriceWithWaste;
     rr.totalProfit=rr.profitPerUnit*rr.qty;
     rr.totalPrice=rr.finalPrice*rr.qty;
@@ -3757,7 +3763,7 @@ function runCalc2(opts){
     return rr;
   });
 
-  if(roundOn('total')){ const t2=roundUp(totalAllCartons,roundStep('total')); totalProfitAll+=t2-totalAllCartons; totalAllCartons=t2; }   /* رند مبلغ کل: اختلاف به سود کل اضافه می‌شود */
+  if(roundOn('total')){ const t2=roundTo(totalAllCartons,roundStep('total'),roundDir('total')); totalProfitAll+=t2-totalAllCartons; totalAllCartons=t2; }   /* رند مبلغ کل: اختلاف به سود کل اضافه می‌شود */
   let totalWasteCostAll=0;
   const wasteCostByCarton=[];
   results.forEach(r=>{
