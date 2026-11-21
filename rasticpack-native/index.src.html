@@ -3268,14 +3268,25 @@ function updateRialTier(k,val){
 function getProfitAmt(){ return getProfitMode()==='rial'?getProfitDefault('rial'):(getNum('calc2-profit')||0); }
 function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='percent'||m==='rial'?m:'meter'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
+/* سود پله‌ای (در هر حالتی): سود کل ردیف = مبلغ پله‌ی تعداد (مثلاً ۶۰ عدد = ۶٬۰۰۰٬۰۰۰ ریال)؛ حالت نمایش (متری/درصدی) همان می‌ماند
+   و کادر سود فقط مقیاس می‌دهد: مقدار کادر ÷ پیش‌فرض آن حالت (پیش‌فرض = ۱٫۰ → دقیقاً مبلغ پله؛ + و − بالا/پایینش می‌کنند) */
+function rialTierTotal(qty){
+  const m=getProfitMode(), t=rialTierAmt(qty);
+  if(m==='rial') return t;
+  const d=getProfitDefault(m), sc=d>0?getProfitAmt()/d:1;
+  return t*sc;
+}
 function calc2CashPrice(base,areaM2,qty,pv){
-  const m=getProfitMode(); const v=(pv!=null&&!isNaN(pv))?pv:(rialTierActive()?(m==='rial'?rialTierAmt(qty):getProfitAmt()*rialTierFactor(qty)):getProfitAmt());   /* ریالی+پله‌ای: مبلغ پله‌ی تعداد؛ متری/درصدی+پله‌ای: مقدار کادر × ضریب پله */   /* pv: سود اختصاصی یک کارتن آماده (اختیاری) */
+  const m=getProfitMode(), hasPv=(pv!=null&&!isNaN(pv));
+  if(!hasPv&&rialTierActive()) return base+rialTierTotal(qty)/Math.max(1,qty||1);
+  const v=hasPv?pv:getProfitAmt();
   if(m==='rial') return base+v/Math.max(1,qty||1);   /* ریالی: کل سود این ردیف = مبلغ واردشده؛ سهم هر کارتن = مبلغ ÷ تعداد */
   return m==='meter'?base+v*areaM2:base*(1+v/100);
 }
 function calc2SalePrice(base,areaM2,qty,pv){
-  if(getProfitMode()!=='percent') return calc2CashPrice(base,areaM2,qty,pv)+base*calc2CheckPct()/100;   /* سود چک همچنان درصدی از قیمت پایه است */
-  return base*(1+(((pv!=null&&!isNaN(pv))?pv:(rialTierActive()?getProfitAmt()*rialTierFactor(qty):getProfitAmt()))+calc2CheckPct())/100);
+  const hasPv=(pv!=null&&!isNaN(pv));
+  if(getProfitMode()!=='percent'||(!hasPv&&rialTierActive())) return calc2CashPrice(base,areaM2,qty,pv)+base*calc2CheckPct()/100;   /* سود چک همچنان درصدی از قیمت پایه است */
+  return base*(1+((hasPv?pv:getProfitAmt())+calc2CheckPct())/100);
 }
 function setProfitFieldValue(v){
   const el=$('calc2-profit'); if(!el) return;
