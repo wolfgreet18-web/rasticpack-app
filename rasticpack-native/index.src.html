@@ -3622,7 +3622,7 @@ function openC2PriceEdit(id){
   const m=document.createElement('div'); m.id='c2-price-modal';
   m.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center';
   m.innerHTML=`<div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.25)" dir="rtl">
-    <input id="c2-price-inp" type="text" inputmode="decimal" value="${formatNum(cur)}" oninput="formatThousands(this)" style="width:100%;box-sizing:border-box;font-size:1.05rem;font-weight:600;text-align:center;padding:9px;border:2px solid var(--blue,#2563eb);border-radius:12px;direction:ltr"/>
+    <input id="c2-price-inp" type="text" inputmode="decimal" value="${formatNum(cur)}" oninput="formatThousands(this)" style="width:100%;box-sizing:border-box;font-size:1.3rem;font-weight:600;text-align:center;padding:10px;border:2px solid var(--blue,#2563eb);border-radius:12px;direction:ltr"/>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button type="button" id="c2-price-ok" style="flex:2;padding:12px;font-size:1rem;font-weight:800;border:none;border-radius:12px;background:#16a34a;color:#fff;cursor:pointer">ثبت</button>
       ${calc2PriceOv[id]?`<button type="button" id="c2-price-reset" style="flex:2;padding:12px;font-size:.9rem;font-weight:800;border:none;border-radius:12px;background:#f97316;color:#fff;cursor:pointer">قیمت خودکار</button>`:''}
