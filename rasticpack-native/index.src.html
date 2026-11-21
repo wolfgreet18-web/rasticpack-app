@@ -750,6 +750,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('chk-panel')">
           سود چک
         </button>
+        <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('round-panel')">
+          رند
+        </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('knife-panel')">
           نمایش عددهای تیغ
         </button>
@@ -851,6 +854,25 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <input type="number" id="chk-rate-input" min="0" max="100" step="0.1" inputmode="decimal" oninput="updateCheckRate(this.value)"/>
         </div>
         <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin-top:8px">مثلاً با 4%: اگر در کادر «چک» کنار درصد سود عدد 2 بزنید، 8% به سود اضافه می‌شود و قیمت «چکی» نمایش داده می‌شود.</p>
+      </div>
+
+      <div id="round-panel" style="display:none;margin-top:14px">
+        <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md);margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-weight:700;font-size:.85rem">
+            <input type="checkbox" id="round-unit-on" onchange="setRoundOn('unit',this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+            <span>رند کردن قیمت تکی کارتن (به بالا)</span>
+          </label>
+          <div class="field full" style="margin-bottom:0"><label>رند به مضرب (ریال)</label><input type="text" id="round-unit-step" inputmode="numeric" oninput="formatThousands(this);setRoundStep('unit',this.value,true)"/></div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" onclick="setRoundStep('unit',1000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000</button><button type="button" onclick="setRoundStep('unit',10000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">10,000</button><button type="button" onclick="setRoundStep('unit',100000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">100,000</button><button type="button" onclick="setRoundStep('unit',1000000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000,000</button></div>
+        </div>
+        <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
+          <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-weight:700;font-size:.85rem">
+            <input type="checkbox" id="round-total-on" onchange="setRoundOn('total',this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+            <span>رند کردن مبلغ کل (به بالا)</span>
+          </label>
+          <div class="field full" style="margin-bottom:0"><label>رند به مضرب (ریال)</label><input type="text" id="round-total-step" inputmode="numeric" oninput="formatThousands(this);setRoundStep('total',this.value,true)"/></div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" onclick="setRoundStep('total',1000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000</button><button type="button" onclick="setRoundStep('total',10000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">10,000</button><button type="button" onclick="setRoundStep('total',100000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">100,000</button><button type="button" onclick="setRoundStep('total',1000000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000,000</button></div>
+        </div>
       </div>
 
       <div id="knife-panel" style="display:none;margin-top:14px">
@@ -1522,7 +1544,7 @@ function escapeForJsSingleQuoted(str){
     .replace(/\r/g,'');
   return escapeHtml(jsEscaped);
 }
-const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
+const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','round-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
 
 const toggleSection = id => {
   const el=$(id); if(!el) return;
@@ -2199,7 +2221,7 @@ function toggleCheckEnabled(on){
 }
 function renderCheckRateInput(){
   applyCheckEnabled(); applyKnifeModeUI();
-  renderProfitModeInput();
+  renderProfitModeInput(); renderRoundBox();
   const el=$('chk-rate-input'); if(!el) return;
   const v=parseFloat(invoiceSettings.checkProfitPerMonth);
   el.value=isNaN(v)?4:v;
@@ -3600,6 +3622,38 @@ function calc2ComputeOne(c,checkPct,grain){
       basePriceWithWaste,finalPrice,cashPrice,isCheck:checkPct>0,profitPerUnit,totalProfit,totalPrice,sheets};
 }
 /* ✏️ ویرایش دستی قیمت فروش (هر کارتن): تا وقتی ابعاد/لایه همان است می‌ماند؛ با تغییر تعداد هم همان قیمت واحد می‌ماند */
+/* ══ رند کردن به بالا: قیمت تکی هر کارتن و/یا مبلغ کل (هرکدام جدا فعال/غیرفعال و با مضرب دلخواه) ══ */
+const ROUND_DEF={unit:10000,total:100000};
+function roundOn(k){ return !!invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'On']; }
+function roundStep(k){ const v=parseFloat(invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'Step']); return v>0?v:ROUND_DEF[k]; }
+function roundUp(v,step){ return step>0?Math.ceil(v/step-1e-9)*step:v; }
+function renderRoundBox(){
+  ['unit','total'].forEach(k=>{
+    const c=$('round-'+k+'-on'); if(c) c.checked=roundOn(k);
+    const e=$('round-'+k+'-step'); if(e&&document.activeElement!==e) e.value=formatNum(roundStep(k));
+  });
+}
+function setRoundOn(k,on){ invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'On']=!!on; saveState(); calc2ProfitRerun(); }
+function setRoundStep(k,val,fromInput){
+  const n=parseFloat(String(val).replace(/,/g,''));
+  invoiceSettings['round'+(k==='unit'?'Unit':'Total')+'Step']=(n>0)?n:ROUND_DEF[k];
+  saveState();
+  if(!fromInput){ const e=$('round-'+k+'-step'); if(e) e.value=formatNum(roundStep(k)); }
+  if(roundOn(k)) calc2ProfitRerun();
+}
+/* رند قیمت تکی (بعد از ویرایش دستی قیمت اعمال نمی‌شود چون قیمت را خود کاربر نوشته) */
+function c2ApplyRoundUnit(c,rr){
+  try{
+    if(!roundOn('unit')||rr.priceEdited) return rr;
+    const st=roundStep('unit');
+    rr.finalPrice=roundUp(rr.finalPrice,st);
+    rr.cashPrice=roundUp(rr.cashPrice,st);
+    rr.profitPerUnit=rr.finalPrice-rr.basePriceWithWaste;
+    rr.totalProfit=rr.profitPerUnit*rr.qty;
+    rr.totalPrice=rr.finalPrice*rr.qty;
+  }catch(e){}
+  return rr;
+}
 let calc2PriceOv={};
 function c2ApplyPriceOv(c,rr){
   try{
@@ -3698,11 +3752,12 @@ function runCalc2(opts){
 
   let totalAllCartons=0,totalProfitAll=0;
   const results=cartons.map(c=>{
-    const rr=c2ApplyPriceOv(c,calc2ComputeAuto(c,checkPct,grain));
+    const rr=c2ApplyRoundUnit(c,c2ApplyPriceOv(c,calc2ComputeAuto(c,checkPct,grain)));
     totalAllCartons+=rr.totalPrice; totalProfitAll+=rr.totalProfit;
     return rr;
   });
 
+  if(roundOn('total')){ const t2=roundUp(totalAllCartons,roundStep('total')); totalProfitAll+=t2-totalAllCartons; totalAllCartons=t2; }   /* رند مبلغ کل: اختلاف به سود کل اضافه می‌شود */
   let totalWasteCostAll=0;
   const wasteCostByCarton=[];
   results.forEach(r=>{
