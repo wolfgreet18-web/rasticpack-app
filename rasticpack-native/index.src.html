@@ -2838,7 +2838,7 @@ let calc2InvoiceSubmitted=false;
 const calc2SampleDefaults={};   /* بدون ابعاد پیش‌فرض */
 
 /* کوچک‌کردن چارت‌های L/W/H/N (چهارتا در یک خط) */
-(function(){ const st=document.createElement('style'); st.textContent='.c2-dims4 .field input{padding:8px 4px!important;font-size:.95rem!important;text-align:center;min-width:0;width:100%;box-sizing:border-box}.c2-dims4 .field label{font-size:.8rem}'; document.head.appendChild(st); })();
+(function(){ const st=document.createElement('style'); st.textContent='.c2-dims4 .field input{padding:8px 4px!important;font-size:.95rem!important;text-align:center;min-width:0;width:100%;box-sizing:border-box}.c2-dims4 .field label,.calc2-row .field>label:not([for]){display:none!important}.calc2-row .c2-dims4 + .full{margin-top:-6px}'; document.head.appendChild(st); })();
 /* کیبورد: بار اول باز شدن برنامه روی چارت L (ردیف اول) فوکوس می‌شود؛ پاک‌کردن (بک‌اسپیس) در چارت خالی ← رفتن به چارت قبلی در همان خط */
 (function(){
   const ORDER=['length','width','height','qty'];
@@ -2873,8 +2873,8 @@ function calc2RowTemplate(id){
   const vL=d.length??'', vW=d.width??'', vH=d.height??'', vF=String(d.glue??'4'), vN=d.qty??'', vLayer=d.layer||'3';
   const vFlute=d.flute||'E', vPaper=d.paperType||'KT';   /* پیش‌فرض ورق انتخابی: kT */
   const is5=vLayer==='5', isE=vFlute==='E', isKT=vPaper==='KT';
-  return`<div class="calc2-row" data-id="${id}">
-    <div class="calc2-row-num" style="margin-bottom:10px;text-align:right"><span class="c2-num" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.85rem;line-height:1;padding:0;text-align:center"></span></div>
+  return`<div class="calc2-row" data-id="${id}" style="position:relative">
+    <div class="calc2-row-num" style="position:absolute;top:-8px;right:-6px;margin:0;z-index:2"><span class="c2-num" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.3);line-height:1;padding:0;text-align:center"></span></div>
     <div class="form-grid">
       <div class="full c2-dims4" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
         <div class="field">
