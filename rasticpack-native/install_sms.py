@@ -45,6 +45,7 @@ public class RpSmsReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
         if (intent == null || !Telephony.Sms.Intents.SMS_RECEIVED_ACTION.equals(intent.getAction())) return;
+        if (!ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("enabled", true)) return;
         try {
             SmsMessage[] msgs = Telephony.Sms.Intents.getMessagesFromIntent(intent);
             if (msgs == null || msgs.length == 0) return;
@@ -139,6 +140,13 @@ public class RpSmsPlugin extends Plugin {
         o.put("sms", getPermissionState("sms") == PermissionState.GRANTED);
         o.put("notif", notifGranted());
         return o;
+    }
+
+    @PluginMethod
+    public void setEnabled(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("enabled", true));
+        getContext().getSharedPreferences(RpSmsReceiver.PREFS, Context.MODE_PRIVATE).edit().putBoolean("enabled", on).apply();
+        call.resolve();
     }
 
     @PluginMethod

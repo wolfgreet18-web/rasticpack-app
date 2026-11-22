@@ -53,6 +53,9 @@ jobs:
       - name: Keep screen on
         run: python3 keep_awake.py
 
+      - name: Auto-open keyboard on launch
+        run: python3 keyboard_open.py
+
       - name: Sync Capacitor
         run: npx cap sync android
 

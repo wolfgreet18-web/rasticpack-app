@@ -753,6 +753,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('round-panel')">
           رند
         </button>
+        <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('agent-panel')">
+          ایجنت
+        </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('knife-panel')">
           نمایش عددهای تیغ
         </button>
@@ -874,6 +877,25 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           <div style="display:flex;gap:8px;margin-bottom:10px"><button type="button" id="round-total-near" onclick="setRoundDir('total','near')" style="flex:1.2;margin:0;padding:10px 4px;font-size:.82rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">معمولی (۵ به بالا)</button><button type="button" id="round-total-up" onclick="setRoundDir('total','up')" style="flex:1;margin:0;padding:10px 4px;font-size:.82rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">همیشه بالا ⬆️</button><button type="button" id="round-total-down" onclick="setRoundDir('total','down')" style="flex:1;margin:0;padding:10px 4px;font-size:.82rem;font-weight:800;border-radius:12px;box-shadow:none;cursor:pointer">همیشه پایین ⬇️</button></div>
           <div class="field full" style="margin-bottom:0"><label>رند به مضرب (ریال)</label><input type="text" id="round-total-step" inputmode="numeric" oninput="formatThousands(this);setRoundStep('total',this.value,true)"/></div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" onclick="setRoundStep('total',1000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000</button><button type="button" onclick="setRoundStep('total',10000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">10,000</button><button type="button" onclick="setRoundStep('total',100000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">100,000</button><button type="button" onclick="setRoundStep('total',1000000)" style="margin:0;width:auto;padding:5px 10px;font-size:.74rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--tx);box-shadow:none;cursor:pointer">1,000,000</button></div>
+        </div>
+      </div>
+
+      <div id="agent-panel" style="display:none;margin-top:14px">
+        <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
+          <label style="display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer;font-weight:700;font-size:.9rem">
+            <input type="checkbox" id="agent-on" onchange="agentSet('agentOn',this.checked)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+            <span>🤖 ایجنت پیامک (تشخیص ابعاد و قیمت‌دهی)</span>
+          </label>
+          <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin:0 0 10px">وقتی مشتری پیامک ابعاد بدهد، اعلان می‌آید؛ ابعاد و تعداد را در برنامه می‌گذارد، قیمت را حساب می‌کند و پیامک پاسخ را با تأیید تو می‌فرستد. هیچ پیامکی بدون تأیید تو نمی‌رود.</p>
+          <div id="agent-perm" style="font-size:.78rem;margin-bottom:10px"></div>
+          <div class="field full"><label>ترتیب ابعاد در پیامک مشتری</label>
+            <select id="agent-order" onchange="agentSet('agentOrder',this.value)"><option value="LWH">طول × عرض × ارتفاع</option><option value="HWL">ارتفاع × عرض × طول</option></select></div>
+          <div class="field full"><label>نوع قیمت در پیامک پاسخ</label>
+            <select id="agent-mode" onchange="agentSet('agentMode',this.value)"><option value="inventory">طبق ورق موجود در انبار</option><option value="models">قیمت مدل‌های ورق (پیشنهاد ورق)</option></select></div>
+          <div class="field full"><label>روش ارسال پاسخ</label>
+            <select id="agent-send" onchange="agentSet('agentSend',this.value)"><option value="direct">ارسال مستقیم با تأیید</option><option value="app">باز کردن در برنامه‌ی پیامک</option></select></div>
+          <div class="field full"><label>متن ابتدای پاسخ (اختیاری)</label><input type="text" id="agent-prefix" oninput="agentSet('agentPrefix',this.value)" placeholder="مثلاً: سلام وقت بخیر"/></div>
+          <div class="field full" style="margin-bottom:0"><label>متن انتهای پاسخ (اختیاری)</label><input type="text" id="agent-suffix" oninput="agentSet('agentSuffix',this.value)" placeholder="مثلاً: رستیک پک"/></div>
         </div>
       </div>
 
@@ -1547,7 +1569,7 @@ function escapeForJsSingleQuoted(str){
     .replace(/\r/g,'');
   return escapeHtml(jsEscaped);
 }
-const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','round-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
+const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','round-panel','agent-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
 
 const toggleSection = id => {
   const el=$(id); if(!el) return;
@@ -1569,6 +1591,7 @@ const toggleSection = id => {
   if(opening&&id==='display-panel') renderDisplaySettingsInput();
   if(opening&&id==='widget-panel') applyWidgetUI();
   if(opening&&id==='drivers-panel') renderDriversList();
+  if(opening&&id==='agent-panel'&&typeof renderAgentPanel==='function') renderAgentPanel();
 };
 const setVisible = (id,v) => $(id)?.classList.toggle('visible',v);
 
@@ -5371,6 +5394,34 @@ function rpSmsParse(raw){
 }
 window.rpSmsParse=rpSmsParse;
 
+
+/* ══ تنظیمات «ایجنت» ══ */
+const agentOn=()=>invoiceSettings.agentOn!==false;
+const agentOrder=()=>invoiceSettings.agentOrder==='HWL'?'HWL':'LWH';
+const agentMode=()=>invoiceSettings.agentMode==='models'?'models':'inventory';
+const agentSend=()=>invoiceSettings.agentSend==='app'?'app':'direct';
+function agentSet(k,v){
+  invoiceSettings[k]=v; saveState();
+  if(k==='agentOn'){ try{ const p=capPlugin('RpSms'); if(p) p.setEnabled({enabled:!!v}); }catch(_){} }
+}
+async function renderAgentPanel(){
+  const g=id=>document.getElementById(id);
+  if(g('agent-on')) g('agent-on').checked=agentOn();
+  if(g('agent-order')) g('agent-order').value=agentOrder();
+  if(g('agent-mode')) g('agent-mode').value=agentMode();
+  if(g('agent-send')) g('agent-send').value=agentSend();
+  if(g('agent-prefix')) g('agent-prefix').value=invoiceSettings.agentPrefix||'';
+  if(g('agent-suffix')) g('agent-suffix').value=invoiceSettings.agentSuffix||'';
+  const box=g('agent-perm'); if(!box) return;
+  const p=capPlugin('RpSms');
+  if(!p){ box.innerHTML='<span style="color:var(--tx2)">دریافت پیامک فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند.</span>'; return; }
+  try{
+    const st=await p.status();
+    const ok=st.sms&&st.notif;
+    box.innerHTML=`<span style="color:${ok?'var(--green-d)':'var(--danger)'};font-weight:700">${ok?'✅ مجوز پیامک و اعلان فعال است':'⚠️ مجوز پیامک/اعلان کامل نیست'}</span> ${ok?'':'<button type="button" onclick="agentAskPerms()" style="margin:0 6px;width:auto;padding:5px 10px;font-size:.76rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surf-alt);cursor:pointer">درخواست مجوز</button>'}<div style="color:var(--tx2);font-size:.72rem;margin-top:4px">اگر اعلان دیر می‌آید: تنظیمات گوشی ▸ باتری ▸ برنامه‌ها ▸ رستیک پک ▸ «بدون محدودیت / اجرای خودکار».</div>`;
+  }catch(e){ box.textContent='خواندن وضعیت مجوز ممکن نشد.'; }
+}
+async function agentAskPerms(){ try{ await capPlugin('RpSms').requestPerms(); }catch(_){} setTimeout(renderAgentPanel,600); }
 let rpSmsBusy=false; const rpSmsSeen=new Set();
 function rpSmsClose(){ const m=document.getElementById('rp-sms-modal'); if(m) m.remove(); rpSmsBusy=false; }
 function rpSmsEsc(s){ return escapeHtml(String(s==null?'':s)); }
@@ -5381,6 +5432,7 @@ const _rpIn='box-sizing:border-box;width:100%;padding:8px 4px;border:1.5px solid
 function showIncomingSms(item){
   rpSmsClose(); rpSmsBusy=true;
   const parsed=rpSmsParse(item.body);
+  if(agentOrder()==='HWL') parsed.items.forEach(r=>{ const t=r.L; r.L=r.H; r.H=t; });
   const rows=parsed.items.length?parsed.items:[{L:'',W:'',H:'',N:'',warn:['ابعاد در پیامک تشخیص داده نشد — دستی وارد کنید']}];
   const m=document.createElement('div'); m.id='rp-sms-modal'; m.style.cssText=_rpBox;
   const rowHtml=(r,i)=>`<div class="rpsms-row" style="margin-top:8px">
@@ -5429,7 +5481,9 @@ function rpSmsCalc(item,vals){
     if(res.length!==vals.length) throw new Error('محاسبه برای همه‌ی کارتن‌ها انجام نشد؛ ابعاد را چک کن.');
     res.forEach((r,i)=>{ if(r.length!==vals[i].L||r.width!==vals[i].W||r.height!==vals[i].H||r.qty!==vals[i].N) throw new Error('ابعاد محاسبه‌شده با پیامک نمی‌خواند.'); });
     try{ const b=document.querySelector(`.tab-btn[onclick*="switchTab('calc2'"]`); switchTab('calc2',b); }catch(_){}
-    const reply=buildAllCartonsSmsText(res,'inventory');
+    let reply=buildAllCartonsSmsText(res,agentMode());
+    const pre=(invoiceSettings.agentPrefix||'').trim(), suf=(invoiceSettings.agentSuffix||'').trim();
+    if(pre) reply=pre+'\n'+reply; if(suf) reply=reply+'\n'+suf;
     rpSmsReplyUI(item,reply,res.some(r=>!(r.sheets&&r.sheets.length)));
   }catch(e){ alert('خطا: '+(e&&e.message||e)); }
 }
@@ -5459,6 +5513,7 @@ function rpSmsReplyUI(item,reply,noSheet){
   g('#rpsms-send').onclick=async()=>{
     const to=g('#rpsms-to').value.trim(), tx=g('#rpsms-text').value.trim();
     if(!to||!tx){ alert('شماره و متن نباید خالی باشد.'); return; }
+    if(agentSend()==='app'){ g('#rpsms-app').click(); return; }
     const p=capPlugin('RpSms');
     if(!p){ alert('ارسال مستقیم فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند. از «در برنامه‌ی پیامک» استفاده کن.'); return; }
     const b=g('#rpsms-send'); b.disabled=true; b.textContent='⏳ در حال ارسال...';
@@ -5471,7 +5526,7 @@ function rpSmsReplyUI(item,reply,noSheet){
   };
 }
 async function rpSmsCheck(){
-  if(rpSmsBusy) return;
+  if(rpSmsBusy||!agentOn()) return;
   const p=capPlugin('RpSms'); if(!p) return;
   try{
     const r=await p.getPending(); const list=((r&&r.items)||[]).slice().sort((a,b)=>a.time-b.time);
@@ -5481,9 +5536,10 @@ async function rpSmsCheck(){
 }
 async function rpSmsInit(){
   const p=capPlugin('RpSms'); if(!p) return;
+  try{ p.setEnabled({enabled:agentOn()}); }catch(_){}
   try{
     const st=await p.status();
-    if(!st.sms||!st.notif){ if(!localStorage.getItem('rpSmsAsked2')){ try{localStorage.setItem('rpSmsAsked2','1');}catch(_){} await p.requestPerms(); } }
+    if(agentOn()&&(!st.sms||!st.notif)){ if(!localStorage.getItem('rpSmsAsked2')){ try{localStorage.setItem('rpSmsAsked2','1');}catch(_){} await p.requestPerms(); } }
   }catch(_){}
   rpSmsCheck();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) rpSmsCheck(); });
