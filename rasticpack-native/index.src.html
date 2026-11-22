@@ -888,6 +888,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           </label>
           <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin:0 0 10px">وقتی مشتری پیامک ابعاد بدهد، اعلان می‌آید؛ ابعاد و تعداد را در برنامه می‌گذارد، قیمت را حساب می‌کند و پیامک پاسخ را با تأیید تو می‌فرستد. هیچ پیامکی بدون تأیید تو نمی‌رود.</p>
           <div id="agent-perm" style="font-size:.78rem;margin-bottom:10px"></div>
+          <button type="button" onclick="rpSmsCheck(true)" style="margin:0 0 10px;width:100%;padding:9px;font-size:.82rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surf-alt);cursor:pointer">🔄 بررسی پیامک‌های ۳ روز اخیر</button>
           <div class="field full"><label>ترتیب ابعاد در پیامک مشتری</label>
             <select id="agent-order" onchange="agentSet('agentOrder',this.value)"><option value="LWH">طول × عرض × ارتفاع</option><option value="HWL">ارتفاع × عرض × طول</option></select></div>
           <div class="field full"><label>نوع قیمت در پیامک پاسخ</label>
@@ -5379,6 +5380,7 @@ function rpSmsParse(raw){
     if(nums.length===1) return +nums[0];
     return null;
   };
+  dimsList=dimsList.filter(d=>d.a.every(v=>v>=1&&v<=300));   /* تاریخ‌ها مثل 26/08/1405 ابعاد حساب نشوند */
   const items=dimsList.map((d,k)=>{
     const next=dimsList[k+1];
     let N=qtyIn(t.slice(d.e,next?next.i:t.length));
@@ -5467,7 +5469,10 @@ function showIncomingSms(item){
     rpSmsCalc(item,vals);
   };
 }
-async function rpSmsRemove(item){ try{ rpSmsSeen.add(item.id); const p=capPlugin('RpSms'); if(p&&item.id&&!String(item.id).startsWith('test')) await p.removePending({id:item.id}); }catch(_){} }
+const rpKey=it=>(String(it.sender||'').replace(/\D/g,'').slice(-10))+'|'+String(it.body||'').trim();
+function rpDoneGet(){ try{ return JSON.parse(localStorage.getItem('rpSmsDone')||'[]'); }catch(_){ return []; } }
+function rpDoneAdd(it){ try{ const a=rpDoneGet(); a.push(rpKey(it)); localStorage.setItem('rpSmsDone',JSON.stringify(a.slice(-300))); }catch(_){} }
+async function rpSmsRemove(item){ try{ rpSmsSeen.add(item.id); rpDoneAdd(item); const p=capPlugin('RpSms'); if(p&&item.id&&!String(item.id).startsWith('test')&&!String(item.id).startsWith('in_')) await p.removePending({id:item.id}); }catch(_){} }
 function rpSmsCalc(item,vals){
   try{
     resetCalc2Cards();
@@ -5525,13 +5530,23 @@ function rpSmsReplyUI(item,reply,noSheet){
     }catch(e){ alert('ارسال نشد: '+(e&&e.message||e)); b.disabled=false; b.textContent='✅ تأیید و ارسال'; }
   };
 }
-async function rpSmsCheck(){
+async function rpSmsCheck(force){
   if(rpSmsBusy||!agentOn()) return;
   const p=capPlugin('RpSms'); if(!p) return;
   try{
-    const r=await p.getPending(); const list=((r&&r.items)||[]).slice().sort((a,b)=>a.time-b.time);
-    const it=list.find(x=>!rpSmsSeen.has(x.id));
+    const done=new Set(rpDoneGet()); let list=[];
+    try{ const r=await p.getPending(); list=list.concat((r&&r.items)||[]); }catch(_){}
+    /* پشتیبان: صندوق پیامک هم خوانده می‌شود تا پیامی که اعلانش نرسیده هم گرفته شود */
+    try{
+      let since=+invoiceSettings.agentSince||0; if(!since){ since=Date.now()-24*3600*1000; invoiceSettings.agentSince=since; saveState(); }
+      if(force) since=Date.now()-72*3600*1000;
+      const r=await p.readInbox({since,limit:40}); list=list.concat((r&&r.items)||[]);
+    }catch(_){}
+    list.sort((a,b)=>a.time-b.time);
+    const it=list.find(x=>!rpSmsSeen.has(x.id)&&!done.has(rpKey(x))&&((rpSmsNorm(x.body).match(/\d+/g)||[]).length>=3)&&rpSmsParse(x.body).items.length>0);
+    list.forEach(x=>{ if(!rpSmsParse(x.body).items.length) rpSmsSeen.add(x.id); });
     if(it){ rpSmsSeen.add(it.id); showIncomingSms(it); }
+    else if(force) alert('پیامک تازه‌ای با ابعاد پیدا نشد.');
   }catch(_){}
 }
 async function rpSmsInit(){
@@ -5539,7 +5554,7 @@ async function rpSmsInit(){
   try{ p.setEnabled({enabled:agentOn()}); }catch(_){}
   try{
     const st=await p.status();
-    if(agentOn()&&(!st.sms||!st.notif)){ if(!localStorage.getItem('rpSmsAsked2')){ try{localStorage.setItem('rpSmsAsked2','1');}catch(_){} await p.requestPerms(); } }
+    if(agentOn()&&(!st.sms||!st.notif)){ if(!localStorage.getItem('rpSmsAsked3')){ try{localStorage.setItem('rpSmsAsked3','1');}catch(_){} await p.requestPerms(); } }
   }catch(_){}
   rpSmsCheck();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) rpSmsCheck(); });

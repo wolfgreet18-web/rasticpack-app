@@ -126,7 +126,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 @CapacitorPlugin(name = "RpSms", permissions = {
-    @Permission(alias = "sms", strings = { Manifest.permission.RECEIVE_SMS, Manifest.permission.SEND_SMS })
+    @Permission(alias = "sms", strings = { Manifest.permission.RECEIVE_SMS, Manifest.permission.SEND_SMS, Manifest.permission.READ_SMS })
 })
 public class RpSmsPlugin extends Plugin {
 
@@ -194,6 +194,30 @@ public class RpSmsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void readInbox(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) { call.reject("اجازه‌ی خواندن پیامک داده نشده است."); return; }
+        android.database.Cursor c = null;
+        try {
+            long since = call.getLong("since", 0L);
+            int limit = call.getInt("limit", 40);
+            JSONArray arr = new JSONArray();
+            c = getContext().getContentResolver().query(android.net.Uri.parse("content://sms/inbox"),
+                new String[]{"_id", "address", "body", "date"}, "date>?", new String[]{String.valueOf(since)}, "date DESC");
+            while (c != null && c.moveToNext() && arr.length() < limit) {
+                JSONObject o = new JSONObject();
+                o.put("id", "in_" + c.getLong(0));
+                o.put("sender", c.getString(1) == null ? "" : c.getString(1));
+                o.put("body", c.getString(2) == null ? "" : c.getString(2));
+                o.put("time", c.getLong(3));
+                arr.put(o);
+            }
+            JSObject out = new JSObject(); out.put("items", new JSArray(arr.toString()));
+            call.resolve(out);
+        } catch (Throwable e) { call.reject("خواندن صندوق پیامک ناموفق بود: " + e.getMessage()); }
+        finally { if (c != null) c.close(); }
+    }
+
+    @PluginMethod
     public void sendSms(PluginCall call) {
         String to = call.getString("to", "");
         String text = call.getString("text", "");
@@ -218,7 +242,7 @@ w(jdir / 'RpSmsPlugin.java', PLUGIN)
 mf = main / 'AndroidManifest.xml'
 t = mf.read_text(encoding='utf-8')
 perms = ''
-for p in ('RECEIVE_SMS', 'SEND_SMS', 'POST_NOTIFICATIONS'):
+for p in ('RECEIVE_SMS', 'SEND_SMS', 'READ_SMS', 'POST_NOTIFICATIONS'):
     if f'android.permission.{p}"' not in t:
         perms += f'    <uses-permission android:name="android.permission.{p}"/>\n'
 if perms:
