@@ -2837,6 +2837,37 @@ let calc2InvoiceSubmitted=false;
 /* مقادیر نمونه پیش‌فرض برای تست — فقط برای ردیف‌های اولیه 1 و 2 */
 const calc2SampleDefaults={};   /* بدون ابعاد پیش‌فرض */
 
+/* کوچک‌کردن چارت‌های L/W/H/N (چهارتا در یک خط) */
+(function(){ const st=document.createElement('style'); st.textContent='.c2-dims4 .field input{padding:8px 4px!important;font-size:.95rem!important;text-align:center;min-width:0;width:100%;box-sizing:border-box}.c2-dims4 .field label{font-size:.8rem}'; document.head.appendChild(st); })();
+/* کیبورد: بار اول باز شدن برنامه روی چارت L (ردیف اول) فوکوس می‌شود؛ پاک‌کردن (بک‌اسپیس) در چارت خالی ← رفتن به چارت قبلی در همان خط */
+(function(){
+  const ORDER=['length','width','height','qty'];
+  let lastMove=0;
+  function prevOf(el){
+    const m=/^c2-(length|width|height|qty)-(\d+)$/.exec(el.id||''); if(!m) return null;
+    const i=ORDER.indexOf(m[1]); if(i<=0) return null;
+    return document.getElementById('c2-'+ORDER[i-1]+'-'+m[2]);
+  }
+  function tryBack(e,isBefore){
+    const el=e.target; if(!el||el.tagName!=='INPUT') return;
+    if(isBefore?e.inputType!=='deleteContentBackward':(e.key!=='Backspace')) return;
+    if(el.value!=='') return;
+    const pv=prevOf(el); if(!pv) return;
+    const now=Date.now(); if(now-lastMove<150) return; lastMove=now;
+    e.preventDefault(); pv.focus();
+  }
+  document.addEventListener('keydown',e=>tryBack(e,false),true);
+  document.addEventListener('beforeinput',e=>tryBack(e,true),true);
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{
+      try{
+        const el=document.getElementById('c2-length-1'); if(!el||el.offsetParent===null) return;
+        if(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+        el.focus();
+      }catch(_){}
+    },700);
+  });
+})();
 function calc2RowTemplate(id){
   const d=calc2SampleDefaults[id]||{};
   const vL=d.length??'', vW=d.width??'', vH=d.height??'', vF=String(d.glue??'4'), vN=d.qty??'', vLayer=d.layer||'3';
@@ -2845,7 +2876,7 @@ function calc2RowTemplate(id){
   return`<div class="calc2-row" data-id="${id}">
     <div class="calc2-row-num" style="margin-bottom:10px;text-align:right"><span class="c2-num" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.85rem;line-height:1;padding:0;text-align:center"></span></div>
     <div class="form-grid">
-      <div class="full" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div class="full c2-dims4" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
         <div class="field">
           <label for="c2-length-${id}" style="color:var(--danger)">L</label>
           <input type="number" id="c2-length-${id}" min="1" value="${vL}" oninput="clearError(this)" style="background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700"/>
@@ -2858,12 +2889,12 @@ function calc2RowTemplate(id){
           <label for="c2-height-${id}" style="color:var(--danger)">H</label>
           <input type="number" id="c2-height-${id}" min="1" value="${vH}" oninput="clearError(this)" style="background:#16a34a;border-color:#15803d;color:#fff;font-weight:700"/>
         </div>
+        <div class="field">
+          <label for="c2-qty-${id}" style="color:var(--danger)">N</label>
+          <input type="number" id="c2-qty-${id}" min="1" value="${vN}" oninput="clearError(this)" style="background:#1c1917;border-color:#000;color:#fff;font-weight:700"/>
+        </div>
       </div>
       <div class="full" style="display:flex;gap:6px 6px;align-items:end;flex-wrap:wrap">
-        <div class="field" style="flex:0 0 auto">
-          <label for="c2-qty-${id}" style="color:var(--danger)">N</label>
-          <input type="number" id="c2-qty-${id}" min="1" value="${vN}" oninput="clearError(this)" style="background:#1c1917;border-color:#000;color:#fff;font-weight:700;width:66px"/>
-        </div>
         <div class="field" style="flex:0 0 auto;align-items:flex-start">
           <label style="color:var(--danger)">F</label>
           <div style="display:flex;align-items:center;gap:0;margin-bottom:-1px">
