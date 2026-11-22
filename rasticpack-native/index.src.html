@@ -5322,6 +5322,175 @@ function previewCalc2Invoice(){
   g('pre-inv-skip').onclick=()=>go(false);
 }
 window.previewCalc2Invoice=previewCalc2Invoice;
+/* ══ پیامک مشتری ← تشخیص ابعاد و تعداد ← محاسبه‌ی قیمت ← پیامک پاسخ (با تأیید خودت) ══
+   اندروید (APK): پلاگین «RpSms» پیامک دریافتی را نگه می‌دارد و اعلان می‌دهد؛ این بخش آن را می‌خواند. */
+function rpSmsNorm(t){
+  return String(t||'')
+    .replace(/[۰-۹]/g,d=>String(d.charCodeAt(0)-0x06F0))
+    .replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-0x0660))
+    .replace(/(\d)[,٬،](?=\d{3}(?!\d))/g,'$1')
+    .replace(/٫/g,'.')
+    .replace(/[‌‏‎]/g,' ');
+}
+/* خروجی: {items:[{L,W,H,N,ok,warn}], ...}. ترتیب اعداد: اولی طول، دومی عرض، سومی ارتفاع (در پنجره‌ی تأیید قابل اصلاح است) */
+function rpSmsParse(raw){
+  const t=rpSmsNorm(raw);
+  const NUM='(\\d+(?:\\.\\d+)?)';
+  const SEP='\\s*(?:[x×*✕✖]|ایکس|در|بر|\\/)\\s*';
+  const re=new RegExp(NUM+SEP+NUM+SEP+NUM,'gi');
+  const ms=[]; let m;
+  while((m=re.exec(t))) ms.push({i:m.index,e:m.index+m[0].length,a:[+m[1],+m[2],+m[3]]});
+  let dimsList=ms;
+  if(!dimsList.length){
+    /* حالت برچسب‌دار: طول 30 عرض 20 ارتفاع 15 */
+    const g=(w)=>{ const r=new RegExp('(?:'+w+')\\s*[:=]?\\s*'+NUM,'i').exec(t); return r?+r[1]:null; };
+    const L=g('طول|length|l'),W=g('عرض|width|w'),H=g('ارتفاع|قد|height|h');
+    if(L&&W&&H) dimsList=[{i:0,e:0,a:[L,W,H],labeled:true}];
+  }
+  const qtyIn=(seg)=>{
+    seg=seg||''; let r;
+    if((r=/(\d+(?:\.\d+)?)\s*هزار/.exec(seg))) return Math.round(+r[1]*1000);
+    if((r=/(?:تعداد|عدد|qty|n)\s*[:=]?\s*(\d+)/i.exec(seg))) return +r[1];
+    if((r=/(\d+)\s*(?:عدد|تا|کارتن|جعبه|بسته|ت(?![؀-ۿ]))/.exec(seg))) return +r[1];
+    const nums=(seg.match(/\d+(?:\.\d+)?/g)||[]).filter(x=>x.replace('.','').length<=6);
+    if(nums.length===1) return +nums[0];
+    return null;
+  };
+  const items=dimsList.map((d,k)=>{
+    const next=dimsList[k+1];
+    let N=qtyIn(t.slice(d.e,next?next.i:t.length));
+    if(N==null&&k===0&&!d.labeled) N=qtyIn(t.slice(0,d.i));
+    if(N==null&&d.labeled) N=qtyIn(t.replace(/(?:طول|عرض|ارتفاع|قد)\s*[:=]?\s*\d+(?:\.\d+)?/g,' '));
+    const [L,W,H]=d.a; const warn=[];
+    if([L,W,H].some(v=>!(v>=1&&v<=300))) warn.push('ابعاد غیرعادی است');
+    if(N!=null&&!(N>=1&&N<=1000000)) warn.push('تعداد غیرعادی است');
+    if(N==null) warn.push('تعداد پیدا نشد');
+    return {L,W,H,N,warn};
+  });
+  return {items};
+}
+window.rpSmsParse=rpSmsParse;
+
+let rpSmsBusy=false; const rpSmsSeen=new Set();
+function rpSmsClose(){ const m=document.getElementById('rp-sms-modal'); if(m) m.remove(); rpSmsBusy=false; }
+function rpSmsEsc(s){ return escapeHtml(String(s==null?'':s)); }
+const _rpBox='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:12px';
+const _rpCard='background:#fff;color:#111;border-radius:16px;padding:14px;width:100%;max-width:400px;max-height:94vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.4)';
+const _rpBtn='border:none;border-radius:10px;padding:11px 10px;font:inherit;font-weight:700;cursor:pointer;';
+const _rpIn='box-sizing:border-box;width:100%;padding:8px 4px;border:1.5px solid #ccc;border-radius:8px;font:inherit;font-weight:700;text-align:center;color:#fff;';
+function showIncomingSms(item){
+  rpSmsClose(); rpSmsBusy=true;
+  const parsed=rpSmsParse(item.body);
+  const rows=parsed.items.length?parsed.items:[{L:'',W:'',H:'',N:'',warn:['ابعاد در پیامک تشخیص داده نشد — دستی وارد کنید']}];
+  const m=document.createElement('div'); m.id='rp-sms-modal'; m.style.cssText=_rpBox;
+  const rowHtml=(r,i)=>`<div class="rpsms-row" style="margin-top:8px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 28px;gap:5px;align-items:center">
+      <input type="number" inputmode="decimal" class="rpsms-L" value="${rpSmsEsc(r.L)}" placeholder="L" style="${_rpIn}background:#2563eb">
+      <input type="number" inputmode="decimal" class="rpsms-W" value="${rpSmsEsc(r.W)}" placeholder="W" style="${_rpIn}background:#dc2626">
+      <input type="number" inputmode="decimal" class="rpsms-H" value="${rpSmsEsc(r.H)}" placeholder="H" style="${_rpIn}background:#16a34a">
+      <input type="number" inputmode="numeric" class="rpsms-N" value="${rpSmsEsc(r.N)}" placeholder="N" style="${_rpIn}background:#1c1917">
+      <button type="button" class="rpsms-del" style="border:none;background:none;font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    ${(r.warn&&r.warn.length)?`<div style="color:#b45309;font-size:.75rem;margin-top:3px">⚠️ ${rpSmsEsc(r.warn.join('، '))}</div>`:''}
+  </div>`;
+  m.innerHTML=`<div dir="rtl" style="${_rpCard}">
+    <div style="font-weight:800;margin-bottom:6px">📩 پیامک مشتری</div>
+    <div style="font-size:.8rem;color:#555;direction:ltr;text-align:right">${rpSmsEsc(item.sender)}</div>
+    <div style="background:#f5f5f4;border-radius:10px;padding:8px 10px;margin:6px 0 8px;font-size:.88rem;white-space:pre-wrap">${rpSmsEsc(item.body)}</div>
+    <div style="font-size:.8rem;font-weight:700">ابعاد و تعداد تشخیص‌داده‌شده (اول طول، دوم عرض، سوم ارتفاع، آخر تعداد) — درست بودنش را چک کن:</div>
+    <div id="rpsms-rows">${rows.map(rowHtml).join('')}</div>
+    <div style="font-size:.74rem;color:#92400e;margin-top:8px">با «محاسبه»، ورودی‌های فعلی تب قیمت پاک و با این ابعاد جایگزین می‌شود.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button type="button" id="rpsms-calc" style="${_rpBtn}flex:1.4;background:#2563eb;color:#fff">محاسبه قیمت</button>
+      <button type="button" id="rpsms-dismiss" style="${_rpBtn}flex:1;background:#f3f4f6;color:#111">رد کردن</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  const g=id=>m.querySelector(id);
+  m.addEventListener('click',e=>{ if(e.target.classList.contains('rpsms-del')){ const r=e.target.closest('.rpsms-row'); if(m.querySelectorAll('.rpsms-row').length>1) r.remove(); } });
+  g('#rpsms-dismiss').onclick=async()=>{ await rpSmsRemove(item); rpSmsClose(); };
+  g('#rpsms-calc').onclick=()=>{
+    const vals=[...m.querySelectorAll('.rpsms-row')].map(r=>({L:+r.querySelector('.rpsms-L').value,W:+r.querySelector('.rpsms-W').value,H:+r.querySelector('.rpsms-H').value,N:+r.querySelector('.rpsms-N').value}));
+    if(!vals.length||vals.some(v=>!(v.L>0&&v.W>0&&v.H>0&&v.N>0&&Number.isInteger(v.N)))){ alert('طول، عرض، ارتفاع و تعداد (عدد صحیح) همه‌ی کارتن‌ها باید پر و درست باشد.'); return; }
+    rpSmsCalc(item,vals);
+  };
+}
+async function rpSmsRemove(item){ try{ rpSmsSeen.add(item.id); const p=capPlugin('RpSms'); if(p&&item.id&&!String(item.id).startsWith('test')) await p.removePending({id:item.id}); }catch(_){} }
+function rpSmsCalc(item,vals){
+  try{
+    resetCalc2Cards();
+    for(let i=1;i<vals.length;i++) addCartonRow2();
+    calc2RowIds.forEach((id,i)=>{
+      $('c2-length-'+id).value=vals[i].L; $('c2-width-'+id).value=vals[i].W;
+      $('c2-height-'+id).value=vals[i].H; $('c2-qty-'+id).value=vals[i].N;
+    });
+    runCalc2();
+    const res=calc2LastResults||[];
+    if(res.length!==vals.length) throw new Error('محاسبه برای همه‌ی کارتن‌ها انجام نشد؛ ابعاد را چک کن.');
+    res.forEach((r,i)=>{ if(r.length!==vals[i].L||r.width!==vals[i].W||r.height!==vals[i].H||r.qty!==vals[i].N) throw new Error('ابعاد محاسبه‌شده با پیامک نمی‌خواند.'); });
+    try{ const b=document.querySelector(`.tab-btn[onclick*="switchTab('calc2'"]`); switchTab('calc2',b); }catch(_){}
+    const reply=buildAllCartonsSmsText(res,'inventory');
+    rpSmsReplyUI(item,reply,res.some(r=>!(r.sheets&&r.sheets.length)));
+  }catch(e){ alert('خطا: '+(e&&e.message||e)); }
+}
+function rpSmsReplyUI(item,reply,noSheet){
+  rpSmsClose(); rpSmsBusy=true;
+  const m=document.createElement('div'); m.id='rp-sms-modal'; m.style.cssText=_rpBox;
+  m.innerHTML=`<div dir="rtl" style="${_rpCard}">
+    <div style="font-weight:800;margin-bottom:6px">📤 پیامک پاسخ به مشتری</div>
+    ${noSheet?'<div style="color:#b45309;font-size:.78rem;margin-bottom:6px">⚠️ برای بعضی کارتن‌ها ورق سازگاری در انبار پیدا نشد؛ متن را با دقت بخوان.</div>':''}
+    <label style="font-size:.8rem;font-weight:700">گیرنده</label>
+    <input id="rpsms-to" type="tel" value="${rpSmsEsc(item.sender)}" style="box-sizing:border-box;width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px;direction:ltr;font:inherit;margin:4px 0 8px;background:#fff;color:#111">
+    <label style="font-size:.8rem;font-weight:700">متن پیامک (قابل ویرایش)</label>
+    <textarea id="rpsms-text" rows="9" style="box-sizing:border-box;width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px;font:inherit;margin-top:4px;background:#fff;color:#111">${rpSmsEsc(reply)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button type="button" id="rpsms-send" style="${_rpBtn}flex:1.4;background:#16a34a;color:#fff">✅ تأیید و ارسال</button>
+      <button type="button" id="rpsms-app" style="${_rpBtn}flex:1;background:#eef2ff;color:#3730a3">در برنامه‌ی پیامک</button>
+    </div>
+    <button type="button" id="rpsms-close" style="${_rpBtn}width:100%;margin-top:8px;background:none;color:#6b7280">بستن (ارسال نشود)</button>
+  </div>`;
+  document.body.appendChild(m);
+  const g=id=>m.querySelector(id);
+  g('#rpsms-close').onclick=()=>rpSmsClose();
+  g('#rpsms-app').onclick=async()=>{
+    const to=g('#rpsms-to').value.trim(), tx=g('#rpsms-text').value;
+    window.location.href='sms:'+encodeURIComponent(to)+'?body='+encodeURIComponent(tx);
+  };
+  g('#rpsms-send').onclick=async()=>{
+    const to=g('#rpsms-to').value.trim(), tx=g('#rpsms-text').value.trim();
+    if(!to||!tx){ alert('شماره و متن نباید خالی باشد.'); return; }
+    const p=capPlugin('RpSms');
+    if(!p){ alert('ارسال مستقیم فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند. از «در برنامه‌ی پیامک» استفاده کن.'); return; }
+    const b=g('#rpsms-send'); b.disabled=true; b.textContent='⏳ در حال ارسال...';
+    try{
+      await p.sendSms({to,text:tx});
+      await rpSmsRemove(item);
+      rpSmsClose();
+      alert('✅ پیامک ارسال شد.');
+    }catch(e){ alert('ارسال نشد: '+(e&&e.message||e)); b.disabled=false; b.textContent='✅ تأیید و ارسال'; }
+  };
+}
+async function rpSmsCheck(){
+  if(rpSmsBusy) return;
+  const p=capPlugin('RpSms'); if(!p) return;
+  try{
+    const r=await p.getPending(); const list=((r&&r.items)||[]).slice().sort((a,b)=>a.time-b.time);
+    const it=list.find(x=>!rpSmsSeen.has(x.id));
+    if(it){ rpSmsSeen.add(it.id); showIncomingSms(it); }
+  }catch(_){}
+}
+async function rpSmsInit(){
+  const p=capPlugin('RpSms'); if(!p) return;
+  try{
+    const st=await p.status();
+    if(!st.sms||!st.notif){ if(!localStorage.getItem('rpSmsAsked2')){ try{localStorage.setItem('rpSmsAsked2','1');}catch(_){} await p.requestPerms(); } }
+  }catch(_){}
+  rpSmsCheck();
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) rpSmsCheck(); });
+  setInterval(()=>{ if(!document.hidden) rpSmsCheck(); },4000);
+}
+window.addEventListener('load',()=>setTimeout(rpSmsInit,1800));
+window.showIncomingSms=showIncomingSms;
 function toggleC2SmsOptions(){
   const box=$('c2-sms-opts'); if(!box) return;
   if(box.style.display==='none'){
