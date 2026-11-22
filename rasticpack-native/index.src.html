@@ -3931,9 +3931,7 @@ function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteC
     </div>
     <div id="c2-sms-opts" style="display:none;gap:14px;justify-content:center;align-items:center;margin:-2px 0 12px">
       <button type="button" id="c2-sms-opt-sheet" title="ارسال طبق موجودی انبار" aria-label="ارسال طبق موجودی انبار" onclick="sendAllCartonsToSms('inventory')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
-      <button type="button" id="c2-sms-opt-suggest" title="ارسال قیمت مدل‌های ورق (پیشنهاد ورق)" aria-label="ارسال قیمت مدل‌های ورق (پیشنهاد ورق)" onclick="sendAllCartonsToSms('models')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
-      <button type="button" id="c2-sms-opt-pick" title="انتخاب قیمت‌ها برای کپی" aria-label="انتخاب قیمت‌ها برای کپی" onclick="toggleC2SmsPick()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">☑️</button>
-      <button type="button" id="c2-sms-opt-invoice" title="نمایش پیش‌فاکتور (بدون ثبت)" aria-label="نمایش پیش‌فاکتور (بدون ثبت)" onclick="previewCalc2Invoice()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">🧾</button>
+      <button type="button" id="c2-sms-opt-invoice" title="ارسال پیش‌فاکتور" aria-label="ارسال پیش‌فاکتور" onclick="previewCalc2Invoice()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">🧾</button>
     </div>
     <div id="c2-sms-pick" style="display:none;margin:0 0 12px;padding:12px;border:1.5px solid var(--border);border-radius:16px;background:var(--surface)">
       <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -5217,9 +5215,7 @@ async function sendCartonToSms(rowId){
 /* دکمه‌ی 📤 کنار «ثبت فاکتور» — ارسال خلاصه‌ی همه‌ی کارتن‌های محاسبه‌شده با هم */
 /* 🗨️ → باز/بسته شدن دو گزینه: «شیت» (طبق موجودی انبار) و «پیشنهاد ورق» (قیمت مدل‌های ورق) */
 /* 🧾 پیش‌فاکتور (بدون ثبت): از نتیجه‌ی محاسبه‌ی فعلی یک پیش‌فاکتور با همان طرح فاکتور می‌سازد؛ نه موجودی کم می‌شود نه چیزی ذخیره */
-function previewCalc2Invoice(){
-  const name=($('c2inv-customer')?.value||'').trim();
-  const cust=name?findCustomerByName(name):null;
+function _c2BuildPreInvoice(name,phone){
   const items=(calc2LastResults||[]).flatMap(r=>{
     const best=r.sheets&&r.sheets[0]; if(!best) return [];
     const sheet=best.id!=null?inventory.find(s=>s.id===best.id):null;
@@ -5227,12 +5223,72 @@ function previewCalc2Invoice(){
     return [{sheetId:sheet?sheet.id:null,layer:(sheet&&sheet.layer)||r.layer,paperType:(sheet&&sheet.paperType)||'',flute:(sheet&&sheet.flute)||'',
       cartonName:r.name,cartonLength:r.length,cartonWidth:r.width,cartonHeight:r.height,cartonQty:r.qty,qty:r.qty,cartonType:r.type||'',unitPrice:unit,lineTotal:unit*r.qty}];
   });
-  if(!items.length){ alert('اول قیمت را محاسبه کنید.'); return; }
+  if(!items.length) return null;
+  const cust=name?findCustomerByName(name):null;
   const inv={id:nextInvoiceId,customerId:cust?cust.id:null,customerName:cust?cust.name:(name||'—'),date:new Date().toISOString(),type:'final',status:'draft',items,totalSheets:0};
-  const html=buildInvoicePrintHtml(inv,cust);
-  const w=window.open('','_blank');
-  if(!w){ alert('اجازه باز شدن پنجره جدید داده نشد.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+  return {inv,cust:cust||{phone:phone||''}};
+}
+/* 🧾 پیش‌فاکتور: اول پنجره‌ی مشخصات مشتری (دستی / از مخاطبین گوشی / بدون مشخصات) ← بعد ساخت PDF و باز شدن لیست اشتراک‌گذاری (روبیکا) */
+function previewCalc2Invoice(){
+  if(!(calc2LastResults||[]).length){ alert('اول قیمت را محاسبه کنید.'); return; }
+  const old=document.getElementById('pre-inv-modal'); if(old) old.remove();
+  const m=document.createElement('div'); m.id='pre-inv-modal';
+  m.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+  const inp='width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border,#ddd);border-radius:10px;font:inherit;font-size:.95rem;margin-top:6px;background:#fff;color:#111';
+  const btn='border:none;border-radius:10px;padding:11px 12px;font:inherit;font-weight:700;cursor:pointer;';
+  m.innerHTML=`<div dir="rtl" style="background:#fff;color:#111;border-radius:16px;padding:16px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <div style="font-weight:800;font-size:1.05rem;margin-bottom:10px">🧾 ارسال پیش‌فاکتور</div>
+    <label style="font-size:.82rem;font-weight:700">نام و فامیل</label>
+    <input id="pre-inv-name" type="text" placeholder="نام و فامیل مشتری" value="${escapeHtml(($('c2inv-customer')?.value||'').trim())}" style="${inp}">
+    <label style="font-size:.82rem;font-weight:700;display:block;margin-top:10px">شماره تماس</label>
+    <input id="pre-inv-phone" type="tel" inputmode="tel" placeholder="09..." style="${inp};direction:ltr;text-align:right">
+    <button type="button" id="pre-inv-contacts" style="${btn}width:100%;margin-top:10px;background:#eef2ff;color:#3730a3">📇 انتخاب از مخاطبین گوشی</button>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button type="button" id="pre-inv-send" style="${btn}flex:1.4;background:#2563eb;color:#fff">ارسال به روبیکا</button>
+      <button type="button" id="pre-inv-skip" style="${btn}flex:1;background:#f3f4f6;color:#111">بدون مشخصات</button>
+    </div>
+    <button type="button" id="pre-inv-cancel" style="${btn}width:100%;margin-top:8px;background:none;color:#6b7280">انصراف</button>
+  </div>`;
+  document.body.appendChild(m);
+  const g=id=>document.getElementById(id);
+  g('pre-inv-cancel').onclick=()=>m.remove();
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  g('pre-inv-contacts').onclick=async()=>{
+    if(!(navigator.contacts&&navigator.contacts.select)){ alert('این دستگاه/نسخه اجازه‌ی انتخاب مستقیم از مخاطبین را نمی‌دهد — نام و شماره را دستی وارد کنید (یا از مشتری‌های ثبت‌شده‌ی برنامه استفاده کنید).'); return; }
+    try{
+      const r=await navigator.contacts.select(['name','tel'],{multiple:false});
+      if(r&&r[0]){ g('pre-inv-name').value=(r[0].name&&r[0].name[0])||''; g('pre-inv-phone').value=(r[0].tel&&r[0].tel[0])||''; }
+    }catch(e){}
+  };
+  const go=async(useInfo)=>{
+    const name=useInfo?g('pre-inv-name').value.trim():'';
+    const phone=useInfo?g('pre-inv-phone').value.trim():'';
+    const b=g('pre-inv-send'), b2=g('pre-inv-skip'); b.disabled=b2.disabled=true; b.textContent='⏳ در حال ساخت...';
+    try{
+      const pack=_c2BuildPreInvoice(name,phone); if(!pack) throw new Error('اول قیمت را محاسبه کنید.');
+      await ensureInvoicePdfLibs();
+      const canvas=await renderInvoiceToCanvas(null,pack.inv,pack.cust);
+      if(!canvas) throw new Error('ساخت تصویر پیش‌فاکتور ناموفق بود.');
+      const{jsPDF}=window.jspdf;
+      const pdf=new jsPDF({orientation:'portrait',unit:'px',format:[canvas.width,canvas.height]});
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,canvas.width,canvas.height);
+      const blob=pdf.output('blob');
+      const fname=`پیش‌فاکتور-${(pack.inv.customerName==='—'?'':pack.inv.customerName).replace(/[\\/:*?"<>|]/g,'')||'رستیک‌پک'}-${pack.inv.id}.pdf`;
+      const file=new File([blob],fname,{type:'application/pdf'});
+      m.remove();
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file],title:fname}); return; }catch(e){ if(e&&e.name==='AbortError') return; }
+      }
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.style.display='none';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+      alert('اشتراک‌گذاری مستقیم پشتیبانی نشد؛ PDF پیش‌فاکتور دانلود شد — از دانلودها در روبیکا بفرستید.');
+    }catch(e){
+      alert('ساخت پیش‌فاکتور ناموفق بود: '+(e&&e.message||'خطا'));
+      b.disabled=b2.disabled=false; b.textContent='ارسال به روبیکا';
+    }
+  };
+  g('pre-inv-send').onclick=()=>go(true);
+  g('pre-inv-skip').onclick=()=>go(false);
 }
 window.previewCalc2Invoice=previewCalc2Invoice;
 function toggleC2SmsOptions(){
@@ -8919,9 +8975,9 @@ async function ensureInvoicePdfLibs(){
   if(!window.jspdf) await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
 }
 /* رندر همان HTML چاپی فاکتور داخل یک iframe مخفی و گرفتن تصویر از آن با html2canvas */
-async function renderInvoiceToCanvas(invId){
-  const inv=invoices.find(i=>i.id===invId); if(!inv) return null;
-  const cust=getCustomerById(inv.customerId);
+async function renderInvoiceToCanvas(invId,invObj,custObj){
+  const inv=invObj||invoices.find(i=>i.id===invId); if(!inv) return null;
+  const cust=invObj?(custObj||null):getCustomerById(inv.customerId);
   const html=buildInvoicePrintHtml(inv,cust);
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed';
