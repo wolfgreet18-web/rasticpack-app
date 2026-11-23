@@ -45,7 +45,9 @@ public class RpSmsReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
         if (intent == null || !Telephony.Sms.Intents.SMS_RECEIVED_ACTION.equals(intent.getAction())) return;
-        if (!ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("enabled", true)) return;
+        SharedPreferences sp0 = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        sp0.edit().putLong("last_rx", System.currentTimeMillis()).putString("last_note", "رسید").apply();
+        if (!sp0.getBoolean("enabled", true)) { sp0.edit().putString("last_note", "ایجنت خاموش است").apply(); return; }
         try {
             SmsMessage[] msgs = Telephony.Sms.Intents.getMessagesFromIntent(intent);
             if (msgs == null || msgs.length == 0) return;
@@ -63,8 +65,9 @@ public class RpSmsReceiver extends BroadcastReceiver {
                 int cnt = 0;
                 java.util.regex.Matcher mm = NUM.matcher(digits(body));
                 while (mm.find()) cnt++;
-                if (cnt < 3) continue;
+                if (cnt < 3) { ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("last_note", "کمتر از سه عدد داشت").apply(); continue; }
                 save(ctx, e.getKey(), body, t);
+                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("last_note", "ذخیره و اعلان داده شد").apply();
                 notifyUser(ctx, e.getKey(), body);
             }
         } catch (Throwable ignored) { }
@@ -147,6 +150,22 @@ public class RpSmsPlugin extends Plugin {
         boolean on = Boolean.TRUE.equals(call.getBoolean("enabled", true));
         getContext().getSharedPreferences(RpSmsReceiver.PREFS, Context.MODE_PRIVATE).edit().putBoolean("enabled", on).apply();
         call.resolve();
+    }
+
+    @PluginMethod
+    public void diag(PluginCall call) {
+        Context c = getContext();
+        SharedPreferences sp = c.getSharedPreferences(RpSmsReceiver.PREFS, Context.MODE_PRIVATE);
+        JSObject o = new JSObject();
+        o.put("sdk", Build.VERSION.SDK_INT);
+        o.put("recv", c.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED);
+        o.put("read", c.checkSelfPermission(Manifest.permission.READ_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED);
+        o.put("send", c.checkSelfPermission(Manifest.permission.SEND_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED);
+        o.put("notif", notifGranted());
+        o.put("lastRx", sp.getLong("last_rx", 0L));
+        o.put("lastNote", sp.getString("last_note", ""));
+        try { o.put("pending", new JSONArray(sp.getString(RpSmsReceiver.KEY, "[]")).length()); } catch (Exception e) { o.put("pending", -1); }
+        call.resolve(o);
     }
 
     @PluginMethod

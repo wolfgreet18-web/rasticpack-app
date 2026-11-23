@@ -5421,6 +5421,11 @@ async function renderAgentPanel(){
     const st=await p.status();
     const ok=st.sms&&st.notif;
     box.innerHTML=`<span style="color:${ok?'var(--green-d)':'var(--danger)'};font-weight:700">${ok?'✅ مجوز پیامک و اعلان فعال است':'⚠️ مجوز پیامک/اعلان کامل نیست'}</span> ${ok?'':'<button type="button" onclick="agentAskPerms()" style="margin:0 6px;width:auto;padding:5px 10px;font-size:.76rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;background:var(--surf-alt);cursor:pointer">درخواست مجوز</button>'}<div style="color:var(--tx2);font-size:.72rem;margin-top:4px">اگر اعلان دیر می‌آید: تنظیمات گوشی ▸ باتری ▸ برنامه‌ها ▸ رستیک پک ▸ «بدون محدودیت / اجرای خودکار».</div>`;
+    try{
+      const d=await p.diag(); const y=v=>v?'✅':'❌';
+      const t=d.lastRx?new Date(d.lastRx).toLocaleString('fa-IR'):'هیچ‌وقت';
+      box.innerHTML+=`<div dir="rtl" style="margin-top:8px;padding:8px;border:1px dashed var(--border);border-radius:8px;font-size:.72rem;line-height:1.9">🔍 تشخیص: دریافت پیامک ${y(d.recv)} · خواندن صندوق ${y(d.read)} · ارسال ${y(d.send)} · اعلان ${y(d.notif)}<br>آخرین پیامی که برنامه از سیستم گرفت: ${t}${d.lastNote?' ('+d.lastNote+')':''}<br>ذخیره‌شده‌ی در انتظار: ${d.pending} · اندروید ${d.sdk}${(!d.recv||!d.read)&&d.sdk>=33?'<br><b>اندروید ۱۳+:</b> برای برنامه‌ی نصب‌دستی، مجوز پیامک «محدود» است: تنظیمات گوشی ▸ برنامه‌ها ▸ رستیک پک ▸ منوی ⋮ بالا ▸ «اجازه‌ی تنظیمات محدودشده»، بعد مجوز پیامک را بده.':''}</div>`;
+    }catch(_){}
   }catch(e){ box.textContent='خواندن وضعیت مجوز ممکن نشد.'; }
 }
 async function agentAskPerms(){ try{ await capPlugin('RpSms').requestPerms(); }catch(_){} setTimeout(renderAgentPanel,600); }
