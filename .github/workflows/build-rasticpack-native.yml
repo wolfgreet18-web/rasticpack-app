@@ -37,7 +37,7 @@ jobs:
 
       - name: Encrypt app code (install password)
         env:
-          INSTALL_PASSWORD: ${{ secrets.INSTALL_PASSWORD }}
+          INSTALL_PASSWORD: ${{ secrets.INSTALL_PASSWORD || secrets.ADONIS }}
         run: node encrypt-web.mjs
 
       - name: Add Android platform
