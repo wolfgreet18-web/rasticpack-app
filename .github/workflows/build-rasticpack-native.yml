@@ -35,6 +35,11 @@ jobs:
       - name: Build web assets
         run: npm run build:web
 
+      - name: Encrypt app code (install password)
+        env:
+          INSTALL_PASSWORD: ${{ secrets.INSTALL_PASSWORD }}
+        run: node encrypt-web.mjs
+
       - name: Add Android platform
         run: npx cap add android
 

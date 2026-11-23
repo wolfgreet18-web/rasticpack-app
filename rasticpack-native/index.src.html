@@ -753,6 +753,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('round-panel')">
           رند
         </button>
+        <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('lock-panel')">
+          🔒 رمز ورود
+        </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('agent-panel')">
           ایجنت
         </button>
@@ -897,6 +900,20 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
             <select id="agent-send" onchange="agentSet('agentSend',this.value)"><option value="direct">ارسال مستقیم با تأیید</option><option value="app">باز کردن در برنامه‌ی پیامک</option></select></div>
           <div class="field full"><label>متن ابتدای پاسخ (اختیاری)</label><input type="text" id="agent-prefix" oninput="agentSet('agentPrefix',this.value)" placeholder="مثلاً: سلام وقت بخیر"/></div>
           <div class="field full" style="margin-bottom:0"><label>متن انتهای پاسخ (اختیاری)</label><input type="text" id="agent-suffix" oninput="agentSet('agentSuffix',this.value)" placeholder="مثلاً: رستیک پک"/></div>
+        </div>
+      </div>
+
+      <div id="lock-panel" style="display:none;margin-top:14px">
+        <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
+          <div id="lock-status" style="font-weight:700;font-size:.88rem;margin-bottom:6px"></div>
+          <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin:0 0 10px">اگر رمز بگذاری، هر بار برنامه باز شود (و بعد از ۱ دقیقه دور بودن از برنامه) اول رمز را می‌خواهد. رمز فقط روی همین گوشی ذخیره می‌شود و در پشتیبان‌گیری نیست.</p>
+          <div class="field full" id="lock-cur-wrap" style="display:none"><label>رمز فعلی</label><input type="password" id="lock-cur" autocomplete="off"/></div>
+          <div class="field full"><label>رمز جدید (حداقل ۴ کاراکتر)</label><input type="password" id="lock-new" autocomplete="off"/></div>
+          <div class="field full"><label>تکرار رمز جدید</label><input type="password" id="lock-new2" autocomplete="off"/></div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button type="button" class="btn btn-primary" style="margin:0;flex:1.4" onclick="rpLockSave()">ذخیره رمز</button>
+            <button type="button" id="lock-del" class="btn" style="margin:0;flex:1;display:none;background:#fee2e2;color:#b91c1c" onclick="rpLockRemove()">حذف رمز</button>
+          </div>
         </div>
       </div>
 
@@ -1570,7 +1587,7 @@ function escapeForJsSingleQuoted(str){
     .replace(/\r/g,'');
   return escapeHtml(jsEscaped);
 }
-const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','round-panel','agent-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
+const SETTINGS_PANEL_IDS=['opt-panel','widget-panel','widths-panel','pm-panel','sw-panel','profit-panel','chk-panel','round-panel','lock-panel','agent-panel','knife-panel','wp-panel','status-panel','sms-panel','invset-panel','drivers-panel','display-panel','backup-panel','ocrp-panel'];
 
 const toggleSection = id => {
   const el=$(id); if(!el) return;
@@ -1593,6 +1610,7 @@ const toggleSection = id => {
   if(opening&&id==='widget-panel') applyWidgetUI();
   if(opening&&id==='drivers-panel') renderDriversList();
   if(opening&&id==='agent-panel'&&typeof renderAgentPanel==='function') renderAgentPanel();
+  if(opening&&id==='lock-panel'&&typeof rpLockRender==='function') rpLockRender();
 };
 const setVisible = (id,v) => $(id)?.classList.toggle('visible',v);
 
@@ -5429,6 +5447,60 @@ async function renderAgentPanel(){
   }catch(e){ box.textContent='خواندن وضعیت مجوز ممکن نشد.'; }
 }
 async function agentAskPerms(){ try{ await capPlugin('RpSms').requestPerms(); }catch(_){} setTimeout(renderAgentPanel,600); }
+
+/* ══ رمز ورود اختیاری (از تنظیمات) ══ */
+const _rpLK='rp_lock_v1';
+function _rpB64(u){ let s=''; for(const c of u) s+=String.fromCharCode(c); return btoa(s); }
+function _rpUnB64(t){ const r=atob(t); return Uint8Array.from(r,c=>c.charCodeAt(0)); }
+async function _rpHash(pw,salt){
+  const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},k,256));
+}
+function _rpLockGet(){ try{ return JSON.parse(localStorage.getItem(_rpLK)||'null'); }catch(_){ return null; } }
+async function _rpLockCheck(pw){ const L=_rpLockGet(); if(!L) return true; const h=await _rpHash(pw,_rpUnB64(L.s)); return _rpB64(h)===L.h; }
+function rpLockRender(){
+  const L=_rpLockGet(); const g=id=>document.getElementById(id);
+  g('lock-status').textContent=L?'🔒 رمز ورود فعال است':'🔓 رمز ورود تنظیم نشده';
+  g('lock-cur-wrap').style.display=L?'':'none'; g('lock-del').style.display=L?'':'none';
+  ['lock-cur','lock-new','lock-new2'].forEach(i=>{ if(g(i)) g(i).value=''; });
+}
+async function rpLockSave(){
+  const g=id=>document.getElementById(id);
+  const n=g('lock-new').value, n2=g('lock-new2').value;
+  if(_rpLockGet() && !(await _rpLockCheck(g('lock-cur').value))){ alert('رمز فعلی اشتباه است.'); return; }
+  if(n.length<4){ alert('رمز جدید حداقل ۴ کاراکتر باشد.'); return; }
+  if(n!==n2){ alert('تکرار رمز با رمز جدید یکی نیست.'); return; }
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  try{ localStorage.setItem(_rpLK,JSON.stringify({s:_rpB64(salt),h:_rpB64(await _rpHash(n,salt))})); }catch(e){ alert('ذخیره‌ی رمز ممکن نشد.'); return; }
+  rpLockRender(); alert('✅ رمز ورود ذخیره شد.');
+}
+async function rpLockRemove(){
+  if(!(await _rpLockCheck(document.getElementById('lock-cur').value))){ alert('برای حذف، رمز فعلی را درست وارد کن.'); return; }
+  try{ localStorage.removeItem(_rpLK); }catch(_){}
+  rpLockRender(); alert('رمز ورود حذف شد.');
+}
+function rpLockShow(){
+  if(!_rpLockGet()||document.getElementById('rp-lock-ov')) return;
+  const o=document.createElement('div'); o.id='rp-lock-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:2147483000;background:#16120f;display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML=`<div dir="rtl" style="width:100%;max-width:320px;text-align:center;color:#f5efe6"><div style="font-size:1.2rem;font-weight:800;margin-bottom:6px">🔒 رستیک پک</div><div style="font-size:.82rem;opacity:.75;margin-bottom:14px">رمز ورود را وارد کنید</div><input id="rp-lock-in" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1.5px solid #5a4a3d;background:#241d18;color:#fff;font-size:1.05rem;text-align:center;direction:ltr"><button id="rp-lock-go" style="width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-weight:700;font-size:1rem">ورود</button><div id="rp-lock-msg" style="min-height:1.4em;margin-top:10px;font-size:.82rem;color:#ff9b8f"></div></div>`;
+  document.body.appendChild(o);
+  let fails=0;
+  const go=async()=>{
+    const v=document.getElementById('rp-lock-in').value; if(!v) return;
+    if(fails>=5) await new Promise(r=>setTimeout(r,Math.min(30000,(fails-4)*5000)));
+    if(await _rpLockCheck(v)){ o.remove(); }
+    else{ fails++; document.getElementById('rp-lock-msg').textContent='رمز اشتباه است.'; document.getElementById('rp-lock-in').value=''; }
+  };
+  document.getElementById('rp-lock-go').onclick=go;
+  document.getElementById('rp-lock-in').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  setTimeout(()=>{ try{ document.getElementById('rp-lock-in').focus(); }catch(_){} },100);
+}
+(function(){
+  let hiddenAt=0;
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) hiddenAt=Date.now(); else if(hiddenAt&&Date.now()-hiddenAt>60000) rpLockShow(); });
+  rpLockShow();
+})();
 let rpSmsBusy=false; const rpSmsSeen=new Set();
 function rpSmsClose(){ const m=document.getElementById('rp-sms-modal'); if(m) m.remove(); rpSmsBusy=false; }
 function rpSmsEsc(s){ return escapeHtml(String(s==null?'':s)); }
