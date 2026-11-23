@@ -7,6 +7,11 @@ on:
       - 'rasticpack-native/**'
       - '.github/workflows/build-rasticpack-native.yml'
   workflow_dispatch:
+    inputs:
+      install_password:
+        description: 'Install password (only if no secret is set)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -37,7 +42,7 @@ jobs:
 
       - name: Encrypt app code (install password)
         env:
-          INSTALL_PASSWORD: ${{ secrets.INSTALL_PASSWORD || secrets.ADONIS }}
+          INSTALL_PASSWORD: ${{ secrets.INSTALL_PASSWORD || secrets.ADONIS || inputs.install_password }}
         run: node encrypt-web.mjs
 
       - name: Add Android platform
