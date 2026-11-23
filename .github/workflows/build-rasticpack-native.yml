@@ -60,6 +60,9 @@ jobs:
       - name: Install SMS receive/send plugin
         run: python3 install_sms.py
 
+      - name: Install fingerprint plugin
+        run: python3 install_bio.py
+
       - name: Keep screen on
         run: python3 keep_awake.py
 

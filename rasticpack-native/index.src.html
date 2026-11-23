@@ -754,7 +754,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
           رند
         </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('lock-panel')">
-          🔒 رمز ورود
+          🔐 امنیت
         </button>
         <button type="button" class="btn btn-primary" style="margin-top:0;flex:1;min-width:100px;padding:12px 8px;font-size:.82rem" onclick="toggleSection('agent-panel')">
           ایجنت
@@ -906,7 +906,12 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
       <div id="lock-panel" style="display:none;margin-top:14px">
         <div style="padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md)">
           <div id="lock-status" style="font-weight:700;font-size:.88rem;margin-bottom:6px"></div>
-          <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin:0 0 10px">اگر رمز بگذاری، هر بار برنامه باز شود (و بعد از ۱ دقیقه دور بودن از برنامه) اول رمز را می‌خواهد. رمز فقط روی همین گوشی ذخیره می‌شود و در پشتیبان‌گیری نیست.</p>
+          <p style="font-size:.74rem;color:var(--tx2);line-height:1.7;margin:0 0 10px">🔐 رمز ورود به برنامه: اگر رمز بگذاری، هر بار برنامه باز شود (و بعد از ۱ دقیقه دور بودن از برنامه) اول رمز را می‌خواهد. رمز فقط روی همین گوشی ذخیره می‌شود و در پشتیبان‌گیری نیست.</p>
+          <label id="bio-wrap" style="display:flex;align-items:center;gap:10px;margin:0 0 10px;font-weight:700;font-size:.86rem;cursor:pointer">
+            <input type="checkbox" id="bio-on" onchange="rpBioToggle(this)" style="width:20px;height:20px;margin:0;flex:0 0 auto"/>
+            <span>🖐 باز کردن قفل با اثر انگشت / چهره</span>
+          </label>
+          <div id="bio-note" style="font-size:.72rem;color:var(--tx2);margin:-4px 0 10px"></div>
           <div class="field full" id="lock-cur-wrap" style="display:none"><label>رمز فعلی</label><input type="password" id="lock-cur" autocomplete="off"/></div>
           <div class="field full"><label>رمز جدید (حداقل ۴ کاراکتر)</label><input type="password" id="lock-new" autocomplete="off"/></div>
           <div class="field full"><label>تکرار رمز جدید</label><input type="password" id="lock-new2" autocomplete="off"/></div>
@@ -5461,6 +5466,7 @@ async function _rpLockCheck(pw){ const L=_rpLockGet(); if(!L) return true; const
 function rpLockRender(){
   const L=_rpLockGet(); const g=id=>document.getElementById(id);
   g('lock-status').textContent=L?'🔒 رمز ورود فعال است':'🔓 رمز ورود تنظیم نشده';
+  rpBioRender();
   g('lock-cur-wrap').style.display=L?'':'none'; g('lock-del').style.display=L?'':'none';
   ['lock-cur','lock-new','lock-new2'].forEach(i=>{ if(g(i)) g(i).value=''; });
 }
@@ -5479,11 +5485,34 @@ async function rpLockRemove(){
   try{ localStorage.removeItem(_rpLK); }catch(_){}
   rpLockRender(); alert('رمز ورود حذف شد.');
 }
+
+/* اثر انگشت / چهره برای باز کردن قفل برنامه (فقط در APK) */
+const _rpBK='rp_bio_v1';
+const rpBioOn=()=>{ try{ return localStorage.getItem(_rpBK)==='1'; }catch(_){ return false; } };
+async function rpBioAvail(){ try{ const p=capPlugin('RpBio'); if(!p) return false; const r=await p.isAvailable(); return !!(r&&r.available); }catch(_){ return false; } }
+async function rpBioRender(){
+  const c=document.getElementById('bio-on'), n=document.getElementById('bio-note'); if(!c) return;
+  const av=await rpBioAvail(), L=!!_rpLockGet();
+  c.checked=rpBioOn()&&L&&av; c.disabled=!(av&&L);
+  n.textContent=!capPlugin('RpBio')?'اثر انگشت فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند.':!av?'اثر انگشت/چهره روی گوشی تنظیم نشده یا پشتیبانی نمی‌شود (اول از تنظیمات گوشی اثر انگشت را ثبت کن).':!L?'اول رمز ورود را ذخیره کن؛ اثر انگشت در کنار رمز کار می‌کند.':'';
+}
+async function rpBioToggle(el){
+  if(!el.checked){ try{ localStorage.removeItem(_rpBK); }catch(_){} return; }
+  try{
+    const r=await capPlugin('RpBio').authenticate({title:'تأیید اثر انگشت'});
+    if(r&&r.ok){ try{ localStorage.setItem(_rpBK,'1'); }catch(_){} alert('✅ اثر انگشت فعال شد. رمز هم همچنان کار می‌کند.'); }
+    else el.checked=false;
+  }catch(e){ el.checked=false; alert((e&&e.message)||'فعال‌سازی ممکن نشد.'); }
+}
+async function rpBioTry(o){
+  if(!rpBioOn()||!(await rpBioAvail())) return;
+  try{ const r=await capPlugin('RpBio').authenticate({title:'ورود به رستیک پک'}); if(r&&r.ok&&o.isConnected) o.remove(); }catch(_){}
+}
 function rpLockShow(){
   if(!_rpLockGet()||document.getElementById('rp-lock-ov')) return;
   const o=document.createElement('div'); o.id='rp-lock-ov';
   o.style.cssText='position:fixed;inset:0;z-index:2147483000;background:#16120f;display:flex;align-items:center;justify-content:center;padding:20px';
-  o.innerHTML=`<div dir="rtl" style="width:100%;max-width:320px;text-align:center;color:#f5efe6"><div style="font-size:1.2rem;font-weight:800;margin-bottom:6px">🔒 رستیک پک</div><div style="font-size:.82rem;opacity:.75;margin-bottom:14px">رمز ورود را وارد کنید</div><input id="rp-lock-in" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1.5px solid #5a4a3d;background:#241d18;color:#fff;font-size:1.05rem;text-align:center;direction:ltr"><button id="rp-lock-go" style="width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-weight:700;font-size:1rem">ورود</button><div id="rp-lock-msg" style="min-height:1.4em;margin-top:10px;font-size:.82rem;color:#ff9b8f"></div></div>`;
+  o.innerHTML=`<div dir="rtl" style="width:100%;max-width:320px;text-align:center;color:#f5efe6"><div style="font-size:1.2rem;font-weight:800;margin-bottom:6px">🔒 رستیک پک</div><div style="font-size:.82rem;opacity:.75;margin-bottom:14px">رمز ورود را وارد کنید</div><input id="rp-lock-in" type="password" autocomplete="off" style="width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1.5px solid #5a4a3d;background:#241d18;color:#fff;font-size:1.05rem;text-align:center;direction:ltr"><button id="rp-lock-go" style="width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:#c0392b;color:#fff;font-weight:700;font-size:1rem">ورود</button><button id="rp-lock-bio" style="display:none;width:100%;margin-top:8px;padding:12px;border:1.5px solid #5a4a3d;border-radius:12px;background:none;color:#f5efe6;font-weight:700;font-size:.95rem">🖐 اثر انگشت</button><div id="rp-lock-msg" style="min-height:1.4em;margin-top:10px;font-size:.82rem;color:#ff9b8f"></div></div>`;
   document.body.appendChild(o);
   let fails=0;
   const go=async()=>{
@@ -5493,6 +5522,7 @@ function rpLockShow(){
     else{ fails++; document.getElementById('rp-lock-msg').textContent='رمز اشتباه است.'; document.getElementById('rp-lock-in').value=''; }
   };
   document.getElementById('rp-lock-go').onclick=go;
+  if(rpBioOn()){ const bb=document.getElementById('rp-lock-bio'); bb.style.display=''; bb.onclick=()=>rpBioTry(o); setTimeout(()=>rpBioTry(o),400); }
   document.getElementById('rp-lock-in').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
   setTimeout(()=>{ try{ document.getElementById('rp-lock-in').focus(); }catch(_){} },100);
 }
