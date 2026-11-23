@@ -2922,13 +2922,6 @@ function calc2RowTemplate(id){
   const is5=vLayer==='5', isE=vFlute==='E', isKT=vPaper==='KT';
   return`<div class="calc2-row" data-id="${id}" style="position:relative">
     <div class="calc2-row-num" style="position:absolute;top:-8px;right:-6px;margin:0;z-index:2"><span class="c2-num" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.3);line-height:1;padding:0;text-align:center"></span></div>
-    <div class="c2-rowprofit" data-id="${id}" dir="ltr" style="display:none;align-items:center;gap:4px;margin:0 0 8px;flex-wrap:nowrap">
-      <button type="button" aria-label="کاهش سود این کارتن" onclick="c2RowProfitStep(${id},-1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">−</button>
-      <input type="text" id="c2p-val-${id}" inputmode="decimal" oninput="c2RowProfitInput(${id},this)" style="color:var(--danger);font-weight:700;text-align:center;padding:4px 2px;font-size:.8rem;height:34px;width:84px;flex:0 0 auto;box-sizing:border-box;margin:0" />
-      <button type="button" aria-label="افزایش سود این کارتن" onclick="c2RowProfitStep(${id},1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">+</button>
-      <button type="button" id="c2p-tier-${id}" title="سود پله‌ای این کارتن" onclick="c2RowTier(${id})" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#7c3aed;cursor:pointer;flex:0 0 auto;margin:0">سود<br>پله‌ای</button>
-      <button type="button" title="تعداد کم‌پرت برای همین کارتن" onclick="applyBestQty(${id})" style="background:none;border:1.5px solid #1c1917;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#1c1917;cursor:pointer;flex:0 0 auto;margin:0">N<br>کم‌پرت</button>
-    </div>
     <div class="form-grid">
       <div class="full c2-dims4" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
         <div class="field">
@@ -3199,7 +3192,6 @@ function updateCalc2RowNumbers(){
   document.querySelectorAll('#calc2-carton-list .calc2-row').forEach((row,idx)=>{
     const num=row.querySelector('.c2-num');
     if(num) num.textContent=idx+1;
-    const pr=row.querySelector('.c2-rowprofit'); if(pr) pr.style.display=idx>0?'flex':'none';   /* کادر اول با کنترل‌های پایین صفحه حساب می‌شود */
   });
   try{ c2RowProfitSync(); }catch(_){}
 }
@@ -4013,7 +4005,8 @@ function calc2CardHtml(r,idx){
     </div>`;
 }
 function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteCostByCarton){
-  $('calc2-result-list').innerHTML=results.map((r,idx)=>calc2CardHtml(r,idx)).join('');
+  $('calc2-result-list').innerHTML=results.map((r,idx)=>(idx>0?c2RowProfitHtml(r.id):'')+calc2CardHtml(r,idx)).join('');   /* از کارت دوم به بعد: سود جدا بالای هر کادر نتایج */
+  try{ c2RowProfitSync(); }catch(_){}
 
   $('c2sec-invoice-all').innerHTML=`
     <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:12px">
@@ -4260,8 +4253,17 @@ function c2ResultWaste(r){
 /* دکمه‌ی «N کم‌پرت»: تعداد پیشنهادی (کمترین پرت ورق) هر ردیف را در N همان ردیف می‌گذارد و دوباره محاسبه می‌کند */
 /* ══ سود جدا برای هر کادر ابعاد (از کادر دوم به بعد): درصد/متری/ریالی + پله‌ای + N کم‌پرت فقط برای همان کارتن ══
    مقدار خالی = مثل سود کلی پایین صفحه. با عوض شدن حالت (متری/درصدی/ریالی) سودهای جدا دوباره مثل کلی می‌شوند. */
+function c2RowProfitHtml(id){
+  return`<div class="c2-rowprofit" data-id="${id}" dir="ltr" style="display:flex;align-items:center;justify-content:center;gap:4px;margin:8px 0 6px;flex-wrap:nowrap">
+      <button type="button" aria-label="کاهش سود این کارتن" onclick="c2RowProfitStep(${id},-1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">−</button>
+      <input type="text" id="c2p-val-${id}" inputmode="decimal" oninput="c2RowProfitInput(${id},this)" style="color:var(--danger);font-weight:700;text-align:center;padding:4px 2px;font-size:.8rem;height:34px;width:84px;flex:0 0 auto;box-sizing:border-box;margin:0" />
+      <button type="button" aria-label="افزایش سود این کارتن" onclick="c2RowProfitStep(${id},1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">+</button>
+      <button type="button" id="c2p-tier-${id}" title="سود پله‌ای این کارتن" onclick="c2RowTier(${id})" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#7c3aed;cursor:pointer;flex:0 0 auto;margin:0">سود<br>پله‌ای</button>
+      <button type="button" title="تعداد کم‌پرت برای همین کارتن" onclick="applyBestQty(${id})" style="background:none;border:1.5px solid #1c1917;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#1c1917;cursor:pointer;flex:0 0 auto;margin:0">N<br>کم‌پرت</button>
+    </div>`;
+}
 function c2RowProfitSync(){
-  document.querySelectorAll('#calc2-carton-list .c2-rowprofit').forEach(box=>{
+  document.querySelectorAll('#calc2-result-list .c2-rowprofit').forEach(box=>{
     const id=+box.dataset.id, rp=c2RowProfit[id]||{v:null,tier:null,adj:0};
     const m=getProfitMode(), inp=document.getElementById('c2p-val-'+id), tb=document.getElementById('c2p-tier-'+id);
     const tierOn=rialTierEnabled()&&(rp.tier!=null?!!rp.tier:!!invoiceSettings.rialTierOn);
@@ -4298,7 +4300,11 @@ function c2RowProfitInput(id,el){
   if(m!=='percent') formatThousands(el);
   const raw=String(el.value||'').replace(/,/g,'').trim();
   rp.v=(raw===''||isNaN(+raw))?null:Math.max(0,m==='percent'?Math.min(100,+raw):+raw);
-  clearTimeout(_profitTimer); _profitTimer=setTimeout(calc2ProfitRerun,250);
+  clearTimeout(_profitTimer); _profitTimer=setTimeout(()=>{
+    const had=document.activeElement&&document.activeElement.id;
+    calc2ProfitRerun();
+    if(had){ const e=document.getElementById(had); if(e){ e.focus(); try{ const n=e.value.length; e.setSelectionRange(n,n); }catch(_){} } }
+  },250);
 }
 function c2RowTier(id){
   const rp=c2RowProfitSet(id);
