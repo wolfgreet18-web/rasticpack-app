@@ -2922,6 +2922,13 @@ function calc2RowTemplate(id){
   const is5=vLayer==='5', isE=vFlute==='E', isKT=vPaper==='KT';
   return`<div class="calc2-row" data-id="${id}" style="position:relative">
     <div class="calc2-row-num" style="position:absolute;top:-8px;right:-6px;margin:0;z-index:2"><span class="c2-num" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.3);line-height:1;padding:0;text-align:center"></span></div>
+    <div class="c2-rowprofit" data-id="${id}" dir="ltr" style="display:none;align-items:center;gap:4px;margin:0 0 8px;flex-wrap:nowrap">
+      <button type="button" aria-label="کاهش سود این کارتن" onclick="c2RowProfitStep(${id},-1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">−</button>
+      <input type="text" id="c2p-val-${id}" inputmode="decimal" oninput="c2RowProfitInput(${id},this)" style="color:var(--danger);font-weight:700;text-align:center;padding:4px 2px;font-size:.8rem;height:34px;width:84px;flex:0 0 auto;box-sizing:border-box;margin:0" />
+      <button type="button" aria-label="افزایش سود این کارتن" onclick="c2RowProfitStep(${id},1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">+</button>
+      <button type="button" id="c2p-tier-${id}" title="سود پله‌ای این کارتن" onclick="c2RowTier(${id})" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#7c3aed;cursor:pointer;flex:0 0 auto;margin:0">سود<br>پله‌ای</button>
+      <button type="button" title="تعداد کم‌پرت برای همین کارتن" onclick="applyBestQty(${id})" style="background:none;border:1.5px solid #1c1917;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#1c1917;cursor:pointer;flex:0 0 auto;margin:0">N<br>کم‌پرت</button>
+    </div>
     <div class="form-grid">
       <div class="full c2-dims4" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
         <div class="field">
@@ -3192,7 +3199,9 @@ function updateCalc2RowNumbers(){
   document.querySelectorAll('#calc2-carton-list .calc2-row').forEach((row,idx)=>{
     const num=row.querySelector('.c2-num');
     if(num) num.textContent=idx+1;
+    const pr=row.querySelector('.c2-rowprofit'); if(pr) pr.style.display=idx>0?'flex':'none';   /* کادر اول با کنترل‌های پایین صفحه حساب می‌شود */
   });
+  try{ c2RowProfitSync(); }catch(_){}
 }
 function renderCartonRows2(){
   const wrap=$('calc2-carton-list'); if(!wrap) return;
@@ -3209,6 +3218,7 @@ function resetCalc2Cards(){
   calc2SheetOverride={}; calc2AutoOff={}; calc2OptState={};
   Object.keys(c2scState).forEach(k=>delete c2scState[k]);
   calc2LastResults=[];
+  Object.keys(c2RowProfit).forEach(k=>delete c2RowProfit[k]);
   calc2InvoiceSubmitted=false;
   renderCartonRows2();
   const l=$('calc2-result-list'); if(l) l.innerHTML='';
@@ -3278,6 +3288,7 @@ function duplicateCartonRow2(srcId){
 function removeCartonRow2(id){
   if(calc2RowIds.length<=1) return;
   calc2RowIds=calc2RowIds.filter(i=>i!==id);
+  delete c2RowProfit[id];
   document.querySelector(`.calc2-row[data-id="${id}"]`)?.remove();
   updateCalc2DeleteBtns();
   updateCalc2RowNumbers();
@@ -3290,6 +3301,7 @@ function removeCartonRow2(id){
    (کادرِ باز — پرت / دوتکه / پیشنهاد ورق — بعد از محاسبه دوباره باز می‌شود) ══ */
 let _profitTimer;
 function calc2ProfitRerun(){
+  try{ c2RowProfitSync(); }catch(_){}
   const res=$('calc2-results');
   if(!res) return;
   const list=$('calc2-result-list');
@@ -3328,7 +3340,10 @@ function getRialTier(){
 function rialTierEnabled(){ return invoiceSettings.rialTierEnabled!==false; }
 /* سود پله‌ای حالا یک «ضریب» روی حالت فعلی است (متری/درصدی همان می‌ماند): سود = مقدار کادر × ضریبِ پله‌ی تعداد
    (۱۰۰ عدد و بالاتر = ۱۰۰٪ ، ۹۰ = ۹۰٪ ، ... تا حداقل). در حالت ریالی همان مبلغ پله‌ای قبلی. */
-function rialTierActive(){ return rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
+let _c2Row=null;                 /* ردیفی که الان قیمتش محاسبه می‌شود (برای سود جدا) */
+const c2RowProfit={};            /* id → {v:مقدار سود این ردیف یا null(=مثل کلی), tier:true|false|null, adj:تعدیل ریالی پله} */
+const c2RP=()=>(_c2Row!=null?c2RowProfit[_c2Row]:null)||null;
+function rialTierActive(){ const rp=c2RP(); if(rp&&rp.tier!=null) return rialTierEnabled()&&!!rp.tier; return rialTierEnabled()&&!!invoiceSettings.rialTierOn; }
 function rialTierFactor(qty){ const t=getRialTier(); return t.topAmt>0?rialTierAmt(qty)/t.topAmt:1; }
 function rialTierAmt(qty){
   const t=getRialTier(), q=+qty||0;
@@ -3369,13 +3384,14 @@ function updateRialTier(k,val){
   saveState();
   if(rialTierActive()) calc2ProfitChanged();
 }
-function getProfitAmt(){ return getProfitMode()==='rial'?getProfitDefault('rial'):(getNum('calc2-profit')||0); }
+function getProfitAmt(){ const rp=c2RP(); if(rp&&rp.v!=null&&!isNaN(rp.v)) return rp.v; return getProfitMode()==='rial'?getProfitDefault('rial'):(getNum('calc2-profit')||0); }
 function getProfitMode(){ const m=invoiceSettings.profitMode; return m==='percent'||m==='rial'?m:'meter'; }
 /* قیمت نقدی (بدون سود چک) و قیمت فروش نهایی از روی قیمت پایه (با ضایعات) و مساحت کارتن (m²) */
 /* سود پله‌ای (در هر حالتی): سود کل ردیف = مبلغ پله‌ی تعداد (مثلاً ۶۰ عدد = ۶٬۰۰۰٬۰۰۰ ریال)؛ حالت نمایش (متری/درصدی) همان می‌ماند
    و کادر سود فقط مقیاس می‌دهد: مقدار کادر ÷ پیش‌فرض آن حالت (پیش‌فرض = ۱٫۰ → دقیقاً مبلغ پله؛ + و − بالا/پایینش می‌کنند) */
 function rialTierTotal(qty){
-  const m=getProfitMode(), t=rialTierAmt(qty);
+  const m=getProfitMode(); let t=rialTierAmt(qty);
+  { const rp=c2RP(); if(rp&&rp.adj) t=Math.max(getRialTier().min,t+rp.adj); }
   if(m==='rial') return t;
   const d=getProfitDefault(m), sc=d>0?getProfitAmt()/d:1;
   return t*sc;
@@ -3476,6 +3492,7 @@ function updateProfitMode(mode){
   const next=mode==='meter'||mode==='rial'?mode:'percent', prev=getProfitMode();
   if(next===prev) return;
   invoiceSettings.profitMode=next;
+  Object.keys(c2RowProfit).forEach(k=>{ c2RowProfit[k].v=null; c2RowProfit[k].adj=0; });   /* واحد سود عوض شد: سودهای جدای ردیف‌ها دوباره مثل کلی می‌شوند */
   applyProfitModeUI(); renderProfitModeInput();
   { const pe=$('calc2-profit-pct'); if(pe&&next!=='rial') pe.style.display='none'; }
   setProfitFieldValue(getProfitDefault(next));   /* با عوض شدن حالت، کادر سود با پیش‌فرض همان حالت پر می‌شود */
@@ -4009,6 +4026,7 @@ function renderCalc2Results(results,totalAll,totalProfit,grain,totalWaste,wasteC
     </div>
     <div id="c2-sms-opts" style="display:none;gap:14px;justify-content:center;align-items:center;margin:-2px 0 12px">
       <button type="button" id="c2-sms-opt-sheet" title="ارسال طبق موجودی انبار" aria-label="ارسال طبق موجودی انبار" onclick="sendAllCartonsToSms('inventory')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
+      <button type="button" id="c2-sms-opt-price" title="فقط قیمت واحد (بدون تعداد و جمع کل)" aria-label="فقط قیمت واحد" onclick="sendAllCartonsToSms('priceonly')" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center"></button>
       <button type="button" id="c2-sms-opt-invoice" title="ارسال پیش‌فاکتور" aria-label="ارسال پیش‌فاکتور" onclick="previewCalc2Invoice()" style="margin:0;background:none;border:none;box-shadow:none;padding:4px 10px;cursor:pointer;width:auto;min-width:0;display:inline-flex;align-items:center;font-size:1.5rem;line-height:1">🧾</button>
     </div>
     <div id="c2-sms-pick" style="display:none;margin:0 0 12px;padding:12px;border:1.5px solid var(--border);border-radius:16px;background:var(--surface)">
@@ -4240,12 +4258,73 @@ function c2ResultWaste(r){
    (اگر کاربر خودش حالتی/ورقی انتخاب کرده یا به یک‌تکه برگردانده، دست نمی‌زند) */
 /* تعداد پیشنهادی: نزدیک‌ترین تعدادی که ورق(ها) را کامل و بدون پرتِ ورق آخر پر می‌کند (در تساوی، تعداد بیشتر) */
 /* دکمه‌ی «N کم‌پرت»: تعداد پیشنهادی (کمترین پرت ورق) هر ردیف را در N همان ردیف می‌گذارد و دوباره محاسبه می‌کند */
-function applyBestQty(){
+/* ══ سود جدا برای هر کادر ابعاد (از کادر دوم به بعد): درصد/متری/ریالی + پله‌ای + N کم‌پرت فقط برای همان کارتن ══
+   مقدار خالی = مثل سود کلی پایین صفحه. با عوض شدن حالت (متری/درصدی/ریالی) سودهای جدا دوباره مثل کلی می‌شوند. */
+function c2RowProfitSync(){
+  document.querySelectorAll('#calc2-carton-list .c2-rowprofit').forEach(box=>{
+    const id=+box.dataset.id, rp=c2RowProfit[id]||{v:null,tier:null,adj:0};
+    const m=getProfitMode(), inp=document.getElementById('c2p-val-'+id), tb=document.getElementById('c2p-tier-'+id);
+    const tierOn=rialTierEnabled()&&(rp.tier!=null?!!rp.tier:!!invoiceSettings.rialTierOn);
+    if(inp&&document.activeElement!==inp){
+      const gv=(m==='rial')?getProfitDefault('rial'):(getNum('calc2-profit')||0);
+      const eff=(rp.v!=null)?rp.v:gv;
+      const tierRial=(m==='rial'&&tierOn);
+      inp.value=tierRial?'':(m==='percent'?String(eff):formatNum(eff));
+      inp.placeholder=tierRial?'پله‌ای':(m==='percent'?'٪':'ریال');
+      inp.readOnly=tierRial;
+      inp.style.width=m==='percent'?'46px':'84px';
+      inp.style.opacity=(rp.v==null&&!tierRial)?'.6':'1';
+    }
+    if(tb){
+      tb.style.display=rialTierEnabled()?'':'none';
+      tb.style.background=tierOn?'#7c3aed':'none'; tb.style.color=tierOn?'#fff':'#7c3aed';
+    }
+  });
+}
+function c2RowProfitSet(id){ return c2RowProfit[id]||(c2RowProfit[id]={v:null,tier:null,adj:0}); }
+function c2RowProfitStep(id,d){
+  const rp=c2RowProfitSet(id), m=getProfitMode();
+  const tierOn=rialTierEnabled()&&(rp.tier!=null?!!rp.tier:!!invoiceSettings.rialTierOn);
+  if(m==='rial'&&tierOn){ rp.adj=(rp.adj||0)+d*1000000; }
+  else if(m==='rial'){ const cur=(rp.v!=null)?rp.v:getProfitDefault('rial'); rp.v=Math.max(0,cur+d*1000000); }
+  else{
+    const cur=(rp.v!=null)?rp.v:(getNum('calc2-profit')||0);
+    rp.v=(m==='meter')?Math.max(0,Math.round(cur+d*10000)):Math.min(100,Math.max(0,Math.round((cur+d)*10)/10));
+  }
+  c2RowProfitSync(); calc2ProfitRerun();
+}
+function c2RowProfitInput(id,el){
+  const rp=c2RowProfitSet(id), m=getProfitMode();
+  if(m!=='percent') formatThousands(el);
+  const raw=String(el.value||'').replace(/,/g,'').trim();
+  rp.v=(raw===''||isNaN(+raw))?null:Math.max(0,m==='percent'?Math.min(100,+raw):+raw);
+  clearTimeout(_profitTimer); _profitTimer=setTimeout(calc2ProfitRerun,250);
+}
+function c2RowTier(id){
+  const rp=c2RowProfitSet(id);
+  const cur=rp.tier!=null?!!rp.tier:!!invoiceSettings.rialTierOn;
+  rp.tier=!cur; rp.adj=0;
+  c2RowProfitSync(); calc2ProfitRerun();
+}
+(function(){   /* هر تابعی که قیمت یک کارتن را حساب می‌کند، با سود همان ردیف اجرا شود */
+  const wrap=(name,idOf)=>{ const f=window[name]; if(typeof f!=='function') return;
+    window[name]=function(){ const prev=_c2Row, id=idOf.apply(null,arguments); _c2Row=(id!=null?id:prev);
+      try{ return f.apply(this,arguments); } finally{ _c2Row=prev; } }; };
+  wrap('calc2ComputeAuto',c=>c&&c.id);
+  wrap('computeTwoPieceByClass',r=>r&&r.id);
+  wrap('c2AutoModelLines',r=>r&&r.id);
+  wrap('c2SmsPriceBasis',r=>r&&r.id);
+  wrap('c2InvPriceForLayer',r=>r&&r.id);
+  wrap('c2PickGroups',r=>r&&r.id);
+  wrap('renderCalc2SuggestSheet',id=>id);
+})();
+function applyBestQty(onlyId){
   try{
     if(!calc2LastResults||!calc2LastResults.length) runCalc2();
     for(let it=0;it<3;it++){
       let changed=false;
       (calc2LastResults||[]).forEach(r=>{
+        if(typeof onlyId==='number'&&r.id!==onlyId) return;
         const q=c2SuggestQty(r), el=document.getElementById('c2-qty-'+r.id);
         if(q>0&&el&&Number(el.value)!==q){ el.value=q; changed=true; }
       });
@@ -5213,17 +5292,18 @@ function buildCartonSmsText(r){
 function buildAllCartonsSmsText(results,mode){
   /* mode='models': قیمت همه‌ی مدل‌های ورق (Ti/Ki/kT …) طبق عرض A/T انتخاب‌شده در کادر نتایج + ورق پیشنهادی؛
      mode='inventory' (پیش‌فرض): طبق موجودی انبار / ورق انتخابی همان کارتن */
-  const models=(mode==='models');
+  const models=(mode==='models'), priceOnly=(mode==='priceonly');
   results=results.map(r=>models?c2SmsPriceBasis({...r,paperAuto:true}):c2SmsPriceBasis(r));
   const blocks=results.map(r=>{
     const lyr=r.layer==='5'?'پنج لایه':'سه لایه';
     if(models||r.paperAuto) return`📦کارتن ${dimStrX(r.height,r.width,r.length)}\n${lyr}\n${c2AutoModelLines(r).join('\n')}`;
     const dU=c2DiscountUnit(r);
+    if(priceOnly) return`📦کارتن ${dimStrX(r.height,r.width,r.length)}\n${lyr}\nقیمت واحد:\n ${formatNum(dU)} ریال`;
     return`📦کارتن ${dimStrX(r.height,r.width,r.length)}\n${lyr}\nتعداد: ${r.qty} عدد\nقیمت واحد:\n ${formatNum(dU)} ریال\nجمع: \n ${formatNum(dU*r.qty)} ریال`;
   });
   const sep='\n  ______________\n';
   /* اگر حتی یک کارتن بدون نوع ورق باشد (یا حالت مدل‌ها)، مبلغ کل ارسال نمی‌شود */
-  if(models||results.some(r=>r.paperAuto)) return blocks.join(sep);
+  if(models||priceOnly||results.some(r=>r.paperAuto)) return blocks.join(sep);
   const grandTotal=results.reduce((a,b)=>a+c2DiscountUnit(b)*b.qty,0);
   return blocks.join(sep)+`\n________________\nمبلغ کل:\n${formatNum(grandTotal)}ریال`;
 }
@@ -5680,6 +5760,8 @@ function toggleC2SmsOptions(){
       b.innerHTML=img?`<img alt="" src="${img.src}" style="height:${h}px;width:auto;display:block;pointer-events:none">`:fb;
     };
     fill('c2-sms-opt-sheet',sheetImg,'📄',30);
+    fill('c2-sms-opt-price',sheetImg,'📄',30);
+    { const im=document.querySelector('#c2-sms-opt-price img'); if(im) im.style.filter='hue-rotate(95deg) saturate(2.2) brightness(.95)'; }
     fill('c2-sms-opt-suggest',sugImg,'📐',26);
     box.style.display='flex';
   } else { box.style.display='none'; const pk=$('c2-sms-pick'); if(pk) pk.style.display='none'; }
