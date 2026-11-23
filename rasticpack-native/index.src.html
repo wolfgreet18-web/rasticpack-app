@@ -4254,10 +4254,11 @@ function c2ResultWaste(r){
 /* ══ سود جدا برای هر کادر ابعاد (از کادر دوم به بعد): درصد/متری/ریالی + پله‌ای + N کم‌پرت فقط برای همان کارتن ══
    مقدار خالی = مثل سود کلی پایین صفحه. با عوض شدن حالت (متری/درصدی/ریالی) سودهای جدا دوباره مثل کلی می‌شوند. */
 function c2RowProfitHtml(id){
-  return`<div class="c2-rowprofit" data-id="${id}" dir="ltr" style="display:flex;align-items:center;justify-content:center;gap:4px;margin:8px 0 6px;flex-wrap:nowrap">
+  return`<div class="c2-rowprofit" data-id="${id}" dir="rtl" style="display:flex;align-items:center;justify-content:flex-start;gap:6px;margin:8px 0 6px;flex-wrap:nowrap"><div dir="ltr" style="display:flex;align-items:center;gap:4px;flex:0 0 auto">
       <button type="button" aria-label="کاهش سود این کارتن" onclick="c2RowProfitStep(${id},-1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">−</button>
       <input type="text" id="c2p-val-${id}" inputmode="decimal" oninput="c2RowProfitInput(${id},this)" style="color:var(--danger);font-weight:700;text-align:center;padding:4px 2px;font-size:.8rem;height:34px;width:84px;flex:0 0 auto;box-sizing:border-box;margin:0" />
       <button type="button" aria-label="افزایش سود این کارتن" onclick="c2RowProfitStep(${id},1)" style="background:none;border:1.5px solid var(--border);border-radius:10px;box-shadow:none;width:30px;height:34px;padding:0;font-size:1.1rem;font-weight:800;line-height:1;cursor:pointer;color:var(--tx);flex:0 0 auto;margin:0">+</button>
+      </div>
       <button type="button" id="c2p-tier-${id}" title="سود پله‌ای این کارتن" onclick="c2RowTier(${id})" style="display:none;background:none;border:1.5px solid #7c3aed;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#7c3aed;cursor:pointer;flex:0 0 auto;margin:0">سود<br>پله‌ای</button>
       <button type="button" title="تعداد کم‌پرت برای همین کارتن" onclick="applyBestQty(${id})" style="background:none;border:1.5px solid #1c1917;border-radius:10px;box-shadow:none;height:34px;padding:0 6px;font-family:inherit;font-size:.68rem;font-weight:700;line-height:1.1;color:#1c1917;cursor:pointer;flex:0 0 auto;margin:0">N<br>کم‌پرت</button>
     </div>`;
