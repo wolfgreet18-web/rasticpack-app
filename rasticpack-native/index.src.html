@@ -386,7 +386,8 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
     <!-- ═══ TAB 1 — محاسبه کارتن ═══ -->
     <section id="panel-calc2" class="tab-panel active" role="tabpanel">
-      <div style="display:flex;justify-content:flex-end;margin:-22px -20px 2px">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin:-22px -20px 2px">
+        <button type="button" id="rp-voice-btn" aria-label="ورودی صوتی" title="ابعاد و تعداد را بگو (آفلاین)" onclick="rpVoiceOpen()" style="display:none;background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;align-items:center;justify-content:center">🎤</button>
         <button type="button" aria-label="ریلود" title="پاک کردن همه و شروع از اول" onclick="resetCalc2Cards()" style="background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;color:var(--tx2);display:flex;align-items:center;justify-content:center">↻</button>
       </div>
       <div id="calc2-carton-list"></div>
@@ -5756,6 +5757,147 @@ async function rpSmsInit(){
 }
 window.addEventListener('load',()=>setTimeout(rpSmsInit,1800));
 window.showIncomingSms=showIncomingSms;
+/* ══ ورودی صوتی آفلاین (Vosk فارسی داخل برنامه): «سی در بیست در پانزده، صد تا» ← ابعاد و تعداد ══ */
+const _FV_U={صفر:0,یک:1,دو:2,سه:3,چهار:4,پنج:5,شش:6,شیش:6,هفت:7,هشت:8,نه:9};
+const _FV_T={ده:10,یازده:11,دوازده:12,سیزده:13,چهارده:14,چارده:14,پانزده:15,پونزده:15,شانزده:16,شونزده:16,هفده:17,هیجده:18,هجده:18,نوزده:19};
+const _FV_D={بیست:20,سی:30,چهل:40,پنجاه:50,شصت:60,هفتاد:70,هشتاد:80,نود:90};
+const _FV_H={صد:100,یکصد:100,دویست:200,سیصد:300,چهارصد:400,پانصد:500,پونصد:500,ششصد:600,شیشصد:600,هفتصد:700,هشتصد:800,نهصد:900};
+const _FV_SEP=new Set(['در','ضرب','ضربدر','ایکس','بر','x','×','*']);
+const _FV_QTY_AFTER=new Set(['تا','عدد','کارتن','جعبه','بسته']);
+const _FV_QTY_BEFORE=new Set(['تعداد']);
+const _FV_LBL={طول:'L',عرض:'W',ارتفاع:'H',قد:'H'};
+function _fvKind(w){
+  if(w in _FV_U) return 'u'; if(w in _FV_T) return 't'; if(w in _FV_D) return 'd';
+  if(w in _FV_H) return 'h'; if(w==='هزار') return 'k'; if(/^\d+$/.test(w)) return 'n'; return null;
+}
+/* عدد گفتاری فارسی ← عدد. فقط با «و» جمع می‌شود: «صد و بیست»=120 ولی «سی بیست»=دو عدد جدا */
+function rpVoiceNumbers(text){
+  const toks=rpSmsNorm(text).replace(/[‌،,.؟?!]/g,' ').split(/\s+/).filter(Boolean);
+  const out=[]; let cur=null;   /* cur: {total,part,last,andNext} */
+  const flush=()=>{ if(cur){ out.push({t:'num',v:cur.total+cur.part}); cur=null; } };
+  for(let i=0;i<toks.length;i++){
+    const w=toks[i], k=_fvKind(w);
+    if(w==='و'&&cur){ cur.and=true; continue; }
+    if(!k){ flush(); out.push({t:'w',v:w}); continue; }
+    const val=k==='n'?+w:(_FV_U[w]??_FV_T[w]??_FV_D[w]??_FV_H[w]);
+    if(k==='n'){ flush(); out.push({t:'num',v:val}); continue; }
+    if(!cur){ const pv=out[out.length-1]; cur={total:0,part:0,last:k,and:false,qty:!!(pv&&pv.t==='w'&&_FV_QTY_BEFORE.has(pv.v))}; }
+    else if(k==='k'){
+      /* قبل از کامل شدن سه بعد، «هزار» به عدد قبلی نمی‌چسبد (بعد ≤۳۰۰ است): «سی، هزار و پانصد تا» ← ۳۰ و ۱۵۰۰ */
+      const dimsSoFar=out.filter(x=>x.t==='num').length;
+      if(dimsSoFar<3&&!cur.qty&&cur.total===0&&cur.part>0&&cur.part<=300){ flush(); cur={total:0,part:0,last:'u',and:false,qty:false}; }
+    }
+    else{
+      const rank={h:3,d:2,t:2,u:1};
+      const canMerge=(cur.and&&rank[k]<(rank[cur.last]||9))||(k==='h'&&w==='صد'&&cur.last==='u'&&!cur.and)||(cur.and&&cur.last==='k');
+      if(!canMerge){ flush(); cur={total:0,part:0,last:k,and:false}; }
+    }
+    if(k==='k'){ cur.total+=(cur.part||1)*1000; cur.part=0; cur.last='k'; }
+    else if(w==='صد'&&cur.last==='u'&&cur.part>0&&cur.part<10){ cur.part=cur.part*100; cur.last='h'; }
+    else{ cur.part+=val; cur.last=k; }
+    cur.and=false;
+  }
+  flush();
+  return out;
+}
+/* خروجی: {L,W,H,N,warn[]} از متن شنیده‌شده */
+function rpVoiceParse(text){
+  const seq=rpVoiceNumbers(text), warn=[];
+  const nums=[]; /* {v,role:null|'qty'|'L'|'W'|'H'} */
+  for(let i=0;i<seq.length;i++){
+    const it=seq[i]; if(it.t!=='num') continue;
+    let role=null; const prev=seq[i-1], next=seq[i+1];
+    if(prev&&prev.t==='w'){ if(_FV_LBL[prev.v]) role=_FV_LBL[prev.v]; else if(_FV_QTY_BEFORE.has(prev.v)) role='qty'; }
+    if(!role&&next&&next.t==='w'&&_FV_QTY_AFTER.has(next.v)) role='qty';
+    nums.push({v:it.v,role});
+  }
+  const r={L:null,W:null,H:null,N:null,warn};
+  nums.filter(n=>n.role).forEach(n=>{ if(n.role==='qty') r.N=n.v; else r[n.role]=n.v; });
+  const free=nums.filter(n=>!n.role).map(n=>n.v);
+  ['L','W','H'].forEach(k=>{ if(r[k]==null&&free.length) r[k]=free.shift(); });
+  if(r.N==null&&free.length) r.N=free.shift();
+  if(!nums.length) warn.push('عددی شنیده نشد');
+  ['L','W','H'].forEach(k=>{ if(r[k]==null) warn.push('مقدار '+({L:'طول',W:'عرض',H:'ارتفاع'}[k])+' شنیده نشد'); else if(!(r[k]>=1&&r[k]<=300)) warn.push('مقدار '+({L:'طول',W:'عرض',H:'ارتفاع'}[k])+' غیرعادی است'); });
+  if(r.N==null) warn.push('تعداد شنیده نشد'); else if(!(r.N>=1&&r.N<=1000000)) warn.push('تعداد غیرعادی است');
+  return r;
+}
+window.rpVoiceParse=rpVoiceParse;
+
+function rpVoiceClose(){ const m=document.getElementById('rp-voice-modal'); if(m){ m._stop=true; m.remove(); } }
+async function rpVoiceOpen(){
+  const p=capPlugin('RpVoice'); if(!p){ alert('ورودی صوتی آفلاین فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند.'); return; }
+  rpVoiceClose();
+  const m=document.createElement('div'); m.id='rp-voice-modal'; m.style.cssText=_rpBox;
+  m.innerHTML=`<div dir="rtl" style="${_rpCard};text-align:center">
+    <div style="font-size:2.4rem" id="rpv-ico">🎤</div>
+    <div id="rpv-status" style="font-weight:800;margin:4px 0 6px">در حال آماده‌سازی...</div>
+    <div id="rpv-hint" style="font-size:.78rem;color:#666;line-height:1.8">بگو: «سی در بیست در پانزده، صد تا»<br>(طول، عرض، ارتفاع، تعداد)</div>
+    <div id="rpv-heard" style="min-height:2.2em;margin:10px 0;padding:8px;background:#f5f5f4;border-radius:10px;font-size:.95rem"></div>
+    <div style="display:flex;gap:8px"><button type="button" id="rpv-stop" style="${_rpBtn}flex:1.3;background:#2563eb;color:#fff">پایان</button><button type="button" id="rpv-cancel" style="${_rpBtn}flex:1;background:#f3f4f6;color:#111">انصراف</button></div>
+  </div>`;
+  document.body.appendChild(m);
+  const g=id=>m.querySelector(id);
+  g('#rpv-cancel').onclick=async()=>{ try{ await p.cancel(); }catch(_){} rpVoiceClose(); };
+  g('#rpv-stop').onclick=async()=>{ try{ await p.stop(); }catch(_){} };
+  try{
+    await p.prepare();
+    if(m._stop) return;
+    g('#rpv-status').textContent='🔴 گوش می‌دهم... بگو';
+    await p.start();
+  }catch(e){ g('#rpv-status').textContent='خطا'; g('#rpv-heard').textContent=(e&&e.message)||String(e); g('#rpv-stop').style.display='none'; return; }
+  const t0=Date.now();
+  const tick=async()=>{
+    if(m._stop||!m.isConnected) return;
+    try{
+      const r=await p.poll();
+      if(r.error){ g('#rpv-status').textContent='خطا'; g('#rpv-heard').textContent=r.error; g('#rpv-stop').style.display='none'; return; }
+      if(r.partial) g('#rpv-heard').textContent=r.partial;
+      if(r.done){ rpVoiceResult(r.text||r.partial||''); return; }
+    }catch(_){}
+    if(Date.now()-t0>30000){ try{ await p.stop(); }catch(_){} }
+    setTimeout(tick,160);
+  };
+  tick();
+}
+function rpVoiceResult(text){
+  rpVoiceClose();
+  const r=rpVoiceParse(text);
+  if(agentOrder()==='HWL'){ const t=r.L; r.L=r.H; r.H=t; }
+  const m=document.createElement('div'); m.id='rp-voice-modal'; m.style.cssText=_rpBox;
+  const inp=(k,bg,v)=>`<input type="number" inputmode="decimal" class="rpv-${k}" value="${rpSmsEsc(v==null?'':v)}" placeholder="${k}" style="${_rpIn}background:${bg}">`;
+  m.innerHTML=`<div dir="rtl" style="${_rpCard}">
+    <div style="font-weight:800;margin-bottom:6px">🎤 چیزی که شنیدم</div>
+    <div style="background:#f5f5f4;border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:.92rem;min-height:1.6em">${rpSmsEsc(text)||'—'}</div>
+    <div style="font-size:.8rem;font-weight:700">طول، عرض، ارتفاع، تعداد — درست بودنش را چک کن:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:8px">${inp('L','#2563eb',r.L)}${inp('W','#dc2626',r.W)}${inp('H','#16a34a',r.H)}${inp('N','#1c1917',r.N)}</div>
+    ${r.warn.length?`<div style="color:#b45309;font-size:.75rem;margin-top:6px">⚠️ ${rpSmsEsc(r.warn.join('، '))}</div>`:''}
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button type="button" id="rpv-ok" style="${_rpBtn}flex:1.4;background:#16a34a;color:#fff">وارد کن و محاسبه کن</button>
+      <button type="button" id="rpv-again" style="${_rpBtn}flex:1;background:#eef2ff;color:#3730a3">دوباره بگو</button>
+    </div>
+    <button type="button" id="rpv-x" style="${_rpBtn}width:100%;margin-top:8px;background:none;color:#6b7280">بستن</button>
+  </div>`;
+  document.body.appendChild(m);
+  const g=id=>m.querySelector(id);
+  g('#rpv-x').onclick=rpVoiceClose;
+  g('#rpv-again').onclick=()=>{ rpVoiceClose(); rpVoiceOpen(); };
+  g('#rpv-ok').onclick=()=>{
+    const v={L:+g('.rpv-L').value,W:+g('.rpv-W').value,H:+g('.rpv-H').value,N:+g('.rpv-N').value};
+    if(!(v.L>0&&v.W>0&&v.H>0&&v.N>0&&Number.isInteger(v.N))){ alert('طول، عرض، ارتفاع و تعداد (عدد صحیح) باید پر و درست باشد.'); return; }
+    rpVoiceClose(); rpVoiceApply(v);
+  };
+}
+/* اولین کادر خالی را پر می‌کند؛ اگر همه پر بودند، کادر جدید می‌سازد */
+function rpVoiceApply(v){
+  try{
+    let id=calc2RowIds.find(i=>!($('c2-length-'+i)?.value)&&!($('c2-width-'+i)?.value)&&!($('c2-height-'+i)?.value));
+    if(id==null){ addCartonRow2(); id=calc2RowIds[calc2RowIds.length-1]; }
+    $('c2-length-'+id).value=v.L; $('c2-width-'+id).value=v.W; $('c2-height-'+id).value=v.H; $('c2-qty-'+id).value=v.N;
+    try{ const b=document.querySelector(`.tab-btn[onclick*="switchTab('calc2'"]`); switchTab('calc2',b); }catch(_){}
+    runCalc2();
+  }catch(e){ alert('خطا: '+(e&&e.message||e)); }
+}
+window.addEventListener('load',()=>setTimeout(()=>{ const b=document.getElementById('rp-voice-btn'); if(b&&capPlugin('RpVoice')) b.style.display='flex'; },1200));
 function toggleC2SmsOptions(){
   const box=$('c2-sms-opts'); if(!box) return;
   if(box.style.display==='none'){
