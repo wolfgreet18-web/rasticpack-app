@@ -5381,6 +5381,15 @@ async function sendCartonToSms(rowId){
 /* دکمه‌ی 📤 کنار «ثبت فاکتور» — ارسال خلاصه‌ی همه‌ی کارتن‌های محاسبه‌شده با هم */
 /* 🗨️ → باز/بسته شدن دو گزینه: «شیت» (طبق موجودی انبار) و «پیشنهاد ورق» (قیمت مدل‌های ورق) */
 /* 🧾 پیش‌فاکتور (بدون ثبت): از نتیجه‌ی محاسبه‌ی فعلی یک پیش‌فاکتور با همان طرح فاکتور می‌سازد؛ نه موجودی کم می‌شود نه چیزی ذخیره */
+/* APK: فایل را مستقیم به روبیکا (یا لیست اشتراک‌گذاری) می‌دهد؛ در مرورگر false برمی‌گرداند و روش قدیمی ادامه می‌یابد */
+async function rpShareNative(blob,fname){
+  const sp=capPlugin('RpShare'); if(!sp) return false;
+  try{
+    const b64=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(blob); });
+    await sp.shareFile({base64:b64,name:fname,mime:blob.type||'application/pdf',package:'ir.resaneh1.iptv'});
+    return true;
+  }catch(e){ alert('ارسال مستقیم ممکن نشد: '+(e&&e.message||e)); return false; }
+}
 function _c2BuildPreInvoice(name,phone){
   const items=(calc2LastResults||[]).flatMap(r=>{
     const best=r.sheets&&r.sheets[0]; if(!best) return [];
@@ -5442,6 +5451,7 @@ function previewCalc2Invoice(){
       const fname=`پیش‌فاکتور-${(pack.inv.customerName==='—'?'':pack.inv.customerName).replace(/[\\/:*?"<>|]/g,'')||'رستیک‌پک'}-${pack.inv.id}.pdf`;
       const file=new File([blob],fname,{type:'application/pdf'});
       m.remove();
+      if(await rpShareNative(blob,fname)) return;
       if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
         try{ await navigator.share({files:[file],title:fname}); return; }catch(e){ if(e&&e.name==='AbortError') return; }
       }
@@ -9627,6 +9637,7 @@ async function shareInvoicePdf(invId,btn){
     const inv=invoices.find(i=>i.id===invId);
     const fname=`فاکتور-${(inv?.customerName||'مشتری').replace(/[\\/:*?"<>|]/g,'')}-${invId}.pdf`;
     const file=new File([blob],fname,{type:'application/pdf'});
+    if(await rpShareNative(blob,fname)) return;
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
       try{ await navigator.share({files:[file],title:fname}); return; }
       catch(e){ if(e?.name==='AbortError') return; }
