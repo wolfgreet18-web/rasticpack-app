@@ -39,7 +39,7 @@ body.cls-off-A .subtype-btn[data-cls="A"],body.cls-off-T .subtype-btn[data-cls="
 body.widget-mode .tab-bar{display:none}
 /* صفحه‌ی قیمت: ستونی؛ مبلغ کل بالا، نتایج، سپس خط درصد سود، فاکتور و در انتها کادر ابعاد (چسبیده به پایین صفحه) */
 html body main.card{display:flex;flex-direction:column}
-html body main.card>.tab-panel{flex:0 0 auto}
+html body main.card>.tab-panel.active{flex:1 1 auto;min-width:0}
 html body main.card>#panel-calc2.active{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
 #calc2-results:not([style*="display: none"]):not([style*="display:none"]){display:contents!important}
 #panel-calc2>*{min-width:0}
@@ -2618,7 +2618,7 @@ function fitCalc2Height(){
   try{
     const m=document.querySelector('main.card'), pn=document.getElementById('panel-calc2'); if(!m||!pn) return;
     const r=m.getBoundingClientRect(), sc=(m.offsetHeight? r.height/m.offsetHeight:1)||1;
-    const t=Math.floor((window.innerHeight-(r.top+window.scrollY)-12)/sc);
+    const t=Math.floor((window.innerHeight-(r.top+window.scrollY)-34)/sc);
     const cur=parseInt(m.style.minHeight)||0;
     if(t>200 && Math.abs(t-cur)>1) m.style.minHeight=t+'px';
   }catch(_){}
