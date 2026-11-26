@@ -63,18 +63,8 @@ jobs:
       - name: Install fingerprint plugin
         run: python3 install_bio.py
 
-      - name: Fetch offline Persian speech model
-        run: python3 fetch_voice_model.py
-
-      - name: Voice smoke test (non-blocking)
-        continue-on-error: true
-        run: |
-          sudo apt-get install -y espeak-ng ffmpeg >/dev/null 2>&1 || true
-          pip install vosk >/dev/null 2>&1 || true
-          python3 voice_sanity.py
-
-      - name: Install voice plugin
-        run: python3 install_voice.py
+      # ورودی صوتی آفلاین (میکروفون) فعلاً برای سبک شدن برنامه حذف شده؛
+      # برای برگرداندن: سه مرحله‌ی fetch_voice_model.py / voice_sanity.py / install_voice.py را اینجا برگردان.
 
       - name: Install file-share plugin
         run: python3 install_share.py
