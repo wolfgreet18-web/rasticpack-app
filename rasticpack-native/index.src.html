@@ -43,6 +43,7 @@ html body main.card>.tab-panel{flex:0 0 auto}
 html body main.card>#panel-calc2.active{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
 #calc2-results:not([style*="display: none"]):not([style*="display:none"]){display:contents!important}
 #panel-calc2>*{min-width:0}
+#calc2-carton-list{display:flex;flex-direction:column-reverse}  /* کادر جدید بالای قبلی می‌آید */
 #c2-hdr{order:0}#calc2-top-slot{order:1}
 #calc2-results>.inv-result-card{order:2;margin-top:8px!important;margin-bottom:12px}
 #calc2-result-list{order:3}
@@ -2616,7 +2617,6 @@ function applyLayoutPositions(){
 function fitCalc2Height(){
   try{
     const m=document.querySelector('main.card'), pn=document.getElementById('panel-calc2'); if(!m||!pn) return;
-    if(!pn.classList.contains('active')){ if(m.style.minHeight) m.style.minHeight=''; return; }
     const r=m.getBoundingClientRect(), sc=(m.offsetHeight? r.height/m.offsetHeight:1)||1;
     const t=Math.floor((window.innerHeight-(r.top+window.scrollY)-12)/sc);
     const cur=parseInt(m.style.minHeight)||0;
