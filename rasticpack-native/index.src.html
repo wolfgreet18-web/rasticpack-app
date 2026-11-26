@@ -37,6 +37,19 @@ body.cls-off-A .subtype-btn[data-cls="A"],body.cls-off-T .subtype-btn[data-cls="
 @keyframes holdGrow{from{box-shadow:0 0 0 0 rgba(220,38,38,.55)}to{box-shadow:0 0 0 7px rgba(220,38,38,.55);transform:scale(1.12)}}
 .c2-price-removed{display:none!important}
 body.widget-mode .tab-bar{display:none}
+/* صفحه‌ی قیمت: ستونی؛ مبلغ کل بالا، نتایج، سپس خط درصد سود، فاکتور و در انتها کادر ابعاد (چسبیده به پایین صفحه) */
+html body main.card{display:flex;flex-direction:column}
+html body main.card>.tab-panel{flex:0 0 auto}
+html body main.card>#panel-calc2.active{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+#calc2-results:not([style*="display: none"]):not([style*="display:none"]){display:contents!important}
+#panel-calc2>*{min-width:0}
+#c2-hdr{order:0}#calc2-top-slot{order:1}
+#calc2-results>.inv-result-card{order:2;margin-top:8px!important;margin-bottom:12px}
+#calc2-result-list{order:3}
+#c2-profit-row{order:4}#calc2-profit-pct{order:5}#calc2-alert{order:6}
+#c2sec-invoice-all{order:7}
+#calc2-bottom-slot{order:100;margin-top:auto!important;padding-top:14px}
+
 html.tabs-bottom main.card{overflow:visible}html.tabs-bottom .tab-bar{position:sticky;bottom:0;z-index:60;border-bottom:none;border-top:1.5px solid var(--border);border-radius:0 0 var(--r-xl) var(--r-xl)}html[data-theme="dark"].tabs-bottom .tab-bar{border-top-color:var(--dk-bd3,#2e2922)}
 .wm-close{display:none}
 body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:900;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--tx2);font-size:1.1rem;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--sh-md)}
@@ -387,12 +400,12 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
     <!-- ═══ TAB 1 — محاسبه کارتن ═══ -->
     <section id="panel-calc2" class="tab-panel active" role="tabpanel">
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin:-22px -20px 2px">
+      <div id="c2-hdr" style="display:flex;justify-content:flex-end;gap:8px;margin:-22px -20px 2px">
         <button type="button" id="rp-voice-btn" aria-label="ورودی صوتی" title="ابعاد و تعداد را بگو (آفلاین)" onclick="rpVoiceOpen()" style="display:none;background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;align-items:center;justify-content:center">🎤</button>
         <button type="button" aria-label="ریلود" title="پاک کردن همه و شروع از اول" onclick="resetCalc2Cards()" style="background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;color:var(--tx2);display:flex;align-items:center;justify-content:center">↻</button>
       </div>
       <div id="calc2-top-slot"><div id="calc2-carton-list"></div></div>
-      <div style="display:flex;gap:10px;align-items:flex-end;justify-content:flex-start;margin-top:12px">
+      <div id="c2-profit-row" style="display:flex;gap:10px;align-items:flex-end;justify-content:flex-start;margin-top:12px">
         <button type="button" aria-label="محاسبه" title="محاسبه" onclick="runCalc2()" style="background:var(--brand);border:none;border-radius:var(--r-md);width:34px;height:42px;padding:0;cursor:pointer;flex:0 0 auto;box-shadow:0 2px 6px rgba(185,28,28,.24)"></button>
         <div style="display:flex;align-items:flex-end;gap:4px;flex:0 0 auto" dir="ltr">
           <button type="button" aria-label="کاهش درصد سود" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:none;width:34px;height:42px;padding:0;font-size:1.3rem;font-weight:800;line-height:1;cursor:pointer;flex:0 0 auto;color:var(--tx);touch-action:none;user-select:none;-webkit-user-select:none" onpointerdown="calc2HoldStart(event,-1)" onpointerup="calc2HoldStop()" onpointerleave="calc2HoldStop()" onpointercancel="calc2HoldStop()" oncontextmenu="return false" onclick="if(event.detail===0)calc2ProfitStep(-1)" ontouchstart="" >−</button>
@@ -2600,6 +2613,17 @@ function applyLayoutPositions(){
     }
   }catch(_){}
 }
+function fitCalc2Height(){
+  try{
+    const m=document.querySelector('main.card'), pn=document.getElementById('panel-calc2'); if(!m||!pn) return;
+    if(!pn.classList.contains('active')){ if(m.style.minHeight) m.style.minHeight=''; return; }
+    const r=m.getBoundingClientRect(), sc=(m.offsetHeight? r.height/m.offsetHeight:1)||1;
+    const t=Math.floor((window.innerHeight-(r.top+window.scrollY)-12)/sc);
+    const cur=parseInt(m.style.minHeight)||0;
+    if(t>200 && Math.abs(t-cur)>1) m.style.minHeight=t+'px';
+  }catch(_){}
+}
+setInterval(fitCalc2Height,400); window.addEventListener('resize',fitCalc2Height);
 function setDisplayDimPos(v){ displaySettings.dimPos=(v==='top')?'top':'bottom'; applyLayoutPositions(); renderDisplaySettingsInput(); saveState(); }
 function setDisplayTabPos(v){ displaySettings.tabPos=(v==='bottom')?'bottom':'top'; applyLayoutPositions(); renderDisplaySettingsInput(); saveState(); }
 function setDisplayDigits(d){ displaySettings.digits=(d==='fa')?'fa':'en'; applyDisplaySettings(); saveState(); }
