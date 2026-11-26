@@ -37,6 +37,7 @@ body.cls-off-A .subtype-btn[data-cls="A"],body.cls-off-T .subtype-btn[data-cls="
 @keyframes holdGrow{from{box-shadow:0 0 0 0 rgba(220,38,38,.55)}to{box-shadow:0 0 0 7px rgba(220,38,38,.55);transform:scale(1.12)}}
 .c2-price-removed{display:none!important}
 body.widget-mode .tab-bar{display:none}
+html.tabs-bottom main.card{overflow:visible}html.tabs-bottom .tab-bar{position:sticky;bottom:0;z-index:60;border-bottom:none;border-top:1.5px solid var(--border);border-radius:0 0 var(--r-xl) var(--r-xl)}html[data-theme="dark"].tabs-bottom .tab-bar{border-top-color:var(--dk-bd3,#2e2922)}
 .wm-close{display:none}
 body.widget-mode .wm-close{display:flex;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:900;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--tx2);font-size:1.1rem;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--sh-md)}
 
@@ -390,7 +391,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <button type="button" id="rp-voice-btn" aria-label="ورودی صوتی" title="ابعاد و تعداد را بگو (آفلاین)" onclick="rpVoiceOpen()" style="display:none;background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;align-items:center;justify-content:center">🎤</button>
         <button type="button" aria-label="ریلود" title="پاک کردن همه و شروع از اول" onclick="resetCalc2Cards()" style="background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;color:var(--tx2);display:flex;align-items:center;justify-content:center">↻</button>
       </div>
-      <div id="calc2-carton-list"></div>
+      <div id="calc2-top-slot"><div id="calc2-carton-list"></div></div>
       <div style="display:flex;gap:10px;align-items:flex-end;justify-content:flex-start;margin-top:12px">
         <button type="button" aria-label="محاسبه" title="محاسبه" onclick="runCalc2()" style="background:var(--brand);border:none;border-radius:var(--r-md);width:34px;height:42px;padding:0;cursor:pointer;flex:0 0 auto;box-shadow:0 2px 6px rgba(185,28,28,.24)"></button>
         <div style="display:flex;align-items:flex-end;gap:4px;flex:0 0 auto" dir="ltr">
@@ -439,6 +440,7 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
         <div class="calc2-section-tinted tint-blue" id="c2sec-invoice-all" style="margin-top:16px"></div>
       </div>
+      <div id="calc2-bottom-slot" style="margin-top:14px"></div>
     </section>
 
     <!-- ═══ TAB — کارتن‌های آماده انبار ═══ -->
@@ -1082,6 +1084,22 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         </div>
 
         <div class="field full" style="margin-bottom:20px">
+          <label><span>📏 جای کادر ابعاد (تب قیمت)</span></label>
+          <div class="disp-seg" style="margin-top:8px">
+            <button type="button" id="disp-dim-top" onclick="setDisplayDimPos('top')">⬆️ بالای صفحه</button>
+            <button type="button" id="disp-dim-bottom" onclick="setDisplayDimPos('bottom')">⬇️ پایین صفحه</button>
+          </div>
+        </div>
+
+        <div class="field full" style="margin-bottom:20px">
+          <label><span>🗂️ جای تب‌ها</span></label>
+          <div class="disp-seg" style="margin-top:8px">
+            <button type="button" id="disp-tab-top" onclick="setDisplayTabPos('top')">⬆️ بالای صفحه</button>
+            <button type="button" id="disp-tab-bottom" onclick="setDisplayTabPos('bottom')">⬇️ پایین صفحه</button>
+          </div>
+        </div>
+
+        <div class="field full" style="margin-bottom:20px">
           <label><span>🔢 فونت اعداد</span></label>
           <div class="disp-seg" style="margin-top:8px">
             <button type="button" id="disp-digits-en" onclick="setDisplayDigits('en')">123 انگلیسی</button>
@@ -1485,7 +1503,7 @@ let inventoryLayerView='3';
 let inventoryFilter={'3':null,'5':null};
 let smsTemplate='';
 let invoiceSettings={customerPriceMode:'sale',sheetPickMode:'price',companyName:'رستیک پک',phone:'09302162676',address:'',footer:'با تشکر از خرید شما',cardNumber:'',shaba:'',accountHolderName:''};
-let displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50};
+let displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50,dimPos:'bottom',tabPos:'top'};
 let widgetSettings={enabled:false,last:''};   /* ویجت صفحه‌ی هوم — بخش «ویجت و قیمت‌دهی سریع» */
 
 const INVOICE_START=2365;
@@ -1791,7 +1809,7 @@ async function loadState() {
         loadSheetWidthSettings(swl,msl);
         smsTemplate=typeof st==='string'?st:'';
         if(invS&&typeof invS==='object') invoiceSettings={...invoiceSettings,...invS};
-        if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false,theme:dispS.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(dispS.warmth)||0)),digits:dispS.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(dispS.tone))?50:Math.min(100,Math.max(0,parseInt(dispS.tone))))};
+        if(dispS&&typeof dispS==='object') displaySettings={fontScale:parseInt(dispS.fontScale)||100,zoom:parseInt(dispS.zoom)||85,soundEnabled:dispS.soundEnabled!==false,theme:dispS.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(dispS.warmth)||0)),digits:dispS.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(dispS.tone))?50:Math.min(100,Math.max(0,parseInt(dispS.tone)))),dimPos:dispS.dimPos==='top'?'top':'bottom',tabPos:dispS.tabPos==='bottom'?'bottom':'top'};
         if(wgS&&typeof wgS==='object'){ widgetSettings={enabled:wgS.enabled===true,last:String(wgS.last||''),cardText:(typeof wgS.cardText==='string'?wgS.cardText:undefined),cardAfter:String(wgS.cardAfter||'none'),addrText:(typeof wgS.addrText==='string'?wgS.addrText:undefined),addrAfter:String(wgS.addrAfter||'none')}; try{applyWidgetUI(); scheduleWidgetSync();}catch(_){} }
         nextId=meta.nextId||1; nextCustId=meta.nextCustId||1; nextInvoiceId=Math.max(INVOICE_START,meta.nextInvoiceId||1); nextProdId=meta.nextProdId||1; nextDriverId=meta.nextDriverId||1;
         nextReadyId=Math.max(meta.nextReadyId||1,readyCartons.reduce((m,i)=>Math.max(m,i.id),0)+1);
@@ -2499,6 +2517,7 @@ function applyDisplaySettings(){
   applyThemeAndWarmth();
   applyTone();
   applyDigitsMode();
+  applyLayoutPositions();
   renderDisplaySettingsInput();
 }
 /* شب/روز: با متغیرهای رنگی (data-theme) — گرما: فیلتر ملایم روی کل صفحه */
@@ -2551,6 +2570,22 @@ function applyTone(){
 function updateDisplayTone(v){ displaySettings.tone=Math.min(100,Math.max(0,parseInt(v)||0)); applyTone(); renderDisplaySettingsInput(); saveState(); }
 function setDisplayTheme(t){ displaySettings.theme=(t==='night')?'night':'day'; applyDisplaySettings(); saveState(); }
 function updateDisplayWarmth(v){ displaySettings.warmth=Math.min(100,Math.max(0,parseInt(v)||0)); applyThemeAndWarmth(); renderDisplaySettingsInput(); saveState(); }
+/* جای کادر ابعاد (بالا/پایین صفحه‌ی قیمت) و جای تب‌ها (بالا/پایین) */
+function applyLayoutPositions(){
+  try{
+    const list=document.getElementById('calc2-carton-list'), top=document.getElementById('calc2-top-slot'), bot=document.getElementById('calc2-bottom-slot');
+    if(list&&top&&bot){ const want=displaySettings.dimPos==='top'?top:bot; if(list.parentNode!==want) want.appendChild(list); }
+    const nav=document.querySelector('main.card > .tab-bar'), main=document.querySelector('main.card');
+    if(nav&&main){
+      const b=displaySettings.tabPos==='bottom';
+      document.documentElement.classList.toggle('tabs-bottom',b);
+      if(b&&main.lastElementChild!==nav) main.appendChild(nav);
+      if(!b&&main.firstElementChild!==nav) main.insertBefore(nav,main.firstElementChild);
+    }
+  }catch(_){}
+}
+function setDisplayDimPos(v){ displaySettings.dimPos=(v==='top')?'top':'bottom'; applyLayoutPositions(); renderDisplaySettingsInput(); saveState(); }
+function setDisplayTabPos(v){ displaySettings.tabPos=(v==='bottom')?'bottom':'top'; applyLayoutPositions(); renderDisplaySettingsInput(); saveState(); }
 function setDisplayDigits(d){ displaySettings.digits=(d==='fa')?'fa':'en'; applyDisplaySettings(); saveState(); }
 
 /* فونت اعداد: تبدیل ارقام متن‌های نمایشی به فارسی/انگلیسی (فیلدهای ورودی و داده‌ها دست‌نخورده می‌مانند) */
@@ -2604,7 +2639,7 @@ function renderDisplaySettingsInput(){
   if(wsl) wsl.value=displaySettings.warmth||0;
   if(wv) wv.textContent=(displaySettings.warmth||0)+'%';
   [['disp-theme-day',displaySettings.theme!=='night'],['disp-theme-night',displaySettings.theme==='night'],
-   ['disp-digits-en',displaySettings.digits!=='fa'],['disp-digits-fa',displaySettings.digits==='fa']].forEach(([id,on])=>{
+   ['disp-digits-en',displaySettings.digits!=='fa'],['disp-digits-fa',displaySettings.digits==='fa'],['disp-dim-top',displaySettings.dimPos==='top'],['disp-dim-bottom',displaySettings.dimPos!=='top'],['disp-tab-top',displaySettings.tabPos!=='bottom'],['disp-tab-bottom',displaySettings.tabPos==='bottom']].forEach(([id,on])=>{
     const b=$(id); if(b) b.classList.toggle('active',on);
   });
   if(fv) fv.textContent=toFaDigits(displaySettings.fontScale||100)+'%';
@@ -2634,7 +2669,7 @@ function updateDisplayZoom(val){
   saveState();
 }
 function resetDisplaySettings(){
-  displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50};
+  displaySettings={fontScale:100,zoom:85,soundEnabled:true,theme:'day',warmth:0,digits:'en',tone:50,dimPos:'bottom',tabPos:'top'};
   applyDisplaySettings();
   saveState();
 }
@@ -5833,78 +5868,95 @@ function rpVoiceParse(text){
 }
 window.rpVoiceParse=rpVoiceParse;
 
-function rpVoiceClose(){ const m=document.getElementById('rp-voice-modal'); if(m){ m._stop=true; m.remove(); } }
+/* امتیاز یک برداشت: هرچه سه بعد و تعداد معتبرتر باشد بهتر (برای انتخاب بهترین گزینه از میان چند برداشت Vosk) */
+function rpVoiceScore(r){
+  let sc=0;
+  ['L','W','H'].forEach(k=>{ if(r[k]!=null){ sc+=1; if(r[k]>=1&&r[k]<=300) sc+=2; } });
+  if(r.N!=null){ sc+=1; if(r.N>=1&&r.N<=1000000&&Number.isInteger(r.N)) sc+=2; }
+  return sc;
+}
+function rpVoiceBest(texts){
+  let best=null,bs=-1;
+  texts.forEach((t,i)=>{ if(!t) return; const r=rpVoiceParse(t); const sc=rpVoiceScore(r)-i*0.01; if(sc>bs){ bs=sc; best={r,t}; } });
+  return best;
+}
+let _rpvRun=null;
+function rpVoiceClose(){
+  if(_rpvRun){ _rpvRun.stop=true; _rpvRun=null; }
+  const m=document.getElementById('rp-voice-pill'); if(m) m.remove();
+  const b=document.getElementById('rp-voice-btn'); if(b) b.style.background='var(--surf-alt)';
+}
+function rpVoicePill(txt,heard,showStop){
+  let m=document.getElementById('rp-voice-pill');
+  if(!m){
+    m=document.createElement('div'); m.id='rp-voice-pill';
+    m.style.cssText='position:fixed;left:10px;right:10px;bottom:76px;z-index:9998;pointer-events:none;display:flex;justify-content:center';
+    m.innerHTML='<div dir="rtl" style="pointer-events:auto;max-width:420px;width:100%;background:#1c1917;color:#fff;border-radius:16px;padding:9px 12px;box-shadow:0 6px 22px rgba(0,0,0,.35);display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div id="rpv-st" style="font-weight:800;font-size:.88rem"></div><div id="rpv-hd" style="font-size:.8rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2em"></div></div><button type="button" id="rpv-stop" style="border:none;border-radius:10px;padding:7px 12px;background:#16a34a;color:#fff;font-weight:800;font-family:inherit">تمام</button><button type="button" id="rpv-x" aria-label="انصراف" style="border:none;border-radius:10px;padding:7px 10px;background:#44403c;color:#fff;font-family:inherit">✕</button></div>';
+    document.body.appendChild(m);
+  }
+  m.querySelector('#rpv-st').textContent=txt;
+  m.querySelector('#rpv-hd').textContent=heard||'';
+  m.querySelector('#rpv-stop').style.display=showStop?'':'none';
+  return m;
+}
 async function rpVoiceOpen(){
   const p=capPlugin('RpVoice'); if(!p){ alert('ورودی صوتی آفلاین فقط در برنامه‌ی نصب‌شده (APK) کار می‌کند.'); return; }
-  rpVoiceClose();
-  const m=document.createElement('div'); m.id='rp-voice-modal'; m.style.cssText=_rpBox;
-  m.innerHTML=`<div dir="rtl" style="${_rpCard};text-align:center">
-    <div style="font-size:2.4rem" id="rpv-ico">🎤</div>
-    <div id="rpv-status" style="font-weight:800;margin:4px 0 6px">در حال آماده‌سازی...</div>
-    <div id="rpv-hint" style="font-size:.78rem;color:#666;line-height:1.8">بگو: «سی در بیست در پانزده، صد تا»<br>(طول، عرض، ارتفاع، تعداد)</div>
-    <div id="rpv-heard" style="min-height:2.2em;margin:10px 0;padding:8px;background:#f5f5f4;border-radius:10px;font-size:.95rem"></div>
-    <div style="display:flex;gap:8px"><button type="button" id="rpv-stop" style="${_rpBtn}flex:1.3;background:#2563eb;color:#fff">پایان</button><button type="button" id="rpv-cancel" style="${_rpBtn}flex:1;background:#f3f4f6;color:#111">انصراف</button></div>
-  </div>`;
-  document.body.appendChild(m);
-  const g=id=>m.querySelector(id);
-  g('#rpv-cancel').onclick=async()=>{ try{ await p.cancel(); }catch(_){} rpVoiceClose(); };
-  g('#rpv-stop').onclick=async()=>{ try{ await p.stop(); }catch(_){} };
-  try{
-    await p.prepare();
-    if(m._stop) return;
-    g('#rpv-status').textContent='🔴 گوش می‌دهم... بگو';
-    await p.start();
-  }catch(e){ g('#rpv-status').textContent='خطا'; g('#rpv-heard').textContent=(e&&e.message)||String(e); g('#rpv-stop').style.display='none'; return; }
-  const t0=Date.now();
-  const tick=async()=>{
-    if(m._stop||!m.isConnected) return;
-    try{
-      const r=await p.poll();
-      if(r.error){ g('#rpv-status').textContent='خطا'; g('#rpv-heard').textContent=r.error; g('#rpv-stop').style.display='none'; return; }
-      if(r.partial) g('#rpv-heard').textContent=r.partial;
-      if(r.done){ rpVoiceResult(r.text||r.partial||''); return; }
-    }catch(_){}
-    if(Date.now()-t0>30000){ try{ await p.stop(); }catch(_){} }
-    setTimeout(tick,160);
-  };
-  tick();
-}
-function rpVoiceResult(text){
-  rpVoiceClose();
-  const r=rpVoiceParse(text);
+  if(_rpvRun){ /* لمس دوباره‌ی میکروفون = پایان صحبت */ try{ await p.stop(); }catch(_){} return; }
+  const run={stop:false}; _rpvRun=run;
+  const btn=document.getElementById('rp-voice-btn'); if(btn) btn.style.background='#fecaca';
+  const m=rpVoicePill('در حال آماده‌سازی...','',false);
+  m.querySelector('#rpv-x').onclick=async()=>{ try{ await p.cancel(); }catch(_){} rpVoiceClose(); };
+  m.querySelector('#rpv-stop').onclick=async()=>{ try{ await p.stop(); }catch(_){} };
+  try{ await p.prepare(); }catch(e){ rpVoicePill('خطا',(e&&e.message)||String(e),false); _rpvRun=null; if(btn) btn.style.background='var(--surf-alt)'; setTimeout(()=>{ if(!_rpvRun) rpVoiceClose(); },3500); return; }
+  const t0=Date.now(); let acc='', accAlts=[], rounds=0;
+  /* چند دورِ گوش دادن: اگر هنوز هر سه بعد شنیده نشده (مثلاً وسط صحبت مکث کردی) ادامه می‌دهد و حرف‌ها را به هم می‌چسباند */
+  while(!run.stop && rounds<4 && Date.now()-t0<40000){
+    rounds++;
+    try{ await p.start(); }catch(e){ rpVoicePill('خطا',(e&&e.message)||String(e),false); await new Promise(r=>setTimeout(r,3000)); break; }
+    rpVoicePill('🔴 بگو: طول، عرض، ارتفاع، تعداد',acc,true);
+    let res=null;
+    while(!run.stop){
+      let r; try{ r=await p.poll(); }catch(_){ r=null; }
+      if(r){
+        if(r.error){ rpVoicePill('خطا',r.error,false); run.stop=true; await new Promise(x=>setTimeout(x,3000)); break; }
+        if(r.partial) rpVoicePill('🔴 گوش می‌دهم...',(acc?acc+' ':'')+r.partial,true);
+        if(r.done){ res=r; break; }
+      }
+      if(Date.now()-t0>40000){ try{ await p.stop(); }catch(_){} }
+      await new Promise(x=>setTimeout(x,150));
+    }
+    if(!res) break;
+    const t=(res.text||res.partial||'').trim();
+    if(!t) break;
+    /* برداشت‌های جایگزین این دور با متن قبلی ترکیب می‌شوند */
+    const cands=[t].concat(Array.isArray(res.alts)?res.alts.filter(x=>x&&x!==t):[]);
+    const prev=acc; acc=(prev?prev+' ':'')+t;
+    accAlts=cands.map(c=>(prev?prev+' ':'')+c);
+    const b=rpVoiceBest(accAlts);
+    if(b&&b.r.L!=null&&b.r.W!=null&&b.r.H!=null&&b.r.N!=null) break;     /* کامل شد */
+    if(b&&b.r.L!=null&&b.r.W!=null&&b.r.H!=null&&rounds>=2) break;
+    rpVoicePill('🔴 ادامه بده...',acc,true);
+  }
+  const stopped=run.stop; _rpvRun=null;
+  if(stopped&&!acc){ rpVoiceClose(); return; }
+  const best=rpVoiceBest(accAlts.length?accAlts:[acc]);
+  if(!best){ rpVoicePill('چیزی نشنیدم',' دوباره روی 🎤 بزن',false); _rpvRun=null; setTimeout(rpVoiceClose,2500); return; }
+  const r=best.r;
   if(agentOrder()==='HWL'){ const t=r.L; r.L=r.H; r.H=t; }
-  const m=document.createElement('div'); m.id='rp-voice-modal'; m.style.cssText=_rpBox;
-  const inp=(k,bg,v)=>`<input type="number" inputmode="decimal" class="rpv-${k}" value="${rpSmsEsc(v==null?'':v)}" placeholder="${k}" style="${_rpIn}background:${bg}">`;
-  m.innerHTML=`<div dir="rtl" style="${_rpCard}">
-    <div style="font-weight:800;margin-bottom:6px">🎤 چیزی که شنیدم</div>
-    <div style="background:#f5f5f4;border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:.92rem;min-height:1.6em">${rpSmsEsc(text)||'—'}</div>
-    <div style="font-size:.8rem;font-weight:700">طول، عرض، ارتفاع، تعداد — درست بودنش را چک کن:</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:8px">${inp('L','#2563eb',r.L)}${inp('W','#dc2626',r.W)}${inp('H','#16a34a',r.H)}${inp('N','#1c1917',r.N)}</div>
-    ${r.warn.length?`<div style="color:#b45309;font-size:.75rem;margin-top:6px">⚠️ ${rpSmsEsc(r.warn.join('، '))}</div>`:''}
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button type="button" id="rpv-ok" style="${_rpBtn}flex:1.4;background:#16a34a;color:#fff">وارد کن و محاسبه کن</button>
-      <button type="button" id="rpv-again" style="${_rpBtn}flex:1;background:#eef2ff;color:#3730a3">دوباره بگو</button>
-    </div>
-    <button type="button" id="rpv-x" style="${_rpBtn}width:100%;margin-top:8px;background:none;color:#6b7280">بستن</button>
-  </div>`;
-  document.body.appendChild(m);
-  const g=id=>m.querySelector(id);
-  g('#rpv-x').onclick=rpVoiceClose;
-  g('#rpv-again').onclick=()=>{ rpVoiceClose(); rpVoiceOpen(); };
-  g('#rpv-ok').onclick=()=>{
-    const v={L:+g('.rpv-L').value,W:+g('.rpv-W').value,H:+g('.rpv-H').value,N:+g('.rpv-N').value};
-    if(!(v.L>0&&v.W>0&&v.H>0&&v.N>0&&Number.isInteger(v.N))){ alert('طول، عرض، ارتفاع و تعداد (عدد صحیح) باید پر و درست باشد.'); return; }
-    rpVoiceClose(); rpVoiceApply(v);
-  };
+  rpVoiceApply(r);
+  const shown=[r.L,r.W,r.H].map(x=>x==null?'؟':x).join(' × ')+(r.N!=null?'  ، تعداد '+r.N:'  ، تعداد ؟');
+  rpVoicePill('✅ نوشته شد'+(r.warn.length?' (ناقص)':''),shown,false);
+  setTimeout(()=>{ if(!_rpvRun) rpVoiceClose(); },2600);
 }
 /* اولین کادر خالی را پر می‌کند؛ اگر همه پر بودند، کادر جدید می‌سازد */
 function rpVoiceApply(v){
   try{
     let id=calc2RowIds.find(i=>!($('c2-length-'+i)?.value)&&!($('c2-width-'+i)?.value)&&!($('c2-height-'+i)?.value));
     if(id==null){ addCartonRow2(); id=calc2RowIds[calc2RowIds.length-1]; }
-    $('c2-length-'+id).value=v.L; $('c2-width-'+id).value=v.W; $('c2-height-'+id).value=v.H; $('c2-qty-'+id).value=v.N;
+    const put=(f,x)=>{ const el=$(f+id); if(el&&x!=null&&isFinite(x)) el.value=x; };
+    put('c2-length-',v.L); put('c2-width-',v.W); put('c2-height-',v.H); put('c2-qty-',v.N);
     try{ const b=document.querySelector(`.tab-btn[onclick*="switchTab('calc2'"]`); switchTab('calc2',b); }catch(_){}
-    runCalc2();
+    if(v.L!=null&&v.W!=null&&v.H!=null&&v.N!=null) runCalc2();
   }catch(e){ alert('خطا: '+(e&&e.message||e)); }
 }
 window.addEventListener('load',()=>setTimeout(()=>{ const b=document.getElementById('rp-voice-btn'); if(b&&capPlugin('RpVoice')) b.style.display='flex'; },1200));
@@ -9873,7 +9925,7 @@ function doRestore(input){
       loadSheetWidthSettings(data.sheetWidthList,data.minSuggestSheetLen);
       smsTemplate=typeof data.smsTemplate==='string'?data.smsTemplate:smsTemplate;
       if(data.invoiceSettings&&typeof data.invoiceSettings==='object') invoiceSettings={...invoiceSettings,...data.invoiceSettings};
-      if(data.displaySettings&&typeof data.displaySettings==='object') displaySettings={fontScale:parseInt(data.displaySettings.fontScale)||100,zoom:parseInt(data.displaySettings.zoom)||85,soundEnabled:data.displaySettings.soundEnabled!==false,theme:data.displaySettings.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(data.displaySettings.warmth)||0)),digits:data.displaySettings.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(data.displaySettings.tone))?50:Math.min(100,Math.max(0,parseInt(data.displaySettings.tone))))};
+      if(data.displaySettings&&typeof data.displaySettings==='object') displaySettings={fontScale:parseInt(data.displaySettings.fontScale)||100,zoom:parseInt(data.displaySettings.zoom)||85,soundEnabled:data.displaySettings.soundEnabled!==false,theme:data.displaySettings.theme==='night'?'night':'day',warmth:Math.min(100,Math.max(0,parseInt(data.displaySettings.warmth)||0)),digits:data.displaySettings.digits==='fa'?'fa':'en',tone:(isNaN(parseInt(data.displaySettings.tone))?50:Math.min(100,Math.max(0,parseInt(data.displaySettings.tone)))),dimPos:data.displaySettings.dimPos==='top'?'top':'bottom',tabPos:data.displaySettings.tabPos==='bottom'?'bottom':'top'};
       const m=data.meta||{};
       nextId       =m.nextId        ||(inventory.reduce((x,i)=>Math.max(x,i.id),0)+1);
       nextCustId   =m.nextCustId    ||(customers.reduce((x,i)=>Math.max(x,i.id),0)+1);

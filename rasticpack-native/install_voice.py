@@ -37,6 +37,7 @@ public class RpVoicePlugin extends Plugin implements RecognitionListener {
     private volatile String partial = "";
     private volatile String finalText = null;
     private volatile String error = null;
+    private volatile String alts = "[]";
     private volatile boolean listening = false;
 
     private String grammar() {
@@ -78,9 +79,10 @@ public class RpVoicePlugin extends Plugin implements RecognitionListener {
         if (model == null) { call.reject("مدل صدا هنوز آماده نیست."); return; }
         try {
             killService();
-            partial = ""; finalText = null; error = null;
+            partial = ""; finalText = null; error = null; alts = "[]";
             String g = grammar();
             Recognizer rec = (g != null) ? new Recognizer(model, 16000.0f, g) : new Recognizer(model, 16000.0f);
+            try { rec.setMaxAlternatives(5); } catch (Throwable ignored) {}
             svc = new SpeechService(rec, 16000.0f);
             listening = svc.startListening(this, 20000);
             if (!listening) { call.reject("شروع ضبط ممکن نشد (میکروفون در دسترس نیست)."); return; }
@@ -111,6 +113,7 @@ public class RpVoicePlugin extends Plugin implements RecognitionListener {
         o.put("partial", partial);
         o.put("done", finalText != null);
         o.put("text", finalText == null ? "" : finalText);
+        try { o.put("alts", new org.json.JSONArray(alts)); } catch (Throwable ignored) { o.put("alts", new org.json.JSONArray()); }
         o.put("error", error == null ? "" : error);
         call.resolve(o);
     }
@@ -128,8 +131,26 @@ public class RpVoicePlugin extends Plugin implements RecognitionListener {
     }
 
     @Override public void onPartialResult(String h) { partial = field(h, "partial"); }
-    @Override public void onResult(String h) { String t = field(h, "text"); if (!t.trim().isEmpty()) finish(t); }
-    @Override public void onFinalResult(String h) { if (finalText == null) finish(field(h, "text")); }
+    private String[] parseResult(String h) {
+        /* با setMaxAlternatives خروجی {"alternatives":[{"text":..,"confidence":..},..]} است؛ بدون آن {"text":..} */
+        try {
+            JSONObject j = new JSONObject(h);
+            if (j.has("alternatives")) {
+                org.json.JSONArray a = j.getJSONArray("alternatives");
+                org.json.JSONArray out = new org.json.JSONArray();
+                String first = "";
+                for (int i = 0; i < a.length(); i++) {
+                    String tx = a.getJSONObject(i).optString("text", "").trim();
+                    if (tx.isEmpty()) continue;
+                    if (first.isEmpty()) first = tx; else out.put(tx);
+                }
+                return new String[]{first, out.toString()};
+            }
+            return new String[]{j.optString("text", ""), "[]"};
+        } catch (Throwable t) { return new String[]{"", "[]"}; }
+    }
+    @Override public void onResult(String h) { String[] r = parseResult(h); if (!r[0].trim().isEmpty()) { alts = r[1]; finish(r[0]); } }
+    @Override public void onFinalResult(String h) { if (finalText == null) { String[] r = parseResult(h); alts = r[1]; finish(r[0]); } }
     @Override public void onError(Exception e) { error = e == null ? "خطا" : String.valueOf(e.getMessage()); finish(""); }
     @Override public void onTimeout() { finish(partial); }
 }
