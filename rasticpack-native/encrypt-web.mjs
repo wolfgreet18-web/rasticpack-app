@@ -21,8 +21,8 @@ const ct = Buffer.concat([c.update(plain), c.final(), c.getAuthTag()]);
 fs.writeFileSync(dir + '/app.enc', Buffer.concat([iv, ct]));
 
 const loader = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>رستیک پک</title>
-<style>html,body{margin:0;height:100%;background:#16120f;color:#f5efe6;font-family:system-ui,Tahoma,sans-serif}
-#g{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+<style>html,body{margin:0;height:100%;background:#f2efe8;color:#f5efe6;font-family:system-ui,Tahoma,sans-serif}
+body.ask{background:#16120f}#g{display:none;min-height:100%;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
 .c{width:100%;max-width:340px;background:#241d18;border:1px solid #3a2f27;border-radius:18px;padding:22px;text-align:center}
 h1{font-size:1.15rem;margin:0 0 6px}p{font-size:.82rem;opacity:.75;margin:0 0 14px;line-height:1.8}
 input{width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1.5px solid #5a4a3d;background:#16120f;color:#fff;font-size:1.05rem;text-align:center;letter-spacing:.2em;direction:ltr}
@@ -56,9 +56,10 @@ async function go(){
   fails++;$('m').textContent='رمز اشتباه است.';$('b').disabled=false;$('p').value='';$('p').focus();
 }
 (async function(){
-  try{data=new Uint8Array(await (await fetch('app.enc',{cache:'no-store'})).arrayBuffer());}catch(e){$('m').textContent='فایل برنامه خوانده نشد.';return}
+  try{data=new Uint8Array(await (await fetch('app.enc',{cache:'no-store'})).arrayBuffer());}catch(e){document.body.className='ask';$('g').style.display='flex';$('m').textContent='فایل برنامه خوانده نشد.';return}
   var sk=null;try{sk=localStorage.getItem('rp_k');}catch(e){}
   if(sk){try{var k=await crypto.subtle.importKey('raw',unb64(sk),'AES-GCM',false,['decrypt']);if(await open(k))return;}catch(e){}}
+  document.body.className='ask';$('g').style.display='flex';
   $('b').onclick=go;$('p').addEventListener('keydown',function(e){if(e.key==='Enter')go()});$('p').focus();
 })();
 })();
