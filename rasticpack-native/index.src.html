@@ -401,9 +401,8 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
 
     <!-- ═══ TAB 1 — محاسبه کارتن ═══ -->
     <section id="panel-calc2" class="tab-panel active" role="tabpanel">
-      <div id="c2-hdr" style="display:flex;justify-content:flex-end;gap:8px;margin:-22px -20px 2px">
+      <div id="c2-hdr" style="display:none;justify-content:flex-end;gap:8px;margin:-22px -20px 2px">
         <button type="button" id="rp-voice-btn" aria-label="ورودی صوتی" title="ابعاد و تعداد را بگو (آفلاین)" onclick="rpVoiceOpen()" style="display:none;background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;align-items:center;justify-content:center">🎤</button>
-        <button type="button" aria-label="ریلود" title="پاک کردن همه و شروع از اول" onclick="resetCalc2Cards()" style="background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;color:var(--tx2);display:flex;align-items:center;justify-content:center">↻</button>
       </div>
       <div id="calc2-top-slot"><div id="calc2-carton-list"></div></div>
       <div id="c2-profit-row" style="display:flex;gap:10px;align-items:flex-end;justify-content:flex-start;margin-top:12px">
@@ -455,6 +454,9 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <div class="calc2-section-tinted tint-blue" id="c2sec-invoice-all" style="margin-top:16px"></div>
       </div>
       <div id="calc2-bottom-slot" style="margin-top:14px"></div>
+      <div id="c2-reset-wrap" style="order:101;display:flex;justify-content:flex-end;margin-top:10px">
+<button type="button" aria-label="ریلود" title="پاک کردن همه و شروع از اول" onclick="resetCalc2Cards()" style="background:var(--surf-alt);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;padding:0;font-size:1rem;line-height:1;cursor:pointer;color:var(--tx2);display:flex;align-items:center;justify-content:center">↻</button>
+      </div>
     </section>
 
     <!-- ═══ TAB — کارتن‌های آماده انبار ═══ -->
@@ -943,6 +945,12 @@ html[data-theme="dark"] .zoom-badge{background:rgba(26,24,21,.94)!important;colo
         <div id="knife-mode-tabs" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <button type="button" class="kmode-btn" data-km="simple" onclick="setKnifeMode('simple')">ساده</button>
           <button type="button" class="kmode-btn" data-km="full" onclick="setKnifeMode('full')">کامل</button>
+        </div>
+        <div style="margin-top:14px;font-weight:800;font-size:.85rem">⚡ تعداد عددهای نمایش‌داده‌شده در «تولید سریع» (حالت ساده)</div>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px 10px;align-items:center;margin-top:8px;font-size:.82rem">
+          <span></span><span style="text-align:center;font-weight:700;color:#dc2626">خط برش</span><span style="text-align:center;font-weight:700;color:#2563eb">خط تا</span>
+          <b>کریز</b><input type="number" inputmode="numeric" min="0" max="20" id="qk-kc" oninput="setQkCnt('kc',this.value)" style="margin:0;text-align:center"><input type="number" inputmode="numeric" min="0" max="20" id="qk-kf" oninput="setQkCnt('kf',this.value)" style="margin:0;text-align:center">
+          <b>۴ خط</b><input type="number" inputmode="numeric" min="0" max="20" id="qk-lc" oninput="setQkCnt('lc',this.value)" style="margin:0;text-align:center"><input type="number" inputmode="numeric" min="0" max="20" id="qk-lf" oninput="setQkCnt('lf',this.value)" style="margin:0;text-align:center">
         </div>
       </div>
 
@@ -2288,7 +2296,14 @@ function updateSmsTemplate(val){
 
 /* ══ تنظیمات فاکتور (سربرگ) ══ */
 function knifeMode(){ return invoiceSettings.knifeMode==='full'?'full':'simple'; }   /* پیش‌فرض: ساده */
-function applyKnifeModeUI(){ document.querySelectorAll('#knife-mode-tabs .kmode-btn').forEach(b=>b.classList.toggle('on',b.dataset.km===knifeMode())); }
+function applyKnifeModeUI(){ try{ applyQkUI(); }catch(_){} document.querySelectorAll('#knife-mode-tabs .kmode-btn').forEach(b=>b.classList.toggle('on',b.dataset.km===knifeMode())); }
+/* تعداد عددهای حالت «ساده» در صفحه‌ی تولید سریع: کریز (برش ۳، خط‌تا ۶) و ۴ خط (برش ۳، خط‌تا ۸) */
+const QK_DEF={kc:3,kf:6,lc:3,lf:8};
+function qkCnt(k){ const v=parseInt((invoiceSettings.qkCnt||{})[k]); return (isFinite(v)&&v>=0)?Math.min(v,20):QK_DEF[k]; }
+function setQkCnt(k,v){ invoiceSettings.qkCnt=Object.assign({},invoiceSettings.qkCnt||{}); const n=parseInt(v); if(isFinite(n)&&n>=0) invoiceSettings.qkCnt[k]=Math.min(n,20); else delete invoiceSettings.qkCnt[k]; saveState(); }
+function qkGonya(){ const v=parseFloat(invoiceSettings.qkGonya); return isFinite(v)?v:9.7; }
+function qkWAdd(){ const mm=parseFloat(invoiceSettings.qkWAddMm); return {on:!!invoiceSettings.qkWAddOn, mm:isFinite(mm)&&mm>=0?mm:3}; }
+function applyQkUI(){ ['kc','kf','lc','lf'].forEach(k=>{ const e=document.getElementById('qk-'+k); if(e) e.value=qkCnt(k); }); }
 function setKnifeMode(m){ invoiceSettings.knifeMode=(m==='full')?'full':'simple'; saveState(); applyKnifeModeUI(); }
 window.setKnifeMode=setKnifeMode; window.knifeMode=knifeMode;
 function checkEnabled(){ return invoiceSettings.checkEnabled===true; }   /* پیش‌فرض: غیرفعال */
@@ -5999,7 +6014,7 @@ function rpVoiceApply(v){
     if(v.L!=null&&v.W!=null&&v.H!=null&&v.N!=null) runCalc2();
   }catch(e){ alert('خطا: '+(e&&e.message||e)); }
 }
-window.addEventListener('load',()=>setTimeout(()=>{ const b=document.getElementById('rp-voice-btn'); if(b&&capPlugin('RpVoice')) b.style.display='flex'; },1200));
+window.addEventListener('load',()=>setTimeout(()=>{ const b=document.getElementById('rp-voice-btn'); if(b&&capPlugin('RpVoice')){ b.style.display='flex'; if(b.parentNode) b.parentNode.style.display='flex'; } },1200));
 function toggleC2SmsOptions(){
   const box=$('c2-sms-opts'); if(!box) return;
   if(box.style.display==='none'){
@@ -11304,25 +11319,81 @@ function toggleKnifeFull(){
   }
 }
 /* 🏭 سبز: صفحه‌ی تمام‌صفحه‌ی «روش برش و خط‌ها» (کریز، ۴ خط، چاک) برای همین کارتن؛ بدون ارسال به صف تولید */
+function qkSetGonya(v,rowId){ const n=parseFloat(v); invoiceSettings.qkGonya=isFinite(n)?n:9.7; saveState(); showCalc2Details(rowId); }
+function qkToggleWAdd(rowId){ invoiceSettings.qkWAddOn=!invoiceSettings.qkWAddOn; saveState(); showCalc2Details(rowId); }
+function qkSetWAddMm(v,rowId){ const n=parseFloat(v); invoiceSettings.qkWAddMm=isFinite(n)&&n>=0?n:3; saveState(); showCalc2Details(rowId); }
+/* بلانک هر بخش (کریز/۴ خط/چاک) تمام‌صفحه؛ ✕ پایین سمت راست */
+let _qbRot=false;
+function qkOpenBlank(key){
+  const html=(window.__qBlanks||{})[key]; if(!html){ alert('بلانک این بخش در دسترس نیست.'); return; }
+  const old=document.getElementById('qk-blank'); if(old) old.remove();
+  const m=document.createElement('div'); m.id='qk-blank';
+  m.style.cssText='position:fixed;inset:0;z-index:100000;background:#fff;overflow:hidden';
+  const title={toli:'کریز',tl:'۴ خط',chak:'چاک'}[key]||'';
+  m.innerHTML=`<style>
+    #qk-blank .qb-c{position:absolute;overflow:auto;box-sizing:border-box;padding:6px;-webkit-overflow-scrolling:touch}
+    #qk-blank .qb-c.rot{--qbh:calc(100vw - 16px);top:100%;left:0;width:100vh;height:100vw;transform-origin:top left;transform:rotate(-90deg)}
+    #qk-blank .qb-c:not(.rot){--qbh:calc(100vh - 16px);top:0;left:0;width:100%;height:100%}
+    #qk-blank .qb-c svg{display:block;width:100%;height:auto;max-width:none;margin:0 auto 8px}
+    #qk-blank .qb-c .acc-panel,#qk-blank .qb-c .shrinkR,#qk-blank .qb-c .tblk{display:block;width:100%;max-width:none;transform:none;margin:0 0 6px;overflow:visible}
+  </style><div class="qb-c ${_qbRot?'rot':''}" id="qb-c" dir="ltr">${html}</div>
+  <button type="button" onclick="document.getElementById('qk-blank').remove()" style="position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.8rem;line-height:1;border:none;background:rgba(255,255,255,.9);border-radius:14px;color:#111;box-shadow:0 1px 6px rgba(0,0,0,.25);cursor:pointer">✕</button>
+  <button type="button" onclick="_qbRot=!_qbRot;document.getElementById('qb-c').classList.toggle('rot',_qbRot)" style="position:fixed;right:70px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.3rem;line-height:1;border:none;background:rgba(255,255,255,.9);border-radius:14px;color:#111;box-shadow:0 1px 6px rgba(0,0,0,.25);cursor:pointer" title="چرخش">⤢</button>
+  <div style="position:fixed;left:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;font-weight:800;font-size:.9rem;color:#6b7280;background:rgba(255,255,255,.85);border-radius:8px;padding:2px 8px">${title}</div>`;
+  document.body.appendChild(m);
+  const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
+  if(_z&&_z!==1) m.style.zoom=String(1/_z);
+  /* هر نقشه را به عرض کادر می‌کشد: اندازه‌های ثابت و scale پدرها حذف می‌شود */
+  const c=m.querySelector('#qb-c');
+  { const svgs=[...c.querySelectorAll('svg')]; c.innerHTML=''; svgs.forEach(v=>c.appendChild(v)); }   /* فقط خود نقشه‌ها، بدون پوشش‌های اندازه‌ثابت */
+  c.querySelectorAll('svg').forEach(v=>{
+    if(!v.getAttribute('viewBox')){ const w=parseFloat(v.getAttribute('width')),h=parseFloat(v.getAttribute('height')); if(w>0&&h>0) v.setAttribute('viewBox','0 0 '+w+' '+h); }
+    v.removeAttribute('width'); v.removeAttribute('height');
+    v.style.cssText='display:block;width:100%;height:var(--qbh);max-width:none;max-height:none;margin:0 auto 8px';v.setAttribute('preserveAspectRatio','xMidYMid meet');
+    try{ const bb=v.getBBox(); if(bb.width>0&&bb.height>0) v.setAttribute('viewBox',(bb.x-6)+' '+(bb.y-6)+' '+(bb.width+12)+' '+(bb.height+12)); }catch(_){}
+  });
+}
+window.qkOpenBlank=qkOpenBlank; window.qkSetGonya=qkSetGonya; window.qkToggleWAdd=qkToggleWAdd; window.qkSetWAddMm=qkSetWAddMm;
 function showCalc2Details(rowId){
   const r=c2FindRes(rowId); if(!r) return;
   const sh=r.sheets&&r.sheets[0];
   if(!sh){ alert('برای این کارتن ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.'); return; }
   if(r.split&&!(r.sheets&&r.sheets[1])){ alert('برای تکه‌ی دوم ورق سازگاری پیدا نشده؛ ابتدا ورق مناسب انتخاب کنید.'); return; }
-  const tmp={id:-7,sourceKey:'tmp-details',name:r.name||'کارتن',length:r.length,width:r.width,height:r.height,glue:r.glue,sh:sh.sh,sw:sh.sw,layer:r.layer,qty:r.qty};
-  if(r.twoPiece) tmp.twoPiece=true;
-  if(r.split){ tmp.split=r.split; tmp.sh2=r.sheets[1].sh; tmp.sw2=r.sheets[1].sw; }
-  if(r.type) tmp.boxType=r.type;
-  productionQueue.unshift(tmp);
+  const mkTmp=(wx)=>{ const t={id:-7,sourceKey:'tmp-details',name:r.name||'کارتن',length:r.length,width:r.width+wx,height:r.height,glue:r.glue,sh:sh.sh,sw:sh.sw,layer:r.layer,qty:r.qty};
+    if(r.twoPiece) t.twoPiece=true;
+    if(r.split){ t.split=r.split; t.sh2=r.sheets[1].sh; t.sw2=r.sheets[1].sw; }
+    if(r.type) t.boxType=r.type;
+    return t; };
+  const runTmp=(wx)=>{
+    const tmp=mkTmp(wx); productionQueue.unshift(tmp);
+    try{
+      applyProductionItem(-7);
+      const tm=document.getElementById('t-m'); if(tm&&!tm.classList.contains('on')) tm.click();
+    }finally{ const i=productionQueue.indexOf(tmp); if(i>=0) productionQueue.splice(i,1); }
+  };
+  const grab=id=>{ const e=document.getElementById('panel-'+id); return e?e.innerHTML:''; };
+  const WA=qkWAdd(), wadd=(WA.on&&WA.mm>0)?WA.mm/10:0;     /* میل → سانتی‌متر؛ فقط برای کریز */
+  const _gSave=gonyaCutVal; gonyaCutVal=qkGonya();         /* گونیای مخصوص تولید سریع (پیش‌فرض 9.7) */
+  let R,P,bh,Rw=null,blanks={toli:'',tl:'',chak:''};
   try{
-    applyProductionItem(-7);
-    const tm=document.getElementById('t-m'); if(tm&&!tm.classList.contains('on')) tm.click();
-  }finally{ const i=productionQueue.indexOf(tmp); if(i>=0) productionQueue.splice(i,1); }
-  const R=window.__rulers||{}, P=window.__lastPieces||[], bh=window.__lastBlankHt;
+    if(wadd>0){
+      runTmp(wadd);
+      const RR=window.__rulers||{};
+      Rw={toli:JSON.parse(JSON.stringify(RR.toli||null)),toli2:JSON.parse(JSON.stringify(RR.toli2||null))};
+      blanks.toli=grab('toli');
+    }
+    runTmp(0);
+    R=window.__rulers||{}; P=window.__lastPieces||[]; bh=window.__lastBlankHt;
+    if(!wadd) blanks.toli=grab('toli');
+    blanks.tl=grab('tl');
+    try{ selMachine('c'); blanks.chak=grab('single-c'); }catch(_){}
+    try{ selMachine('m'); }catch(_){}
+  }finally{ gonyaCutVal=_gSave; }
   if(!P.length){ alert('ابتدا محاسبه را انجام دهید.'); return; }
+  window.__qBlanks=blanks;
   const cutC=(typeof CLR!=='undefined'&&CLR.cut)||'#dc2626', foldC=(typeof CLR!=='undefined'&&CLR.fold)||'#2563eb';
   const f=_fmtN, pc=P.length>1;
-  const sect=(title,first)=>`<div style="font-weight:800;font-size:1.05rem;color:#111;margin:${first?'2px':'14px'} 0 6px;${first?'':'padding-top:10px;border-top:1.5px solid #d1d5db'}">${title}</div>`;
+  const sect=(title,first,key)=>`<div ${key?`onclick="qkOpenBlank('${key}')" role="button" `:''}style="font-weight:800;font-size:1.05rem;color:#111;margin:${first?'2px':'14px'} 0 6px;${first?'':'padding-top:10px;border-top:1.5px solid #d1d5db'};${key?'cursor:pointer;display:flex;align-items:center;gap:8px':''}">${title}${key?'<span style="font-size:.85rem;opacity:.6">🖼️</span>':''}</div>`;
   const CL='#2563eb', CW='#dc2626', CH='#16a34a';
   const _g=c2BoxGeom(r.width,r.height,r.type||''), _flap=Math.max(_g.top,_g.bot);
   const seqRow=(pos,color,extra)=>{
@@ -11330,29 +11401,24 @@ function showCalc2Details(rowId){
     const parts=pos.map((v,i)=>`<span style="white-space:nowrap">${f(v)}${i<pos.length-1?`<span style="color:#16a34a;font-size:.45em;font-weight:700;margin:0 .5em;vertical-align:middle">${f(pos[i+1]-v)}</span>`:(extra!=null?`<span style="color:#7c3aed;margin-inline-start:.55em">${f(extra)}</span>`:'')}</span> `).join('');
     return `<div class="kn-w" dir="ltr" style="padding:2px 0;margin-bottom:10px;font-size:44px;font-weight:800;line-height:1.5;text-align:center;text-wrap:balance;color:${color}">${parts}</div>`;
   };
-  const foldRow=(pos)=>seqRow(pos,foldC);
-  const cutRow=(pos)=>{
-    if(!pos||!pos.length) return '';
-    if(!_kS()) return seqRow(pos,cutC);   /* حالت کامل: همه‌ی عددها و فاصله‌ها */
-    if(pos.length<2) return '';
-    return `<div class="kn-w1" dir="ltr" style="padding:2px 0;margin-bottom:10px;font-size:44px;font-weight:800;line-height:1.5;text-align:center;color:${cutC}">${f(pos[pos.length-1])}</div>`;
-  };
+  const foldRow=(pos,n)=>seqRow((_kS()&&n!=null)?(pos||[]).slice(0,n):pos,foldC);
+  const cutRow=(pos,n)=>seqRow((_kS()&&n!=null)?(pos||[]).slice(0,n):pos,cutC);   /* ساده: به تعداد تنظیمات؛ کامل: همه */
   let body='';
   P.forEach((q,k)=>{
     const sfx=k?'2':'';
-    const chak=[q.v1,q.v2,q.v3,q.v4].filter((x,i,a)=>a.indexOf(x)===i).map(x=>x+gOff());
+    const chak=[q.v1,q.v2,q.v3,q.v4].filter((x,i,a)=>a.indexOf(x)===i);   /* چاک: بدون گونیا */
     const t=pc?`<div style="font-weight:800;font-size:1.1rem;color:#fff;background:#16a34a;border-radius:10px;padding:6px 12px;margin:16px 0 4px;text-align:center">تکه ${k+1}</div>`:'';
-    const w=R['toli'+sfx], l=R['tl'+sfx];
+    const w=(Rw&&Rw['toli'+sfx])||R['toli'+sfx], l=R['tl'+sfx];
     body+=t
-      +sect('کریز',k===0&&!pc)+(w?cutRow(w.cut)+foldRow(w.fold):'')
-      +sect('۴ خط')+(l?cutRow(l.cut)+foldRow(l.fold):'')
-      +sect('چاک')+seqRow(chak,foldC,_flap);
+      +sect('کریز',k===0&&!pc,'toli')+(w?cutRow(w.cut,qkCnt('kc'))+foldRow(w.fold,qkCnt('kf')):'')
+      +sect('۴ خط',false,'tl')+(l?cutRow(l.cut,qkCnt('lc'))+foldRow(l.fold,qkCnt('lf')):'')
+      +sect('چاک',false,'chak')+seqRow(chak,foldC,_flap);
   });
   const dm=(a,b,c)=>`<span dir="ltr" style="display:inline-block;unicode-bidi:isolate;white-space:nowrap"><span style="color:${CL}">${f(a)}</span><span style="color:#6b7280"> × </span><span style="color:${CW}">${f(b)}</span>${c==null?'':`<span style="color:#6b7280"> × </span><span style="color:${CH}">${f(c)}</span>`}</span>`;
   const sheetTxt=P.map(q=>dm(q.sL,q.sW)).join('<span style="color:#6b7280"> ، </span>');
   const blankTxt=P.map(q=>dm(q.bLen,bh)).join('<span style="color:#6b7280"> ، </span>');
   const grp=(t,inner)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:.7em;font-weight:700;color:#6b7280;direction:rtl">${t}</span><div style="white-space:nowrap">${inner}</div></div>`;
-  const hdr=`<div id="kn-hdr" style="flex:1;min-width:0;display:flex;gap:12px;justify-content:center;align-items:flex-end;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${grp('کارتن',dm(r.length,r.width,r.height))}<span style="color:#d1d5db">|</span>${grp('ورق',sheetTxt)}<span style="color:#d1d5db">|</span>${grp('شیت',blankTxt)}</div>`;
+  const hdr=`<div id="kn-hdr" style="flex:1;min-width:0;display:flex;gap:12px;justify-content:center;align-items:flex-end;white-space:nowrap;font-size:1rem;font-weight:800;direction:ltr">${grp('کارتن'+(r.qty>0?` <small style="font-size:.8em;color:#9ca3af">${f(r.qty)}</small>`:''),dm(r.length,r.width,r.height))}<span style="color:#d1d5db">|</span>${grp('ورق'+(r.sheets.some(x=>x&&x.sheetsNeed>0)?` <small style="font-size:.8em;color:#9ca3af">${r.sheets.filter(x=>x).map(x=>f(x.sheetsNeed)).join('،')}</small>`:''),sheetTxt)}<span style="color:#d1d5db">|</span>${grp('شیت',blankTxt)}</div>`;
   const old=document.getElementById('knife-modal'); if(old) old.remove();
   const m=document.createElement('div');
   m.id='knife-modal'; m.__d={cut:[],fold:[]};
@@ -11364,7 +11430,10 @@ function showCalc2Details(rowId){
     </div>
     ${body}
   </div>`;
-  m.insertAdjacentHTML('beforeend',`<button type="button" onclick="document.getElementById('knife-modal').remove()" style="position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.8rem;line-height:1;border:none;background:transparent;color:#111;box-shadow:none;cursor:pointer">✕</button>`);
+  const inpSt='width:54px;height:30px;margin:0;padding:0 4px;font-size:.95rem;font-weight:700;text-align:center;border:1.5px solid #d1d5db;border-radius:8px;background:#fff;box-shadow:none';
+  m.insertAdjacentHTML('beforeend',`<div dir="ltr" style="position:fixed;left:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #d1d5db;border-radius:12px;padding:5px 8px" title="گونیا (سانتی‌متر) — فقط کریز و ۴ خط"><span style="font-size:1.25rem;line-height:1">📐</span><input type="number" inputmode="decimal" step="0.1" id="qk-gonya" value="${qkGonya()}" onchange="qkSetGonya(this.value,${rowId})" style="${inpSt}"></div>
+  <div dir="ltr" style="position:fixed;right:58px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:6px;background:${wadd>0?'#dcfce7':'#fff'};border:1.5px solid ${wadd>0?'#16a34a':'#d1d5db'};border-radius:12px;padding:5px 8px"><button type="button" onclick="qkToggleWAdd(${rowId})" title="افزودن به عرض کارتن (فقط کریز)" style="margin:0;width:auto;min-width:0;padding:2px 8px;font-size:.9rem;font-weight:800;border:none;background:transparent;box-shadow:none;color:${wadd>0?'#166534':'#374151'};cursor:pointer">${wadd>0?'✅':'⬜'} عرض +</button><input type="number" inputmode="decimal" step="0.5" min="0" id="qk-wadd" value="${WA.mm}" onchange="qkSetWAddMm(this.value,${rowId})" style="${inpSt};width:46px"><span style="font-size:.75rem;color:#6b7280">mm</span></div>
+  <button type="button" onclick="document.getElementById('knife-modal').remove()" style="position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.8rem;line-height:1;border:none;background:transparent;color:#111;box-shadow:none;cursor:pointer">✕</button>`);
   document.body.appendChild(m);
   const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
   if(_z&&_z!==1) m.style.zoom=String(1/_z);
