@@ -2302,7 +2302,7 @@ const QK_DEF={kc:3,kf:6,lc:3,lf:8};
 function qkCnt(k){ const v=parseInt((invoiceSettings.qkCnt||{})[k]); return (isFinite(v)&&v>=0)?Math.min(v,20):QK_DEF[k]; }
 function setQkCnt(k,v){ invoiceSettings.qkCnt=Object.assign({},invoiceSettings.qkCnt||{}); const n=parseInt(v); if(isFinite(n)&&n>=0) invoiceSettings.qkCnt[k]=Math.min(n,20); else delete invoiceSettings.qkCnt[k]; saveState(); }
 function qkGonya(){ const v=parseFloat(invoiceSettings.qkGonya); return isFinite(v)?v:9.7; }
-function qkWAdd(){ const mm=parseFloat(invoiceSettings.qkWAddMm); return {on:!!invoiceSettings.qkWAddOn, mm:isFinite(mm)&&mm>=0?mm:3}; }
+function qkWAdd(){ const mm=parseFloat(invoiceSettings.qkWAddMm); return {on:true, mm:isFinite(mm)&&mm>=0?mm:3}; }   /* همیشه فعال؛ صفر = بدون افزودن */
 function applyQkUI(){ ['kc','kf','lc','lf'].forEach(k=>{ const e=document.getElementById('qk-'+k); if(e) e.value=qkCnt(k); }); }
 function setKnifeMode(m){ invoiceSettings.knifeMode=(m==='full')?'full':'simple'; saveState(); applyKnifeModeUI(); }
 window.setKnifeMode=setKnifeMode; window.knifeMode=knifeMode;
@@ -11321,7 +11321,7 @@ function toggleKnifeFull(){
 /* 🏭 سبز: صفحه‌ی تمام‌صفحه‌ی «روش برش و خط‌ها» (کریز، ۴ خط، چاک) برای همین کارتن؛ بدون ارسال به صف تولید */
 function qkSetGonya(v,rowId){ const n=parseFloat(v); invoiceSettings.qkGonya=isFinite(n)?n:9.7; saveState(); showCalc2Details(rowId); }
 function qkToggleWAdd(rowId){ invoiceSettings.qkWAddOn=!invoiceSettings.qkWAddOn; saveState(); showCalc2Details(rowId); }
-function qkSetWAddMm(v,rowId){ const n=parseFloat(v); invoiceSettings.qkWAddMm=isFinite(n)&&n>=0?n:3; saveState(); showCalc2Details(rowId); }
+function qkSetWAddMm(v,rowId){ const n=parseFloat(v); invoiceSettings.qkWAddMm=(isFinite(n)&&n>=0)?n:0; saveState(); showCalc2Details(rowId); }
 /* بلانک هر بخش (کریز/۴ خط/چاک) تمام‌صفحه؛ ✕ پایین سمت راست */
 let _qbRot=false;
 function qkOpenBlank(key){
@@ -11430,9 +11430,9 @@ function showCalc2Details(rowId){
     </div>
     ${body}
   </div>`;
-  const inpSt='width:54px;height:30px;margin:0;padding:0 4px;font-size:.95rem;font-weight:700;text-align:center;border:1.5px solid #d1d5db;border-radius:8px;background:#fff;box-shadow:none';
-  m.insertAdjacentHTML('beforeend',`<div dir="ltr" style="position:fixed;left:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #d1d5db;border-radius:12px;padding:5px 8px" title="گونیا (سانتی‌متر) — فقط کریز و ۴ خط"><span style="font-size:1.25rem;line-height:1">📐</span><input type="number" inputmode="decimal" step="0.1" id="qk-gonya" value="${qkGonya()}" onchange="qkSetGonya(this.value,${rowId})" style="${inpSt}"></div>
-  <div dir="ltr" style="position:fixed;right:58px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:6px;background:${wadd>0?'#dcfce7':'#fff'};border:1.5px solid ${wadd>0?'#16a34a':'#d1d5db'};border-radius:12px;padding:5px 8px"><button type="button" onclick="qkToggleWAdd(${rowId})" title="افزودن به عرض کارتن (فقط کریز)" style="margin:0;width:auto;min-width:0;padding:2px 8px;font-size:.9rem;font-weight:800;border:none;background:transparent;box-shadow:none;color:${wadd>0?'#166534':'#374151'};cursor:pointer">${wadd>0?'✅':'⬜'} عرض +</button><input type="number" inputmode="decimal" step="0.5" min="0" id="qk-wadd" value="${WA.mm}" onchange="qkSetWAddMm(this.value,${rowId})" style="${inpSt};width:46px"><span style="font-size:.75rem;color:#6b7280">mm</span></div>
+  const inpSt='width:44px;height:24px;margin:0;padding:0 3px;font-size:.8rem;font-weight:700;text-align:center;border:1px solid #d1d5db;border-radius:6px;background:#fff;box-shadow:none';
+  m.insertAdjacentHTML('beforeend',`<div dir="ltr" style="position:fixed;left:10px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:4px" title="گونیا (سانتی‌متر) — فقط کریز و ۴ خط"><span style="font-size:1rem;line-height:1">📐</span><input type="number" inputmode="decimal" step="0.1" id="qk-gonya" value="${qkGonya()}" onchange="qkSetGonya(this.value,${rowId})" style="${inpSt}"></div>
+  <div dir="ltr" style="position:fixed;right:58px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;display:flex;align-items:center;gap:4px" title="افزودن به عرض کارتن (میل) — فقط کریز؛ صفر = بدون افزودن"><b style="font-size:.9rem;color:#6b7280">w</b><input type="number" inputmode="decimal" step="0.5" min="0" id="qk-wadd" value="${WA.mm}" onchange="qkSetWAddMm(this.value,${rowId})" style="${inpSt}"></div>
   <button type="button" onclick="document.getElementById('knife-modal').remove()" style="position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:3;margin:0;width:auto;min-width:0;padding:8px 14px;font-size:1.8rem;line-height:1;border:none;background:transparent;color:#111;box-shadow:none;cursor:pointer">✕</button>`);
   document.body.appendChild(m);
   const _z=(displaySettings&&displaySettings.zoom?displaySettings.zoom:100)/100;
